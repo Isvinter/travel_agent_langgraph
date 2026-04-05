@@ -1,6 +1,7 @@
 from pathlib import Path
 from app.state import ImageData
 
+
 def load_images_from_directory(directory: str) -> list[ImageData]:
     image_data_list = []
     for image_path in Path(directory).glob('*.*'):
