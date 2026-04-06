@@ -118,6 +118,87 @@ def compute_gpx_stats(points: List[TrackPoint]) -> GPXStats:
     )
 
 
+#---------------------------
+# PAUSE DETECTION
+#---------------------------
+def detect_pauses(
+    points: List[TrackPoint],
+    min_pause_minutes: float = 10.0,
+    distance_threshold_m: float = 20.0,
+) -> List[dict]:
+
+    pauses = []
+
+    pause_start_time = None
+    pause_start_point = None
+
+    prev_point = None
+
+    for point in points:
+        if point.time is None:
+            continue
+
+        if prev_point is None:
+            prev_point = point
+            continue
+
+        if prev_point.time is None:
+            prev_point = point
+            continue
+
+        # distance + time
+        distance = gpxpy.geo.distance(
+            prev_point.lat, prev_point.lon, prev_point.elevation,
+            point.lat, point.lon, point.elevation
+        ) or 0
+
+        time_diff = (point.time - prev_point.time).total_seconds()
+
+        if time_diff <= 0:
+            prev_point = point
+            continue
+
+        # 🟢 FALL 1: kaum Bewegung → evtl. Pause
+        if distance < distance_threshold_m:
+            if pause_start_time is None:
+                pause_start_time = prev_point.time
+                pause_start_point = prev_point
+
+        # 🔴 FALL 2: Bewegung → Pause evtl. beenden
+        else:
+            if pause_start_time is not None:
+                duration_sec = (prev_point.time - pause_start_time).total_seconds()
+                duration_min = duration_sec / 60
+
+                if duration_min >= min_pause_minutes:
+                    pauses.append({
+                        "start_time": pause_start_time,
+                        "end_time": prev_point.time,
+                        "duration_minutes": round(duration_min, 2),
+                        "location": {
+                            "lat": pause_start_point.lat,
+                            "lon": pause_start_point.lon,
+                        },
+                    })
+
+                pause_start_time = None
+                pause_start_point = None
+
+        prev_point = point
+
+    return pauses
+
+
+def analyze_track(gpx_track: str) -> tuple[GPXStats, List[dict]]:
+    """
+    Main function to parse a GPX file, compute stats, and detect pauses.
+    """
+    points = parse_gpx(gpx_track)
+    stats = compute_gpx_stats(points)
+    pauses = detect_pauses(points)
+
+    return stats, pauses
+
 # ---------------------------
 # 3. WRAPPER
 # ---------------------------
