@@ -1,5 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel
+from typing import Dict, Any
+from app.services.gpx_analytics import GPXStats
 
 class ImageData(BaseModel):
     path: str
@@ -10,3 +12,10 @@ class ImageData(BaseModel):
 class ImageDataList(BaseModel):
     images: List[ImageData]
 
+class AppState(BaseModel):
+    images: List[ImageData] = []
+    gpx_file: str = ""
+    gpx_stats: Optional[GPXStats] = None
+    gpx_pauses: List[dict] = []
+    elevation_profile_path: Optional[str] = None
+    metadata: Dict[str, Any] = {}

@@ -1,17 +1,18 @@
 from langgraph.graph import StateGraph
 from app.state import AppState
-
-from app.nodes.load_images import load_images_node
-from app.nodes.extract_metadata import metadata_node
+from app.pipeline.process_gpx import process_gpx_node
 
 def build_graph() -> StateGraph[AppState]:
     builder = StateGraph(AppState)
-    builder.add_node("load_images", load_images_node)
-    builder.add_node("metadata", metadata_node)
-
-    builder.add.entry_point("load_images")
-    builder.add.edge("load_images", "metadata")
-
-    builder.set_finish_point("metadata")
-
+    
+    print("DEBUG graph.py: Adding process_gpx node")
+    
+    # Add GPX processing node
+    builder.add_node("process_gpx", process_gpx_node)
+    
+    # Set entry point to GPX processing
+    builder.set_entry_point("process_gpx")
+    builder.set_finish_point("process_gpx")
+    
+    print("DEBUG graph.py: Graph compiled")
     return builder.compile()
