@@ -29,6 +29,25 @@ def main():
         print(f"\nDetected {len(result['gpx_pauses'])} pause(s):")
         for i, pause in enumerate(result["gpx_pauses"], 1):
             print(f"  Pause {i}: {pause.get('duration_minutes')} min")
+    
+    # Display loaded images
+    print("\n" + "="*50)
+    print("IMAGE PROCESSING RESULTS")
+    print("="*50)
+    
+    if result.get("images"):
+        print(f"\nLoaded {len(result['images'])} images:")
+        for i, image in enumerate(result["images"][:5], 1):  # Show first 5
+            print(f"  {i}. {image.path}")
+            if image.timestamp:
+                print(f"     Timestamp: {image.timestamp}")
+            if image.latitude and image.longitude:
+                print(f"     Location: {image.latitude}, {image.longitude}")
+        
+        if len(result["images"]) > 5:
+            print(f"  ... and {len(result['images']) - 5} more images")
+    else:
+        print("No images were loaded.")
 
 if __name__ == "__main__":    
     main()
