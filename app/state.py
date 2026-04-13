@@ -14,6 +14,7 @@ class ImageDataList(BaseModel):
 
 class AppState(BaseModel):
     images: List[ImageData] = []
+    image_clusters: List[Dict[str, Any]] = []
     gpx_file: str = ""
     gpx_stats: Optional[GPXStats] = None
     gpx_pauses: List[dict] = []
