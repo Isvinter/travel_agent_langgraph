@@ -20,3 +20,5 @@ class AppState(BaseModel):
     gpx_pauses: List[dict] = []
     elevation_profile_path: Optional[str] = None
     metadata: Dict[str, Any] = {}
+    blog_post: Optional[Dict[str, Any]] = None
+    

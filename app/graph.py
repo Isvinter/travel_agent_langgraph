@@ -5,6 +5,7 @@ from app.nodes.load_images import load_images_node
 from app.nodes.extract_metadata import metadata_node
 from app.nodes.generate_map import generate_map_image_node
 from app.nodes.clustering_image_node import clustering_image_node
+from app.nodes.generate_blogpost import generate_blog_post_node
 
 def build_graph() -> StateGraph[AppState]:
     builder = StateGraph(AppState)
@@ -17,6 +18,7 @@ def build_graph() -> StateGraph[AppState]:
     builder.add_node("extract_metadata", metadata_node)
     builder.add_node("generate_map_image", generate_map_image_node)
     builder.add_node("clustering_images", clustering_image_node)
+    builder.add_node("generate_blog_post", generate_blog_post_node)
 
     # Set entry point to GPX processing
     builder.set_entry_point("process_gpx")
@@ -26,8 +28,10 @@ def build_graph() -> StateGraph[AppState]:
     builder.add_edge("load_images", "extract_metadata")
     builder.add_edge("extract_metadata", "clustering_images")
     builder.add_edge("clustering_images", "generate_map_image")
+    builder.add_edge("generate_map_image", "generate_blog_post")
+
     
     # Set finish point
-    builder.set_finish_point("generate_map_image")
+    builder.set_finish_point("generate_blog_post")
 
     return builder.compile()

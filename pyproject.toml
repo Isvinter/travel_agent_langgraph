@@ -8,6 +8,7 @@ dependencies = [
     "folium>=0.20.0",
     "gpxpy>=1.6.2",
     "langgraph>=1.1.6",
+    "markdown>=3.10.2",
     "matplotlib>=3.10.8",
     "pillow>=12.2.0",
     "pydantic>=2.12.5",
