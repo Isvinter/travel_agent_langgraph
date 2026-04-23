@@ -3,10 +3,11 @@
 Blogpost Generator Service
 
 Generiert Blogposts basierend auf Bildern, Geodaten und Metadaten
-unter Verwendung von Ollama (Gemma4:26b) multimodalem Modell.
+unter Verwendung von Ollama (wählbar) multimodalem Modell.
 """
 
 import base64
+import io
 import os
 import re
 from typing import List, Dict, Any, Optional
@@ -48,25 +49,94 @@ def encode_image_to_base64(image_path: str, max_size: int = 800) -> Optional[str
         return None
 
 
+def compress_image_to_jpeg(
+    image_path: str,
+    output_path: str,
+    max_size_bytes: int = 1024 * 1024,  # 1 MB
+    max_dim: int = 1200,
+) -> str | None:
+    """Komprimiert ein Bild auf ≤ max_size_bytes, konvertiert nach JPEG.
+
+    Resizet zuerst auf max_dim, reduziert dann JPEG-Qualität.
+    Bei Bedarf wird weiter verkleinert bis das Limit erreicht ist.
+    Gibt den Pfad zur ausgegebenen Datei zurück oder None bei Fehler.
+    """
+    try:
+        from PIL import Image
+
+        if not os.path.exists(image_path):
+            return None
+
+        with Image.open(image_path) as img:
+            img = img.convert("RGB")  # JPEG unterstützt kein Alpha/Kanäle
+
+            # Mandatory: auf max_dim runterskalieren
+            if max(img.size) > max_dim:
+                ratio = max_dim / max(img.size)
+                img = img.resize((int(img.width * ratio), int(img.height * ratio)), Image.LANCZOS)
+
+            w, h = img.size
+
+            # Phase 1: JPEG-Qualität reduzieren
+            quality = 85
+            while quality >= 10:
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=quality, optimize=True)
+                if len(buf.getvalue()) <= max_size_bytes:
+                    with open(output_path, "wb") as f:
+                        f.write(buf.getvalue())
+                    return output_path
+                quality -= 5
+
+            # Phase 2: weitere Grössenreduktion
+            while max(w, h) > 200:
+                w = int(w * 0.75)
+                h = int(h * 0.75)
+                resized = img.resize((w, h), Image.LANCZOS)
+
+                buf = io.BytesIO()
+                resized.save(buf, format="JPEG", quality=75, optimize=True)
+                if len(buf.getvalue()) <= max_size_bytes:
+                    with open(output_path, "wb") as f:
+                        f.write(buf.getvalue())
+                    return output_path
+
+            # Fallback: kleinste mögliche Größe
+            buf = io.BytesIO()
+            img.resize((200, int(h * 200 / w))).save(
+                buf, format="JPEG", quality=10, optimize=True
+            )
+            with open(output_path, "wb") as f:
+                f.write(buf.getvalue())
+            return output_path
+
+    except Exception as e:
+        print(f"⚠️ Error compressing image {image_path}: {e}")
+        return None
+
+
 def construct_blog_post_prompt(
     images: List[Dict[str, Any]],
     map_image_path: Optional[str] = None,
     gpx_stats: Optional[Dict[str, Any]] = None,
-    notes: Optional[str] = None
+    notes: Optional[str] = None,
+    image_path_prefix: str = ""
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
     Konstruiert den Prompt für das multimodale Modell.
-    
+
+    images: muss VORAB ausgewählte Bilder enthalten (max ~8).
+
     Args:
         images: Liste von Bild-Dictionaries mit path, timestamp, lat, lon
         map_image_path: Pfad zur generierten Übersichtskarte
         gpx_stats: GPX-Statistiken (Distanz, Höhe, etc.)
         notes: Optional: Unsortierte Notizen zur Tour
-        
+
     Returns:
         Tuple von (text_prompt, list_of_messages_for_ollama)
     """
-    
+
     # Header für den Prompt
     text_prompt = """
 Du bist ein erfahrener Backpacker und Reiseblogger mit lockerem, authentischem Schreibstil.
@@ -74,7 +144,7 @@ Deine Aufgabe ist es, einen spannenden Blogpost über eine Tour zu verfassen.
 
 HIER SIND DIE DATEN ZUR TOUR:
 """
-    
+
     # GPX-Statistiken hinzufügen
     if gpx_stats:
         text_prompt += f"""
@@ -85,75 +155,80 @@ HIER SIND DIE DATEN ZUR TOUR:
 - Start: {gpx_stats.get('start_time', 'N/A')}
 - Ziel: {gpx_stats.get('end_time', 'N/A')}
 """
-    
+
     # Notizen hinzufügen (später)
     if notes:
         text_prompt += f"""
 📝 NOTIZEN ZUR TOUR:
 {notes}
 """
-    
+
     # Hauptanweisung
     text_prompt += """
 DEINE AUFGABE:
 
-1. **BILDAUSWAHL**: Wähle 5-7 der besten Bilder aus, die den Blogpost visuell unterstützen.
-   
-2. **BESCHREIBUNGEN**: Schreibe für jedes ausgewählte Bild eine kurze, passende Beschreibung 
-   (1-2 Sätze), die den Inhalt beschreibt und emotional zum Text passt. Diese Beschreibungen 
+1. **BESCHREIBUNGEN**: Schreibe für jedes Bild eine kurze, passende Beschreibung
+   (1-2 Sätze), die den Inhalt beschreibt und emotional zum Text passt. Diese Beschreibungen
    werden später als Bildunterschriften mit besonderer Schriftart unter dem Bild angezeigt.
 
-3. **TEXTFLUSS**: Integriere die Bilder organisch in den Text. Referenziere sie natürlich 
+2. **TEXTFLUSS**: Integriere die Bilder organisch in den Text. Referenziere sie natürlich
    (z.B. "Wie man auf dem nächsten Bild sieht...", "Hier ein Blick auf...", "Das hier zeigt...").
-   
-4. **STIL**: Locker, persönlich, backpacker-tauglich. Nutze "wir" statt "ich", wenn möglich.
+
+3. **STIL**: Locker, persönlich, backpacker-tauglich. Nutze "wir" statt "ich", wenn möglich.
    Mach den Leser neugierig und emotional abholen.
 
-5. **STRUKTUR**: 
+4. **STRUKTUR**:
    - Einleitung (Hintergrund, Warum diese Tour?)
    - Hauptteil (die Tour selbst, Highlights, Challenges)
    - Bilder organisch eingebaut mit Referenzen
    - Fazit/Ergebnis
 
-6. **FORMAT**: Gib NUR den Markdown-Text des Blogposts zurück. Keine Einleitung, keine "MARKDOWN FORMAT" Überschriften, kein abschließender Kommentar.
+5. **FORMAT**: Gib NUR den Markdown-Text des Blogposts zurück. Keine Einleitung, keine "MARKDOWN FORMAT" Überschriften, kein abschließender Kommentar.
 
    Nutze für Bilder folgendes Format im Text:
    ![Beschreibung](pfad/zum/bild)
 
-HIER SIND DIE VERFÜGBAREN BILDER:
+   **WICHTIG:** Verwende IMMER den exakten Dateipfad aus der Liste unten als Pfad — nicht "Bild 1" oder andere Platzhalter.
+   Beispiel: ![Wiese](./images/01_IMG_5527.jpg)  NICHT  ![Wiese](Bild 1)
+
+DIE FÜR DICH AUSGEWÄHLTEN BILDER (nutze den ./images/… Pfad für Bild-Links):
 """
-    
+
     # Bilder-Informationen hinzufügen
     available_images = []
     for idx, img in enumerate(images, 1):
+        rel_path = f"{image_path_prefix}{os.path.basename(img.get('path', ''))}"
+        original = img.get("original_path", img.get("path", ""))
         img_info = {
             "id": idx,
-            "path": img.get("path", ""),
+            "path": rel_path,
+            "original_path": original,
             "timestamp": img.get("timestamp", "Unbekannt"),
             "location": f"{img.get('latitude', 0):.6f}, {img.get('longitude', 0):.6f}" if img.get("latitude") else "Keine Geodaten"
         }
         available_images.append(img_info)
-        text_prompt += f"\nBild {idx}: {img_info['location']} ({img_info['timestamp']})"
-    
+        text_prompt += f"\nBild {idx}: {img_info['location']} ({img_info['timestamp']}) — {rel_path}"
+
     text_prompt += """
-  
+
 BEGINNE JETZT MIT DEM BLOGPOST!
 """
-    
+
     # Messages für Ollama konstruieren (multimodal)
     messages = []
-    
+
     # Text-Prompt als erster Message
     messages.append({
         "role": "user",
         "content": text_prompt
     })
-    
+
     # Bilder hinzufügen (als separate messages oder im content array)
     # Ollama Qwen2.5 unterstützt multimodal inputs
     image_messages = []
     for img in available_images:
-        base64_image = encode_image_to_base64(img["path"])
+        path_for_encode = img.get("original_path", img["path"])
+        base64_image = encode_image_to_base64(path_for_encode)
         if base64_image:
             image_messages.append({
                 "image": base64_image,
@@ -162,7 +237,7 @@ BEGINNE JETZT MIT DEM BLOGPOST!
                 "timestamp": img["timestamp"],
                 "location": img["location"]
             })
-    
+
     # Map Image hinzufügen falls vorhanden
     if map_image_path and os.path.exists(map_image_path):
         map_base64 = encode_image_to_base64(map_image_path)
@@ -173,14 +248,14 @@ BEGINNE JETZT MIT DEM BLOGPOST!
                 "path": map_image_path,
                 "type": "overview_map"
             })
-    
+
     return text_prompt, image_messages
 
 
 def call_ollama_multimodal(
     prompt: str,
     images: List[Dict[str, Any]],
-    model: str = "gemma4:26b",
+    model: str = "gemma4:26b-ctx128k",
     base_url: str = "http://localhost:11434"
 ) -> Optional[str]:
     """
@@ -189,7 +264,7 @@ def call_ollama_multimodal(
     Args:
         prompt: Text-Prompt
         images: Liste von Bildern mit Base64-Encoding
-        model: Modell-Name (z.B. gemma4:26b)
+        model: Modell-Name (z.B. gemma4:26b-ctx128k)
         base_url: Ollama API URL
         
     Returns:
@@ -231,7 +306,7 @@ def call_ollama_multimodal(
             return result.get("message", {}).get("content", "")
         else:
             print(f"❌ Ollama API Error: {response.status_code}")
-            print(f"Response: {response.text}")
+            print(f"Response: {response.text[:500]}")
             return None
             
     except requests.exceptions.ConnectionError:
@@ -247,35 +322,59 @@ def generate_blog_post(
     map_image_path: Optional[str] = None,
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
-    model: str = "gemma4:26b"
+    model: str = "gemma4:26b-ctx128k"
 ) -> Dict[str, Any]:
     """
-    Hauptfunktion: Generiert einen kompletten Blogpost und speichert ihn als .md und .html Datei.
-    
-    Args:
-        images: Liste von Bild-Informationen
-        map_image_path: Pfad zur Übersichtskarte
-        gpx_stats: GPX-Statistiken
-        notes: Optionale Notizen
-        model: Ollama Modell
-        
-    Returns:
-        Dictionary mit markdown, html, selected_images, descriptions, file_paths
+    Generiert einen kompletten Blogpost und speichert ihn als .md und .html Datei.
+
+    images: muss VORAB ausgewählte Bilder enthalten (max ~8).
+    Jedes Bild wird auf ≤1 MB komprimiert und als JPEG im Artikel-Unterverzeichnis abgelegt.
+    Der Markdown verwendet relative Pfade zur ./images/ Verzeichnis.
     """
-    
+    # ---- Per-Artikel-Unterverzeichnis ----
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    article_dir = os.path.join(project_root, "output", timestamp)
+    images_dir = os.path.join(article_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+    image_path_prefix = f"./images/"
+
+    # ---- Bilder komprimieren + Mapping erstellen ----
+    path_mapping: dict[str, str] = {}  # original_path -> relative_path
+    for idx, img in enumerate(images, 1):
+        orig = img.get("path", "")
+        if not orig or orig in path_mapping:
+            continue
+        basename = os.path.splitext(os.path.basename(orig))[0]
+        out_name = f"{idx:02d}_{basename}.jpg"
+        out_path = os.path.join(images_dir, out_name)
+        if compress_image_to_jpeg(orig, out_path):
+            path_mapping[orig] = f"./images/{out_name}"
+
+    # ---- Prompt mit relativen Bildpfaden für den LLM bauen ----
+    # Zuerst path_mapping auf images anwenden, damit der LLM korrekte Pfade sieht
+    images_for_prompt = []
+    for img in images:
+        orig = img.get("path", "")
+        if orig in path_mapping:
+            images_for_prompt.append({**img, "path": path_mapping[orig], "original_path": orig})
+        else:
+            images_for_prompt.append(img)
+
     print("🤖 Constructing blog post prompt...")
     prompt, image_data = construct_blog_post_prompt(
-        images=images,
+        images=images_for_prompt,
         map_image_path=map_image_path,
         gpx_stats=gpx_stats,
-        notes=notes
+        notes=notes,
+        image_path_prefix=image_path_prefix,
     )
-    
+
     print(f"📸 Including {len(image_data)} images in prompt")
-    
+
     print("📡 Sending to Ollama...")
     result = call_ollama_multimodal(prompt, image_data, model=model)
-    
+
     if not result:
         print("❌ Failed to generate blog post")
         return {
@@ -285,25 +384,61 @@ def generate_blog_post(
             "html": "",
             "selected_images": [],
             "descriptions": {},
-            "file_paths": {}
+            "file_paths": {},
         }
-    
+
     print("✅ Blog post generated successfully!")
-    
-    # Datum-Uhrzeit für Dateinamen generieren
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    # Dateipfade relativ zum Projekt-Root
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    output_dir = os.path.join(project_root, "output")
-    md_file_path = os.path.join(output_dir, f"{timestamp}_blogpost.md")
-    html_file_path = os.path.join(output_dir, f"{timestamp}_blogpost.html")
+    # ---- Post-processing: Bildpfade im Output normalisieren ----
+    # Reverse-Mapping: alle Pfade die das LLM evtl. nutzt -> relativer Pfad
+    reverse_map: dict[str, str] = {}
+    for orig, rel in path_mapping.items():
+        reverse_map[rel] = rel
+        bn = os.path.basename(orig)
+        reverse_map[orig] = rel
+        reverse_map[bn] = rel
 
-    os.makedirs(output_dir, exist_ok=True)
+    # Build forward lookup: index -> relative path for fallback resolution
+    index_to_rel: dict[int, str] = {}
+    for orig, rel in path_mapping.items():
+        bn = os.path.basename(orig)
+        m_idx = re.match(r'(\d+)_', bn)
+        if m_idx:
+            index_to_rel[int(m_idx.group(1))] = rel
 
-    # Markdown-Datei speichern
+    def resolve_path(path: str) -> str:
+        if path in reverse_map:
+            return reverse_map[path]
+        # Handle "Bild_N.jpg" pattern the LLM sometimes generates
+        m_bild = re.search(r'Bild_(\d+)\.jpg', path, re.IGNORECASE)
+        if m_bild:
+            idx = int(m_bild.group(1))
+            if idx in index_to_rel:
+                return index_to_rel[idx]
+            return path  # index out of range, leave as-is
+        if re.search(r'\.(jpg|jpeg|png)', path, re.IGNORECASE):
+            return path
+        # Platzhalter wie "Bild 1" versuchen zu mappen
+        m = re.search(r'(\d+)', path)
+        if m:
+            for candidate in [f"Bild {int(m.group(1)) - 1}",
+                              f"Bild_{path.strip()}", path]:
+                if candidate in reverse_map:
+                    return reverse_map[candidate]
+        return path
+
+    md_images = re.findall(r'!\[([^\]]+)\]\(([^)]+)\)', result)
+    for desc, path in md_images:
+        resolved = resolve_path(path)
+        if resolved != path:
+            result = result.replace(f"![{desc}]({path})", f"![{desc}]({resolved})")
+
+    # ---- In Artikel-Verzeichnis speichern ----
+    md_file_path = os.path.join(article_dir, f"{timestamp}_blogpost.md")
+    html_file_path = os.path.join(article_dir, f"{timestamp}_blogpost.html")
+
     try:
-        with open(md_file_path, 'w', encoding='utf-8') as f:
+        with open(md_file_path, "w", encoding="utf-8") as f:
             f.write(result)
         print(f"💾 Markdown saved to: {md_file_path}")
     except Exception as e:
@@ -315,30 +450,21 @@ def generate_blog_post(
             "html": "",
             "selected_images": [],
             "descriptions": {},
-            "file_paths": {}
+            "file_paths": {},
         }
 
-    # HTML aus dem Markdown generieren und speichern
     try:
         import markdown
-        html_return = markdown.markdown(result, extensions=['fenced_code', 'tables', 'sane_lists'])
-        with open(html_file_path, 'w', encoding='utf-8') as f:
+        html_return = markdown.markdown(result, extensions=["fenced_code", "tables", "sane_lists"])
+        with open(html_file_path, "w", encoding="utf-8") as f:
             f.write(html_return)
         print(f"💾 HTML saved to: {html_file_path}")
     except Exception as e:
         print(f"❌ Error saving HTML file: {e}")
-        html_return = result  # Fallback
+        html_return = result
 
-    # Ausgewählte Bilder und Beschreibungen aus dem Markdown extrahieren
-    selected_images = []
-    descriptions = {}
-    # Passt ![Beschreibung](path/to/img.jpg)
-    image_refs = re.findall(r'!\[([^\]]+)\]\(([^)]+)\)', result)
-    for desc, path in image_refs:
-        # Nur echte Bildpfade (Endung .jpg/.jpeg/.png), keine Platzhalter
-        if re.search(r'\.(jpg|jpeg|png)', path, re.IGNORECASE):
-            selected_images.append(path)
-            descriptions[path] = desc
+    selected_images = [resolve_path(p) for _, p in md_images if re.search(r'\.(jpg|jpeg|png)', p, re.IGNORECASE)]
+    descriptions = {d: resolve_path(p) for d, p in md_images if re.search(r'\.(jpg|jpeg|png)', p, re.IGNORECASE)}
 
     print(f"📸 Extracted {len(selected_images)} selected images for blog post")
 
@@ -350,8 +476,8 @@ def generate_blog_post(
         "descriptions": descriptions,
         "file_paths": {
             "markdown": md_file_path,
-            "html": html_file_path
-        }
+            "html": html_file_path,
+        },
     }
 
 
@@ -433,7 +559,7 @@ Format: Markdown mit klaren Abschnitten.
 """
     
     # Nur Text, keine Bilder an Modell senden (für POC einfacher)
-    result = call_ollama_multimodal(poc_prompt, [], model="gemma4:26b")
+    result = call_ollama_multimodal(poc_prompt, [], model="gemma4:26b-ctx128k")
     
     if result:
         return {

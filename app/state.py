@@ -12,8 +12,15 @@ class ImageData(BaseModel):
 class ImageDataList(BaseModel):
     images: List[ImageData]
 
+AVAILABLE_MODELS = [
+    "gemma4:26b-ctx128k",
+    "gemma4:31b-ctx128k",
+    "qwen3.6:35b-ctx128k",
+]
+
 class AppState(BaseModel):
     images: List[ImageData] = []
+    selected_images: List[ImageData] = []
     image_clusters: List[Dict[str, Any]] = []
     gpx_file: str = ""
     gpx_stats: Optional[GPXStats] = None
@@ -21,4 +28,6 @@ class AppState(BaseModel):
     elevation_profile_path: Optional[str] = None
     metadata: Dict[str, Any] = {}
     blog_post: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    model: str = "gemma4:26b-ctx128k"
     

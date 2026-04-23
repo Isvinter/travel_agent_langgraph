@@ -16,32 +16,31 @@ def generate_blog_post_node(state: AppState) -> AppState:
     """
     print("📝 Starting blog post generation...")
     
-    # Validierung
-    if not state.images:
+    # Validierung: nutze selected_images wenn vorhanden, sonst alle
+    images = state.selected_images if state.selected_images else state.images
+    if not images:
         print("⚠️ No images available for blog generation.")
         state.blog_post = {"success": False, "error": "No images"}
         return state
-    
+
     if not state.gpx_stats:
         print("⚠️ No GPX stats available for blog generation.")
         state.blog_post = {"success": False, "error": "No GPX stats"}
         return state
-    
-    # Map-Bildpfad aus Metadata holen
+
     map_image_path = state.metadata.get("map_image_path")
-    
-    print(f"📸 Using {len(state.images)} images for blog generation")
-    print(f"🗺️ Map image: {map_image_path}")
-    
+    print(f"📸 Using {len(images)} images for blog generation")
+
     try:
-        # Blogpost generieren
         result = generate_blog_post(
-            images=[img.model_dump() for img in state.images],  # Pydantic to dict
+            images=[img.model_dump() for img in images],
             map_image_path=map_image_path,
-            gpx_stats=state.gpx_stats.model_dump() if hasattr(state.gpx_stats, 'model_dump') else state.gpx_stats
+            gpx_stats=state.gpx_stats.model_dump() if hasattr(state.gpx_stats, "model_dump") else state.gpx_stats,
+            notes=state.notes,
+            model=state.model,
         )
-        
-        # Ergebnis im State speichern
+
+        state.metadata["selected_images"] = result.get("selected_images", [])
         state.blog_post = result
         
         if result.get("success"):
