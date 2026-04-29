@@ -143,93 +143,91 @@ def construct_blog_post_prompt(
 
     # Header für den Prompt
     text_prompt = """
-Du bist ein erfahrener Backpacker und Reiseblogger mit lockerem, authentischem Schreibstil.
-Deine Aufgabe ist es, einen spannenden Blogpost über eine Tour zu verfassen.
+    Du bist ein abenteuerlustiger, erfahrener Backpacker und ein gefeierter Reiseblogger. Dein Schreibstil ist fesselnd, humorvoll, authentisch und voller Leidenschaft. Deine Leser lieben dich für deine langen, lebhaften und immersiven Erzählungen, bei denen sie das Gefühl haben, direkt neben dir zu wandern.
 
-HIER SIND DIE DATEN ZUR TOUR:
-"""
+    Deine Aufgabe ist es, einen ausführlichen, spannenden und mitreißenden Long-Form-Blogpost über unsere neueste Tour zu verfassen. Schreibe nicht nur einen Bericht, sondern erzähle eine echte Geschichte!
 
-    # GPX-Statistiken hinzufügen
+    HIER SIND DIE DATEN ZUR TOUR:
+    """
+
+        # GPX-Statistiken hinzufügen
     if gpx_stats:
         text_prompt += f"""
-📊 TOUR-STATISTIKEN:
-- Distanz: {gpx_stats.get('total_distance', 0):.2f} km
-- Gesamtzeit: {gpx_stats.get('total_time', 'N/A')}
-- Höhentour: {gpx_stats.get('total_elevation_gain', 0):.0f} m auf, {gpx_stats.get('total_elevation_loss', 0):.0f} m ab
-- Start: {gpx_stats.get('start_time', 'N/A')}
-- Ziel: {gpx_stats.get('end_time', 'N/A')}
-"""
+    📊 TOUR-STATISTIKEN:
+    - Distanz: {gpx_stats.get('total_distance', 0):.2f} km
+    - Gesamtzeit: {gpx_stats.get('total_time', 'N/A')}
+    - Höhenmeter: {gpx_stats.get('total_elevation_gain', 0):.0f} m auf, {gpx_stats.get('total_elevation_loss', 0):.0f} m ab
+    - Start: {gpx_stats.get('start_time', 'N/A')}
+    - Ziel: {gpx_stats.get('end_time', 'N/A')}
+    """
 
-    # Notizen hinzufügen (später)
-    if notes:
-        text_prompt += f"""
-📝 NOTIZEN ZUR TOUR:
-{notes}
-"""
+        # Notizen hinzufügen (später)
+        if notes:
+                text_prompt += f"""
+        📝 NOTIZEN ZUR TOUR (Baue diese organisch als echte Erlebnisse in die Story ein):
+        {notes}
+        """
 
-    # Karte und Höhengraph referenzieren
-    if elevation_profile_path:
-        text_prompt += f"\nHIER IST DAS HÖHENPROFIL dieser Tour: (Hochladen im nächsten Schritt)\n"
-    if map_image_path:
-        text_prompt += f"\nHIER IST DIE ÜBERSICHTSKARTE der Route: (Hochladen im nächsten Schritt)\n"
+        # Karte und Höhengraph referenzieren
+        if elevation_profile_path:
+            text_prompt += f"\nHIER IST DAS HÖHENPROFIL dieser Tour: (Hochladen im nächsten Schritt)\n"
+        if map_image_path:
+            text_prompt += f"\nHIER IST DIE ÜBERSICHTSKARTE der Route: (Hochladen im nächsten Schritt)\n"
 
-    # Hauptanweisung
-    text_prompt += """
-DEINE AUFGABE:
+        # Hauptanweisung
+            text_prompt += """
+    DEINE AUFGABE:
 
-1. **KARTE + HÖHENPROFIL**: Du erhältst zusätzlich zur Übersichtskarte und zum Höhengraphen als Bilder.
-   Integriere sie in den Blogpost:
-   - Übersichtskarte am Anfang: ![Karte der Route](./images/00_map.png)
-   - Höhengraph: ![Höhenprofil](./images/00_elevation_profile.png)
+    1. **UMFANG & TIEFE (SEHR WICHTIG)**: Schreibe einen ausführlichen Artikel (mindestens 800-1000 Wörter). Nimm dir Zeit für Details. Beschreibe die Atmosphäre, das Wetter, die körperliche Anstrengung (brennende Waden bei Höhenmetern!), die Geräusche der Natur und das Gefühl der Belohnung am Ziel. "Show, don't tell!"
 
-2. **BESCHREIBUNGEN**: Schreibe für jedes Bild eine kurze, passende Beschreibung
-   (1-2 Sätze), die den Inhalt beschreibt und emotional zum Text passt. Diese Beschreibungen
-   werden später als Bildunterschriften mit besonderer Schriftart unter dem Bild angezeigt.
+    2. **KARTE + HÖHENPROFIL**: 
+    - Übersichtskarte am Anfang: ![Karte der Route](./images/00_map.png)
+    - Höhengraph am Ende: ![Höhenprofil](./images/00_elevation_profile.png)
 
-3. **TEXTFLUSS**: Integriere die Bilder organisch in den Text. Referenziere sie natürlich
-   (z.B. "Wie man auf dem nächsten Bild sieht...", "Hier ein Blick auf...", "Das hier zeigt...").
+    3. **BILDER & TEXTFLUSS**: Integriere die Bilder organisch als Meilensteine in die Geschichte. 
+    - Schreibe für jedes Bild eine atmosphärische Bildunterschrift (1-2 Sätze), die emotional zum Text passt.
+    - Leite im Fließtext elegant auf die Bilder über (z.B. "Als wir um die Ecke bogen, bot sich uns dieser Anblick...", "Der Schweiß hat sich gelohnt, seht euch das an:").
 
-4. **STIL**: Locker, persönlich, backpacker-tauglich. Nutze "wir" statt "ich", wenn möglich.
-   Mach den Leser neugierig und emotional abholen.
+    4. **STIL & PERSPEKTIVE**: Locker, persönlich, kumpelhaft. Nutze konsequent "wir" statt "ich". Streue etwas Humor ein (z.B. über schwere Rucksäcke oder falsche Abzweigungen). Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze, um den Lesefluss dynamisch zu halten.
 
-5. **STRUKTUR**:
-   - Einleitung (Hintergrund, Warum diese Tour?)
-   - Karte einbetten
-   - Hauptteil (die Tour selbst, Highlights, Challenges)
-   - Bilder organisch eingebaut mit Referenzen
-   - Fazit/Ergebnis
-   - Höhenprofil einbetten
+    5. **STRUKTUR EINER HELDENREISE**:
+    - **Hook & Einleitung**: Ein packender Einstieg. Warum diese Tour? Die Vorfreude am frühen Morgen.
+    - **Die Übersicht**: Karte einbetten.
+    - **Der Aufbruch & erste Eindrücke**: Wie war der Start? Leichtes Einlaufen oder direkt steil bergauf?
+    - **Die Challenge**: Die Höhenmeter, die Erschöpfung, Hindernisse, spannende Passagen.
+    - **Das Highlight / Der Gipfel / Das Ziel**: Der emotionale Höhepunkt, die Aussicht, die Pause.
+    - **Der Abstieg & Fazit**: Die Rückkehr, wie fühlen sich Beine und Kopf an? Ein finales Resümee für die Leser.
+    - **Hard Facts**: Höhenprofil einbetten.
 
-6. **FORMAT**: Gib NUR den Markdown-Text des Blogposts zurück. Keine Einleitung, keine "MARKDOWN FORMAT" Überschriften, kein abschließender Kommentar.
+    6. **FORMATIERUNG (STRIKT)**: 
+    - Gib NUR den Markdown-Text des Blogposts zurück. 
+    - Keine Einleitung deinerseits, keine Metatexte, keine Kommentare.
+    - Nutze für Bilder EXAKT folgendes Format: ![Deine Beschreibung](pfad/zum/bild)
+    - **WICHTIG:** Verwende IMMER den exakten Dateipfad aus der Liste unten. Niemals Platzhalter erfinden!
+    Beispiel: ![Morgennebel über der Wiese](./images/01_IMG_5527.jpg)
 
-   Nutze für Bilder folgendes Format im Text:
-   ![Beschreibung](pfad/zum/bild)
+    DIE FÜR DICH AUSGEWÄHLTEN BILDER (nutze den ./images/… Pfad für Bild-Links):
+    """
 
-   **WICHTIG:** Verwende IMMER den exakten Dateipfad aus der Liste unten als Pfad — nicht "Bild 1" oder andere Platzhalter.
-   Beispiel: ![Wiese](./images/01_IMG_5527.jpg)  NICHT  ![Wiese](Bild 1)
+        # Bilder-Informationen hinzufügen
+        available_images = []
+        for idx, img in enumerate(images, 1):
+            rel_path = f"{image_path_prefix}{os.path.basename(img.get('path', ''))}"
+            original = img.get("original_path", img.get("path", ""))
+            img_info = {
+                "id": idx,
+                "path": rel_path,
+                "original_path": original,
+                "timestamp": img.get("timestamp", "Unbekannt"),
+                "location": f"{img.get('latitude', 0):.6f}, {img.get('longitude', 0):.6f}" if img.get("latitude") else "Keine Geodaten"
+            }
+            available_images.append(img_info)
+            text_prompt += f"\nBild {idx}: {img_info['location']} ({img_info['timestamp']}) — {rel_path}"
 
-DIE FÜR DICH AUSGEWÄHLTEN BILDER (nutze den ./images/… Pfad für Bild-Links):
-"""
+        text_prompt += """
 
-    # Bilder-Informationen hinzufügen
-    available_images = []
-    for idx, img in enumerate(images, 1):
-        rel_path = f"{image_path_prefix}{os.path.basename(img.get('path', ''))}"
-        original = img.get("original_path", img.get("path", ""))
-        img_info = {
-            "id": idx,
-            "path": rel_path,
-            "original_path": original,
-            "timestamp": img.get("timestamp", "Unbekannt"),
-            "location": f"{img.get('latitude', 0):.6f}, {img.get('longitude', 0):.6f}" if img.get("latitude") else "Keine Geodaten"
-        }
-        available_images.append(img_info)
-        text_prompt += f"\nBild {idx}: {img_info['location']} ({img_info['timestamp']}) — {rel_path}"
-
-    text_prompt += """
-
-BEGINNE JETZT MIT DEM BLOGPOST!
-"""
+    Lass die Tastatur glühen und nimm uns mit auf dieses Abenteuer! BEGINNE JETZT MIT DEM BLOGPOST:
+    """
 
     # Messages für Ollama konstruieren (multimodal)
     messages = []
