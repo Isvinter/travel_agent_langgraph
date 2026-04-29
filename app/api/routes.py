@@ -1,11 +1,10 @@
 """FastAPI route definitions for the travel agent pipeline API."""
+import asyncio
 import os
-import shutil
 import uuid
 from pathlib import Path
-from typing import Optional
 
-from fastapi import APIRouter, Cookie, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -18,9 +17,19 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 UPLOADS_DIR = PROJECT_ROOT / "data" / "uploads"
 
 
+def _safe_join(base_dir: Path, *parts: str) -> Path:
+    """Join path parts and validate the result stays within base_dir."""
+    resolved = (base_dir / Path(*parts)).resolve()
+    if not str(resolved).startswith(str(base_dir.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid path: traverses outside upload directory")
+    return resolved
+
+
 def _get_session_dir(session_id: str) -> Path:
     """Return and create the upload directory for a session."""
-    d = UPLOADS_DIR / session_id
+    if not session_id or ".." in session_id or "/" in session_id:
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+    d = _safe_join(UPLOADS_DIR, session_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -47,7 +56,7 @@ async def upload_file(
         raise HTTPException(status_code=400, detail="No filename provided")
 
     session_dir = _get_session_dir(session_id)
-    file_path = session_dir / file.filename
+    file_path = _safe_join(session_dir, file.filename)
     with open(file_path, "wb") as f:
         content = await file.read()
         f.write(content)
@@ -63,7 +72,7 @@ async def delete_file(
     """Remove a previously uploaded file from the session directory."""
     if not session_id:
         raise HTTPException(status_code=400, detail="No session_id cookie")
-    file_path = _get_session_dir(session_id) / filename
+    file_path = _safe_join(_get_session_dir(session_id), filename)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     file_path.unlink()
@@ -86,28 +95,26 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
     if not body.gpx_file:
         raise HTTPException(status_code=422, detail="gpx_file is required")
 
-    valid_models = AVAILABLE_MODELS + [body.model]  # accept custom model name
-    # (model validation is lenient — Ollama will return an error if unknown)
-
     run_id = str(uuid.uuid4())
     event_manager.create_run(run_id)
 
     # Resolve paths relative to session upload dir if not absolute
     session_dir = _get_session_dir(session_id) if session_id else PROJECT_ROOT
 
-    gpx_path = body.gpx_file
-    if not os.path.isabs(gpx_path):
-        gpx_path = str(session_dir / gpx_path)
+    # Validate and resolve GPX file path
+    if os.path.isabs(body.gpx_file):
+        gpx_path = str(_safe_join(Path("/"), body.gpx_file.lstrip("/")))
+    else:
+        gpx_path = str(_safe_join(session_dir, body.gpx_file))
 
     image_paths = []
     for img in body.image_files:
         if os.path.isabs(img):
-            image_paths.append(img)
+            image_paths.append(str(_safe_join(Path("/"), img.lstrip("/"))))
         else:
-            image_paths.append(str(session_dir / img))
+            image_paths.append(str(_safe_join(session_dir, img)))
 
     # Defer pipeline execution to background task
-    import asyncio
     asyncio.create_task(
         _run_pipeline_in_background(
             run_id=run_id,
