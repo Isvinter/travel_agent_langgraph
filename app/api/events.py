@@ -1,7 +1,6 @@
 """SSE event emitter for pipeline progress tracking."""
 import asyncio
 import json
-import uuid
 from typing import Optional
 
 
