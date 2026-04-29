@@ -10,6 +10,7 @@ import base64
 import io
 import os
 import re
+import shutil
 from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
@@ -118,6 +119,7 @@ def compress_image_to_jpeg(
 def construct_blog_post_prompt(
     images: List[Dict[str, Any]],
     map_image_path: Optional[str] = None,
+    elevation_profile_path: Optional[str] = None,
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
     image_path_prefix: str = ""
@@ -129,7 +131,8 @@ def construct_blog_post_prompt(
 
     Args:
         images: Liste von Bild-Dictionaries mit path, timestamp, lat, lon
-        map_image_path: Pfad zur generierten Übersichtskarte
+        map_image_path: relativer Pfad zur generierten Übersichtskarte
+        elevation_profile_path: relativer Pfad zum Höhengraphen
         gpx_stats: GPX-Statistiken (Distanz, Höhe, etc.)
         notes: Optional: Unsortierte Notizen zur Tour
 
@@ -163,27 +166,40 @@ HIER SIND DIE DATEN ZUR TOUR:
 {notes}
 """
 
+    # Karte und Höhengraph referenzieren
+    if elevation_profile_path:
+        text_prompt += f"\nHIER IST DAS HÖHENPROFIL dieser Tour: (Hochladen im nächsten Schritt)\n"
+    if map_image_path:
+        text_prompt += f"\nHIER IST DIE ÜBERSICHTSKARTE der Route: (Hochladen im nächsten Schritt)\n"
+
     # Hauptanweisung
     text_prompt += """
 DEINE AUFGABE:
 
-1. **BESCHREIBUNGEN**: Schreibe für jedes Bild eine kurze, passende Beschreibung
+1. **KARTE + HÖHENPROFIL**: Du erhältst zusätzlich zur Übersichtskarte und zum Höhengraphen als Bilder.
+   Integriere sie in den Blogpost:
+   - Übersichtskarte am Anfang: ![Karte der Route](./images/00_map.png)
+   - Höhengraph: ![Höhenprofil](./images/00_elevation_profile.png)
+
+2. **BESCHREIBUNGEN**: Schreibe für jedes Bild eine kurze, passende Beschreibung
    (1-2 Sätze), die den Inhalt beschreibt und emotional zum Text passt. Diese Beschreibungen
    werden später als Bildunterschriften mit besonderer Schriftart unter dem Bild angezeigt.
 
-2. **TEXTFLUSS**: Integriere die Bilder organisch in den Text. Referenziere sie natürlich
+3. **TEXTFLUSS**: Integriere die Bilder organisch in den Text. Referenziere sie natürlich
    (z.B. "Wie man auf dem nächsten Bild sieht...", "Hier ein Blick auf...", "Das hier zeigt...").
 
-3. **STIL**: Locker, persönlich, backpacker-tauglich. Nutze "wir" statt "ich", wenn möglich.
+4. **STIL**: Locker, persönlich, backpacker-tauglich. Nutze "wir" statt "ich", wenn möglich.
    Mach den Leser neugierig und emotional abholen.
 
-4. **STRUKTUR**:
+5. **STRUKTUR**:
    - Einleitung (Hintergrund, Warum diese Tour?)
+   - Karte einbetten
    - Hauptteil (die Tour selbst, Highlights, Challenges)
    - Bilder organisch eingebaut mit Referenzen
    - Fazit/Ergebnis
+   - Höhenprofil einbetten
 
-5. **FORMAT**: Gib NUR den Markdown-Text des Blogposts zurück. Keine Einleitung, keine "MARKDOWN FORMAT" Überschriften, kein abschließender Kommentar.
+6. **FORMAT**: Gib NUR den Markdown-Text des Blogposts zurück. Keine Einleitung, keine "MARKDOWN FORMAT" Überschriften, kein abschließender Kommentar.
 
    Nutze für Bilder folgendes Format im Text:
    ![Beschreibung](pfad/zum/bild)
@@ -239,15 +255,29 @@ BEGINNE JETZT MIT DEM BLOGPOST!
             })
 
     # Map Image hinzufügen falls vorhanden
+    map_b64 = None
     if map_image_path and os.path.exists(map_image_path):
-        map_base64 = encode_image_to_base64(map_image_path)
-        if map_base64:
+        map_b64 = encode_image_to_base64(map_image_path)
+        if map_b64:
             image_messages.insert(0, {  # Map zuerst
-                "image": map_base64,
+                "image": map_b64,
                 "id": "map",
                 "path": map_image_path,
                 "type": "overview_map"
             })
+
+    # Elevationsprofil hinzufügen falls vorhanden
+    elevation_b64 = None
+    if elevation_profile_path and os.path.exists(elevation_profile_path):
+        elevation_b64 = encode_image_to_base64(elevation_profile_path, max_size=800)
+        if elevation_b64:
+            image_messages.insert(1, {  # nach Map
+                "image": elevation_b64,
+                "id": "elevation",
+                "path": elevation_profile_path,
+                "type": "elevation_profile"
+            })
+            text_prompt += f"\n\nHIER IST DAS HÖHENPROFIL der Tour (als Bild):"
 
     return text_prompt, image_messages
 
@@ -320,6 +350,7 @@ def call_ollama_multimodal(
 def generate_blog_post(
     images: List[Dict[str, Any]],
     map_image_path: Optional[str] = None,
+    elevation_profile_path: Optional[str] = None,
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k"
@@ -338,6 +369,17 @@ def generate_blog_post(
     images_dir = os.path.join(article_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
     image_path_prefix = f"./images/"
+
+    # ---- GPX-Bilder (Karte, Höhengraph) in Output kopieren ----
+    final_elevation_path = None
+    final_map_path = None
+    if elevation_profile_path and os.path.exists(elevation_profile_path):
+        shutil.copy2(elevation_profile_path, os.path.join(images_dir, "00_elevation_profile.png"))
+        final_elevation_path = "./images/00_elevation_profile.png"
+
+    if map_image_path and os.path.exists(map_image_path):
+        shutil.copy2(map_image_path, os.path.join(images_dir, "00_map.png"))
+        final_map_path = "./images/00_map.png"
 
     # ---- Bilder komprimieren + Mapping erstellen ----
     path_mapping: dict[str, str] = {}  # original_path -> relative_path
@@ -362,13 +404,17 @@ def generate_blog_post(
             images_for_prompt.append(img)
 
     print("🤖 Constructing blog post prompt...")
+    # Absolute Pfade für map/elevation (construct_blog_post_prompt prüft os.path.exists)
+    abs_map = final_map_path or (map_image_path if map_image_path and os.path.exists(map_image_path) else None)
     prompt, image_data = construct_blog_post_prompt(
         images=images_for_prompt,
-        map_image_path=map_image_path,
+        map_image_path=abs_map,
+        elevation_profile_path=elevation_profile_path,
         gpx_stats=gpx_stats,
         notes=notes,
         image_path_prefix=image_path_prefix,
     )
+    print(f"🗺️  Map: {final_map_path or 'N/A'}, Elevation: {final_elevation_path or 'N/A'}")
 
     print(f"📸 Including {len(image_data)} images in prompt")
 

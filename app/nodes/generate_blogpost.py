@@ -35,6 +35,7 @@ def generate_blog_post_node(state: AppState) -> AppState:
         result = generate_blog_post(
             images=[img.model_dump() for img in images],
             map_image_path=map_image_path,
+            elevation_profile_path=state.elevation_profile_path,
             gpx_stats=state.gpx_stats.model_dump() if hasattr(state.gpx_stats, "model_dump") else state.gpx_stats,
             notes=state.notes,
             model=state.model,
