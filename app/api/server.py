@@ -43,3 +43,9 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+def main():
+    """Entry point for `travel-agent-api` console script."""
+    import uvicorn
+    uvicorn.run("app.api.server:app", host="0.0.0.0", port=8000, reload=False)

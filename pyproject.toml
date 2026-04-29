@@ -19,6 +19,9 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
 ]
 
+[project.scripts]
+travel-agent-api = "app.api.server:main"
+
 [dependency-groups]
 dev = [
     "piexif>=1.0",
