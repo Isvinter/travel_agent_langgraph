@@ -38,13 +38,19 @@ def process_gpx_node(state: AppState) -> AppState:
         }
         
         print("DEBUG: Returning with metadata")
-        return {
-            **state.model_dump(),
-            "gpx_stats": stats,
-            "gpx_pauses": pauses,
-            "elevation_profile_path": elevation_path,
-            "metadata": metadata
-        }
+        return AppState(
+            images=state.images,
+            selected_images=state.selected_images,
+            image_clusters=state.image_clusters,
+            gpx_file=state.gpx_file,
+            gpx_stats=stats,
+            gpx_pauses=pauses,
+            elevation_profile_path=elevation_path,
+            metadata=metadata,
+            blog_post=state.blog_post,
+            notes=state.notes,
+            model=state.model,
+        )
     
     except Exception as e:
         print(f"DEBUG: Error processing GPX: {e}")
