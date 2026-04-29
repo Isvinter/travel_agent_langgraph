@@ -50,15 +50,23 @@ class PipelineEventManager:
         if queue is None:
             yield {"event": "error", "data": json.dumps({"message": f"Run {run_id} not found"})}
             return
-        while True:
-            event = await queue.get()
-            if event["stage"] == "__done__":
-                yield {"event": "done", "data": json.dumps(event)}
-                break
-            elif event["status"] == "error":
-                yield {"event": "error", "data": json.dumps(event)}
-            else:
-                yield {"event": "progress", "data": json.dumps(event)}
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=300)
+                except asyncio.TimeoutError:
+                    yield {"event": "error", "data": json.dumps({"message": "Pipeline timed out after 5 minutes"})}
+                    break
+                if event["stage"] == "__done__":
+                    yield {"event": "done", "data": json.dumps(event)}
+                    break
+                elif event["status"] == "error":
+                    yield {"event": "error", "data": json.dumps(event)}
+                else:
+                    yield {"event": "progress", "data": json.dumps(event)}
+        finally:
+            self._runs.pop(run_id, None)
+            self._results.pop(run_id, None)
 
 
 # Singleton instance
