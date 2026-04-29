@@ -63,12 +63,13 @@ def compress_image_to_jpeg(
     Gibt den Pfad zur ausgegebenen Datei zurück oder None bei Fehler.
     """
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
 
         if not os.path.exists(image_path):
             return None
 
         with Image.open(image_path) as img:
+            img = ImageOps.exif_transpose(img)
             img = img.convert("RGB")  # JPEG unterstützt kein Alpha/Kanäle
 
             # Mandatory: auf max_dim runterskalieren
