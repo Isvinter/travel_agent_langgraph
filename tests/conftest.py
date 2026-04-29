@@ -1,6 +1,5 @@
 """Shared pytest fixtures for the travel agent test suite."""
 
-import os
 from pathlib import Path
 from typing import List
 
@@ -11,7 +10,6 @@ from app.services.gpx_analytics import GPXStats, analyze_track
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 GPX_PATH = str(FIXTURES_DIR / "gpx" / "tour.gpx")
-IMAGES_DIR = str(FIXTURES_DIR / "images")
 NOTES_DIR = str(FIXTURES_DIR / "notes")
 
 
@@ -74,8 +72,3 @@ def sample_state(sample_gpx_path, sample_images) -> AppState:
 def notes_dir_path() -> str:
     return str(NOTES_DIR)
 
-
-def pytest_configure(config):
-    config.addinivalue_line("markers", "unit: Fast tests with no external dependencies")
-    config.addinivalue_line("markers", "integration: Tests using real filesystem and fixtures, mocked network/browser")
-    config.addinivalue_line("markers", "e2e: Full pipeline tests requiring Ollama and Chrome")

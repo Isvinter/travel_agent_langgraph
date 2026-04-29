@@ -58,9 +58,12 @@ def _select_from_batch(
 ) -> List[Dict[str, Any]]:
     encoded = []
     for img in batch:
-        b64 = _encode_image(img["path"])
-        if b64:
-            encoded.append(b64)
+        try:
+            b64 = _encode_image(img["path"])
+            if b64:
+                encoded.append(b64)
+        except Exception:
+            continue
 
     if len(encoded) <= target_count:
         return batch  # alle passen rein
@@ -90,9 +93,12 @@ def _reduce_to_target(
 ) -> List[Dict[str, Any]]:
     encoded = []
     for img in candidates:
-        b64 = _encode_image(img["path"])
-        if b64:
-            encoded.append(b64)
+        try:
+            b64 = _encode_image(img["path"])
+            if b64:
+                encoded.append(b64)
+        except Exception:
+            continue
 
     if len(encoded) <= target_count:
         return candidates[:target_count]
@@ -176,6 +182,6 @@ def _call_ollama(
 
 
 def _parse_selection(text: str, max_index: int) -> List[int]:
-    cleaned = text.strip().replace("\n", " ").replace(" ", "")
-    parts = [p for p in cleaned.split(",") if p.isdigit()]
-    return sorted({int(p) for p in parts if int(p) <= max_index})
+    import re
+    numbers = re.findall(r'\d+', text)
+    return sorted({int(n) for n in numbers if int(n) <= max_index})
