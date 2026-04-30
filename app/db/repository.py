@@ -6,7 +6,6 @@ from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from app.db.connection import get_session
 from app.db.models import Article, ArticleImage
 
 
