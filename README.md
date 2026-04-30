@@ -15,13 +15,15 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated, lo
 - **AI image selection** — multimodal LLM selects the best photos for the blog (batched, iterative)
 - **AI blog generation** — multimodal LLM writes a narrative travel blog post enriched with weather, POIs, images, map, and elevation profile
 - **Outputs** — Markdown + HTML files with compressed JPEG images in a timestamped `output/` directory
+- **Database persistence** — SQLAlchemy-powered storage for generated articles with filterable queries (tour date, duration, generation time). Image paths stored, not BLOBs. Defaults to SQLite, PostgreSQL-ready via `DATABASE_URL` env var
+- **Article browser** — Svelte 5 frontend tab for browsing and filtering persisted articles, with inline HTML rendering and delete support
 - **Web UI** — Svelte 5 frontend with drag-and-drop file uploads and live SSE progress streaming
-- **REST API** — FastAPI backend with `/api/pipeline/run`, `/api/pipeline/stream/{id}`, file upload endpoints
+- **REST API** — FastAPI backend with `/api/pipeline/run`, `/api/pipeline/stream/{id}`, article CRUD, file upload endpoints
 
 ## Architecture
 
 ```
-process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post
+process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post → persist_article
 ```
 
 All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` that delegate to pure functions in `app/services/`.
@@ -30,12 +32,13 @@ All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic 
 |-------|--------|---------|
 | State | `app/state.py` | `AppState` (images, clusters, GPX stats, weather, POIs, enrichment context, notes, blog_post) + `ImageData`, `DailyWeather`, `WeatherInfo` |
 | Graph | `app/graph.py` | LangGraph `StateGraph` definition — nodes, edges, entry/finish points |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 11 nodes total |
-| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, image selection |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 12 nodes total |
+| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, image selection, article persistence |
+| Database | `app/db/` | SQLAlchemy ORM models (`Article`, `ArticleImage`), repository pattern, connection management, auto-indexes. Default SQLite, PostgreSQL-ready |
 | Pipeline | `app/pipeline/process_images.py` | Higher-level image processing orchestration |
 | API | `app/api/` | FastAPI server, routes, SSE event manager |
 | Utils | `app/utils/` | Low-level EXIF helpers |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (9 components)
 
 ## Tech Stack
 
@@ -51,6 +54,7 @@ All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic 
 | POI data | [Overpass API](https://overpass-api.de/) + [Wikipedia REST API](https://www.mediawiki.org/wiki/API) (free, no key) |
 | Image processing | [Pillow](https://python-pillow.org/) |
 | GPX parsing | [gpxpy](https://pypi.org/project/gpxpy/) |
+| Database | [SQLAlchemy 2.0](https://www.sqlalchemy.org/) with [Alembic](https://alembic.sqlalchemy.org/) migrations |
 | SSE streaming | [sse-starlette](https://pypi.org/project/sse-starlette/) |
 | Markdown → HTML | [Python-Markdown](https://python-markdown.github.io/) |
 | Package management | [uv](https://docs.astral.sh/uv/) |
@@ -130,13 +134,27 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 .
 ├── app/
 │   ├── api/            # FastAPI server, routes, SSE events
-│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers, 11 nodes)
-│   ├── services/       # Business logic (14 services: GPX, images, clustering, maps, weather, POIs, review, blog, etc.)
+│   ├── db/             # SQLAlchemy models, connection, repository
+│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers, 12 nodes)
+│   ├── services/       # Business logic (15 services: GPX, images, clustering, maps, weather, POIs, review, blog, persistence, etc.)
 │   ├── pipeline/       # Higher-level image processing orchestration
 │   ├── utils/          # EXIF helpers
 │   ├── graph.py        # StateGraph builder + build_graph() + run_pipeline()
 │   └── state.py        # AppState, ImageData, DailyWeather, WeatherInfo Pydantic models
-├── frontend/           # Svelte 5 + Vite + TypeScript SPA (7 components)
+├── frontend/           # Svelte 5 + Vite + TypeScript SPA (9 components)
+│   ├── src/
+│   │   ├── App.svelte
+│   │   └── lib/
+│   │       ├── stores/     # pipeline.ts, router.ts
+│   │       ├── ArticleList.svelte
+│   │       ├── ArticleDetail.svelte
+│   │       ├── FileDropZone.svelte
+│   │       ├── ModelSelector.svelte
+│   │       ├── NotesInput.svelte
+│   │       ├── OutputDirInput.svelte
+│   │       ├── OutputWindow.svelte
+│   │       └── RunButton.svelte
+│   └── dist/           # Production build (served by FastAPI)
 ├── tests/              # pytest suite (unit, integration, e2e)
 │   ├── test_api/       # API-specific tests
 │   ├── test_graph/     # Graph/integration tests
@@ -173,6 +191,19 @@ Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nod
 | `POST` | `/api/pipeline/run` | Start a pipeline run → returns `run_id` |
 | `GET` | `/api/pipeline/stream/{run_id}` | SSE stream of pipeline progress events |
 | `GET` | `/api/pipeline/result/{run_id}` | Retrieve completed pipeline result |
+| `GET` | `/api/articles` | List persisted articles with filters (tour date, duration, generation time) and pagination |
+| `GET` | `/api/articles/{id}` | Get full article detail with markdown, HTML, and image references |
+| `DELETE` | `/api/articles/{id}` | Delete an article — removes DB record and output files |
+
+## Database Configuration
+
+The persistence layer uses SQLAlchemy with a swappable backend. Configuration via environment variable:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite:///travel_agent.db` | Connection string (set to `postgresql://...` for PostgreSQL) |
+
+Default is SQLite — a single `travel_agent.db` file created in the project root on first use. Tables and indexes are auto-created. Images are referenced by file path (no BLOBs).
 
 ## Available Models
 
