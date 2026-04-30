@@ -9,8 +9,11 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated, lo
 - **Location clustering** — groups geotagged photos taken at the same spot (density-based, 20 m radius)
 - **Map generation** — renders an interactive Folium map and captures it as a PNG via headless Chrome
 - **Elevation profile** — Matplotlib chart of elevation vs. distance
+- **Historical weather** — fetches past weather data via Open-Meteo Archive API (no API key required), estimates 0°C freezing level from elevation data
+- **POI discovery** — queries Overpass API for viewpoints, alpine huts, peaks, ruins, castles near pause locations (no API key required), enriches with Wikipedia extracts
+- **AI content review** — LLM quality gate that curates enrichment data: filters irrelevant POIs, discards non-applicable weather fields, rates image suitability, scores overall coherence
 - **AI image selection** — multimodal LLM selects the best photos for the blog (batched, iterative)
-- **AI blog generation** — multimodal LLM writes a narrative travel blog post with embedded images, map, and elevation profile
+- **AI blog generation** — multimodal LLM writes a narrative travel blog post enriched with weather, POIs, images, map, and elevation profile
 - **Outputs** — Markdown + HTML files with compressed JPEG images in a timestamped `output/` directory
 - **Web UI** — Svelte 5 frontend with drag-and-drop file uploads and live SSE progress streaming
 - **REST API** — FastAPI backend with `/api/pipeline/run`, `/api/pipeline/stream/{id}`, file upload endpoints
@@ -18,17 +21,18 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated, lo
 ## Architecture
 
 ```
-process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → select_images → generate_blog_post
+process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post
 ```
 
 All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` that delegate to pure functions in `app/services/`.
 
 | Layer | Module | Purpose |
 |-------|--------|---------|
-| State | `app/state.py` | `AppState` (images, clusters, GPX stats, notes, blog_post) + `ImageData` |
+| State | `app/state.py` | `AppState` (images, clusters, GPX stats, weather, POIs, enrichment context, notes, blog_post) + `ImageData`, `DailyWeather`, `WeatherInfo` |
 | Graph | `app/graph.py` | LangGraph `StateGraph` definition — nodes, edges, entry/finish points |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) |
-| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, blog generation, image selection |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 11 nodes total |
+| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, image selection |
+| Pipeline | `app/pipeline/process_images.py` | Higher-level image processing orchestration |
 | API | `app/api/` | FastAPI server, routes, SSE event manager |
 | Utils | `app/utils/` | Low-level EXIF helpers |
 | Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA |
@@ -43,6 +47,8 @@ All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic 
 | Frontend | [Svelte 5](https://svelte.dev/), [Vite 6](https://vitejs.dev/), TypeScript |
 | Map rendering | [Folium](https://python-visualization.github.io/folium/), Selenium (headless Chrome) |
 | Charts | [Matplotlib](https://matplotlib.org/) |
+| Weather data | [Open-Meteo Archive API](https://open-meteo.com/) (free, no key) |
+| POI data | [Overpass API](https://overpass-api.de/) + [Wikipedia REST API](https://www.mediawiki.org/wiki/API) (free, no key) |
 | Image processing | [Pillow](https://python-pillow.org/) |
 | GPX parsing | [gpxpy](https://pypi.org/project/gpxpy/) |
 | SSE streaming | [sse-starlette](https://pypi.org/project/sse-starlette/) |
@@ -105,10 +111,18 @@ Open `http://localhost:5173`. Upload a GPX file, photos, optionally add notes, s
 
 ```bash
 cd frontend && npm run build
-uv run uvicorn app.api.server:app --host 0.0.0.0 --port 8000
+travel-agent-api --host 0.0.0.0 --port 8000
+# or: uv run uvicorn app.api.server:app --host 0.0.0.0 --port 8000
 ```
 
 FastAPI serves both the API and the built Svelte static files from `frontend/dist/`.
+
+## CLI
+
+```bash
+travel-agent-api --host 0.0.0.0 --port 8000
+```
+Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app.api.server:app`. Options: `--host`, `--port`. Omit `--host` for localhost-only binding.
 
 ## Project Structure
 
@@ -116,19 +130,26 @@ FastAPI serves both the API and the built Svelte static files from `frontend/dis
 .
 ├── app/
 │   ├── api/            # FastAPI server, routes, SSE events
-│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers)
-│   ├── services/       # Business logic (no side effects except file I/O)
+│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers, 11 nodes)
+│   ├── services/       # Business logic (14 services: GPX, images, clustering, maps, weather, POIs, review, blog, etc.)
+│   ├── pipeline/       # Higher-level image processing orchestration
 │   ├── utils/          # EXIF helpers
-│   ├── graph.py        # StateGraph builder + run_pipeline()
-│   └── state.py        # AppState Pydantic model
-├── frontend/           # Svelte 5 + Vite + TypeScript SPA
+│   ├── graph.py        # StateGraph builder + build_graph() + run_pipeline()
+│   └── state.py        # AppState, ImageData, DailyWeather, WeatherInfo Pydantic models
+├── frontend/           # Svelte 5 + Vite + TypeScript SPA (7 components)
 ├── tests/              # pytest suite (unit, integration, e2e)
+│   ├── test_api/       # API-specific tests
+│   ├── test_graph/     # Graph/integration tests
+│   ├── test_nodes/     # Per-node unit tests
+│   ├── test_services/  # Per-service unit tests
+│   └── fixtures/       # Test data (GPX, images, notes)
+├── docs/               # Design specs and implementation plans
 ├── data/               # Runtime input data (gitignored)
 │   ├── gpx/
 │   ├── images/
 │   ├── notes/
 │   └── uploads/
-├── output/             # Generated blog posts (gitignored)
+├── output/             # Generated blog posts (gitignored, timestamped subdirs)
 ├── main.py             # CLI entry point (reference only — hardcoded GPX path)
 ├── pyproject.toml      # Dependencies and project config
 └── uv.lock             # Lock file
@@ -140,7 +161,7 @@ FastAPI serves both the API and the built Svelte static files from `frontend/dis
 uv run pytest tests/ -v
 ```
 
-Test markers: `unit` (fast, no external deps), `integration` (real filesystem), `e2e` (requires Ollama + Chrome).
+Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 
