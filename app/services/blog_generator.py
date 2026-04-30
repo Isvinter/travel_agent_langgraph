@@ -123,7 +123,10 @@ def construct_blog_post_prompt(
     elevation_profile_path: Optional[str] = None,
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
-    image_path_prefix: str = ""
+    image_path_prefix: str = "",
+    enrichment_context: Optional[Dict[str, Any]] = None,
+    weather: Any = None,
+    poi_list: Optional[List[Dict[str, Any]]] = None,
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
     Konstruiert den Prompt für das multimodale Modell.
@@ -150,7 +153,9 @@ def construct_blog_post_prompt(
     HIER SIND DIE DATEN ZUR TOUR:
     """
 
-        # GPX-Statistiken hinzufügen
+    available_images = []
+
+    # GPX-Statistiken hinzufügen
     if gpx_stats:
         text_prompt += f"""
     📊 TOUR-STATISTIKEN:
@@ -210,7 +215,6 @@ def construct_blog_post_prompt(
     """
 
         # Bilder-Informationen hinzufügen
-        available_images = []
         for idx, img in enumerate(images, 1):
             rel_path = f"{image_path_prefix}{os.path.basename(img.get('path', ''))}"
             original = img.get("original_path", img.get("path", ""))
@@ -228,6 +232,53 @@ def construct_blog_post_prompt(
 
     Lass die Tastatur glühen und nimm uns mit auf dieses Abenteuer! BEGINNE JETZT MIT DEM BLOGPOST:
     """
+
+    # --- Wetter- und POI-Anreicherung ---
+    if enrichment_context:
+        weather_summary = enrichment_context.get("weather_summary", "")
+        kept_pois = enrichment_context.get("kept_pois", [])
+        discarded_fields = enrichment_context.get("discarded_weather_fields", [])
+
+        if weather_summary:
+            text_prompt += f"""
+
+☀️  WETTER WÄHREND DER TOUR:
+{weather_summary}
+"""
+            if discarded_fields:
+                text_prompt += f"(Nicht relevante Wetterdaten wurden ausgefiltert: {', '.join(discarded_fields)})\n"
+
+        if kept_pois:
+            text_prompt += f"""
+📍  INTERESSANTE ORTE ENTLANG DER ROUTE:
+"""
+            for poi in kept_pois:
+                name = poi.get("name", "Unbekannt")
+                ptype = poi.get("type", "POI")
+                dist = poi.get("distance_km", "?")
+                wiki = poi.get("wiki_extract", "")
+                text_prompt += f"- {name} ({ptype}, {dist} km entfernt)"
+                if wiki:
+                    text_prompt += f": {wiki[:300]}"
+                text_prompt += "\n"
+    elif weather or poi_list:
+        # Fallback: Rohdaten, wenn kein Review-Kontext
+        if hasattr(weather, 'summary') and weather.summary:
+            text_prompt += f"""
+
+☀️  WETTER WÄHREND DER TOUR:
+{weather.summary}
+"""
+        if poi_list:
+            text_prompt += """
+📍  INTERESSANTE ORTE ENTLANG DER ROUTE:
+"""
+            for poi in poi_list:
+                name = poi.get("name", "Unbekannt")
+                ptype = poi.get("type", "POI")
+                dist = poi.get("distance_km", "?")
+                text_prompt += f"- {name} ({ptype}, {dist} km entfernt)\n"
+    # --- Ende Wetter- und POI-Anreicherung ---
 
     # Messages für Ollama konstruieren (multimodal)
     messages = []
@@ -352,7 +403,10 @@ def generate_blog_post(
     elevation_profile_path: Optional[str] = None,
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
-    model: str = "gemma4:26b-ctx128k"
+    model: str = "gemma4:26b-ctx128k",
+    enrichment_context: Optional[Dict[str, Any]] = None,
+    weather: Any = None,
+    poi_list: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Generiert einen kompletten Blogpost und speichert ihn als .md und .html Datei.
@@ -412,6 +466,9 @@ def generate_blog_post(
         gpx_stats=gpx_stats,
         notes=notes,
         image_path_prefix=image_path_prefix,
+        enrichment_context=enrichment_context,
+        weather=weather,
+        poi_list=poi_list,
     )
     print(f"🗺️  Map: {final_map_path or 'N/A'}, Elevation: {final_elevation_path or 'N/A'}")
 

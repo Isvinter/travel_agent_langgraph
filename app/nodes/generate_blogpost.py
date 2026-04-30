@@ -39,6 +39,9 @@ def generate_blog_post_node(state: AppState) -> AppState:
             gpx_stats=state.gpx_stats.model_dump() if hasattr(state.gpx_stats, "model_dump") else state.gpx_stats,
             notes=state.notes,
             model=state.model,
+            enrichment_context=state.enrichment_context,
+            weather=state.weather,
+            poi_list=state.poi_list,
         )
 
         state.metadata["selected_images"] = result.get("selected_images", [])
