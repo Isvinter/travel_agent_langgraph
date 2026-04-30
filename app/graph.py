@@ -9,6 +9,9 @@ from app.nodes.clustering_image_node import clustering_image_node
 from app.nodes.load_tour_notes_node import load_tour_notes_node
 from app.nodes.select_images_node import select_images_node
 from app.nodes.generate_blogpost import generate_blog_post_node
+from app.nodes.enrich_weather_node import enrich_weather_node
+from app.nodes.enrich_poi_node import enrich_poi_node
+from app.nodes.review_content_node import review_content_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
 EventEmitter = Callable[[str, str, str], None]
@@ -22,6 +25,9 @@ NODE_NAMES = {
     "load_tour_notes": "Notizen laden",
     "select_images": "Bilder auswählen",
     "generate_blog_post": "Blogpost generieren",
+    "enrich_weather": "Wetterdaten abrufen",
+    "enrich_poi": "POIs suchen",
+    "review_content": "Inhalte prüfen",
 }
 
 
@@ -85,6 +91,11 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     sin = _wrap_node(select_images_node, "select_images", event_emitter) if event_emitter else select_images_node
     gbp = _wrap_node(generate_blog_post_node, "generate_blog_post", event_emitter) if event_emitter else generate_blog_post_node
 
+    # Enrichment nodes
+    ewn = _wrap_node(enrich_weather_node, "enrich_weather", event_emitter) if event_emitter else enrich_weather_node
+    epn = _wrap_node(enrich_poi_node, "enrich_poi", event_emitter) if event_emitter else enrich_poi_node
+    rcn = _wrap_node(review_content_node, "review_content", event_emitter) if event_emitter else review_content_node
+
     builder.add_node("process_gpx", pgn)
     builder.add_node("load_images", lin)
     builder.add_node("extract_metadata", emn)
@@ -93,6 +104,9 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("load_tour_notes", ltn)
     builder.add_node("select_images", sin)
     builder.add_node("generate_blog_post", gbp)
+    builder.add_node("enrich_weather", ewn)
+    builder.add_node("enrich_poi", epn)
+    builder.add_node("review_content", rcn)
 
     builder.set_entry_point("process_gpx")
 
@@ -101,8 +115,11 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("extract_metadata", "clustering_images")
     builder.add_edge("clustering_images", "generate_map_image")
     builder.add_edge("generate_map_image", "load_tour_notes")
-    builder.add_edge("load_tour_notes", "select_images")
-    builder.add_edge("select_images", "generate_blog_post")
+    builder.add_edge("load_tour_notes", "enrich_weather")
+    builder.add_edge("enrich_weather", "enrich_poi")
+    builder.add_edge("enrich_poi", "select_images")
+    builder.add_edge("select_images", "review_content")
+    builder.add_edge("review_content", "generate_blog_post")
 
     builder.set_finish_point("generate_blog_post")
 
