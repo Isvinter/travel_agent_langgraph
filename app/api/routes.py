@@ -2,7 +2,9 @@
 import asyncio
 import os
 import uuid
+from datetime import date, datetime
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -10,6 +12,47 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.api.events import event_manager
 from app.state import AVAILABLE_MODELS
+from app.db.connection import get_session
+from app.db.repository import ArticleRepository, ArticleFilters
+from app.db.models import Article, ArticleImage
+import shutil
+
+
+def _article_to_summary(a: Article) -> dict:
+    return {
+        "id": a.id,
+        "title": a.title,
+        "tour_date": a.tour_date.isoformat() if a.tour_date else None,
+        "tour_duration_hours": a.tour_duration_hours,
+        "tour_duration_source": a.tour_duration_source,
+        "generation_timestamp": a.generation_timestamp.isoformat() if a.generation_timestamp else None,
+        "total_distance_km": a.total_distance_km,
+        "elevation_gain_m": a.elevation_gain_m,
+        "elevation_loss_m": a.elevation_loss_m,
+        "image_count": a.image_count,
+        "model_used": a.model_used,
+        "notes": a.notes,
+    }
+
+
+def _article_to_detail(a: Article) -> dict:
+    return {
+        **_article_to_summary(a),
+        "markdown_content": a.markdown_content,
+        "html_content": a.html_content,
+        "markdown_path": a.markdown_path,
+        "html_path": a.html_path,
+        "gpx_file": a.gpx_file,
+        "images": [
+            {
+                "image_path": img.image_path,
+                "is_map": img.is_map,
+                "is_elevation_profile": img.is_elevation_profile,
+            }
+            for img in a.images
+        ],
+    }
+
 
 router = APIRouter(prefix="/api")
 
@@ -190,6 +233,85 @@ async def _run_pipeline_in_background(
             "error": str(e),
         })
         event_manager.complete_run(run_id, "failed", "")
+
+
+# ── Articles ──────────────────────────────────────────
+
+@router.get("/articles")
+async def get_articles(
+    tour_date_from: Optional[str] = None,
+    tour_date_to: Optional[str] = None,
+    duration_min: Optional[float] = None,
+    duration_max: Optional[float] = None,
+    generated_from: Optional[str] = None,
+    generated_to: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Liste aller persistierten Artikel mit optionalen Filtern."""
+    filters = ArticleFilters(limit=limit, offset=offset)
+
+    if tour_date_from:
+        filters.tour_date_from = date.fromisoformat(tour_date_from)
+    if tour_date_to:
+        filters.tour_date_to = date.fromisoformat(tour_date_to)
+    if duration_min is not None:
+        filters.duration_min = duration_min
+    if duration_max is not None:
+        filters.duration_max = duration_max
+    if generated_from:
+        filters.generated_from = datetime.fromisoformat(generated_from)
+    if generated_to:
+        filters.generated_to = datetime.fromisoformat(generated_to)
+
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        articles, total = repo.list(filters)
+        return {
+            "articles": [_article_to_summary(a) for a in articles],
+            "total": total,
+        }
+    finally:
+        session.close()
+
+
+@router.get("/articles/{article_id}")
+async def get_article(article_id: int):
+    """Einzelnen Artikel mit vollständigem Inhalt abrufen."""
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        article = repo.get_by_id(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        return {"article": _article_to_detail(article)}
+    finally:
+        session.close()
+
+
+@router.delete("/articles/{article_id}")
+async def delete_article(article_id: int):
+    """Artikel und zugehörige Dateien löschen."""
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        article = repo.get_by_id(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        output_dir = os.path.dirname(article.markdown_path) if article.markdown_path else None
+        repo.delete(article_id)
+
+        if output_dir and os.path.exists(output_dir):
+            try:
+                shutil.rmtree(output_dir)
+            except OSError as e:
+                print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+
+        return {"deleted": article_id}
+    finally:
+        session.close()
 
 
 # ── SSE Streaming ──────────────────────────────────────
