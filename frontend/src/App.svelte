@@ -1,40 +1,70 @@
 <svelte:options runes />
 
 <script lang="ts">
+  import { route, navigateTo } from "./lib/stores/router";
   import ModelSelector from "./lib/ModelSelector.svelte";
   import FileDropZone from "./lib/FileDropZone.svelte";
   import OutputDirInput from "./lib/OutputDirInput.svelte";
   import NotesInput from "./lib/NotesInput.svelte";
   import RunButton from "./lib/RunButton.svelte";
   import OutputWindow from "./lib/OutputWindow.svelte";
+  import ArticleList from "./lib/ArticleList.svelte";
+  import ArticleDetail from "./lib/ArticleDetail.svelte";
 
   let modelSelector: ModelSelector;
   let fileDropZone: FileDropZone;
   let outputDirInput: OutputDirInput;
   let notesInput: NotesInput;
+
+  let rt = $derived($route);
 </script>
 
 <div class="layout">
   <aside class="sidebar">
     <h1 class="title">Travel Agent</h1>
 
-    <ModelSelector bind:this={modelSelector} />
-    <FileDropZone bind:this={fileDropZone} />
-    <OutputDirInput bind:this={outputDirInput} />
-    <NotesInput bind:this={notesInput} />
+    <nav class="nav-tabs">
+      <button
+        class="nav-tab"
+        class:active={rt.page === "pipeline"}
+        onclick={() => navigateTo({ page: "pipeline" })}
+      >
+        Pipeline
+      </button>
+      <button
+        class="nav-tab"
+        class:active={rt.page === "articles" || rt.page === "article"}
+        onclick={() => navigateTo({ page: "articles" })}
+      >
+        Artikel
+      </button>
+    </nav>
 
-    <div class="run-section">
-      <RunButton
-        getModel={() => modelSelector.getModel()}
-        getFiles={() => fileDropZone.getFiles()}
-        getOutputDir={() => outputDirInput.getOutputDir()}
-        getNotes={() => notesInput.getNotes()}
-      />
-    </div>
+    {#if rt.page === "pipeline"}
+      <ModelSelector bind:this={modelSelector} />
+      <FileDropZone bind:this={fileDropZone} />
+      <OutputDirInput bind:this={outputDirInput} />
+      <NotesInput bind:this={notesInput} />
+
+      <div class="run-section">
+        <RunButton
+          getModel={() => modelSelector.getModel()}
+          getFiles={() => fileDropZone.getFiles()}
+          getOutputDir={() => outputDirInput.getOutputDir()}
+          getNotes={() => notesInput.getNotes()}
+        />
+      </div>
+    {/if}
   </aside>
 
   <main class="main">
-    <OutputWindow />
+    {#if rt.page === "pipeline"}
+      <OutputWindow />
+    {:else if rt.page === "articles"}
+      <ArticleList />
+    {:else if rt.page === "article"}
+      <ArticleDetail id={rt.id} />
+    {/if}
   </main>
 </div>
 
@@ -61,6 +91,25 @@
     color: var(--accent);
     letter-spacing: 0.05em;
     text-transform: uppercase;
+  }
+  .nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  .nav-tab.active {
+    background: var(--accent);
+    color: white;
+  }
+  .nav-tab:hover:not(.active) {
+    background: var(--surface-alt);
+    color: var(--text);
   }
   .run-section {
     margin-top: auto;
