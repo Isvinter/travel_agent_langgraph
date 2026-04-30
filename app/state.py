@@ -12,6 +12,23 @@ class ImageData(BaseModel):
 class ImageDataList(BaseModel):
     images: List[ImageData]
 
+class DailyWeather(BaseModel):
+    date: str
+    temperature_max: float
+    temperature_min: float
+    precipitation_mm: float         # Niederschlagsmenge
+    precipitation_hours: float      # Stunden mit Niederschlag (Intensitätsindikator)
+    freezing_level_m: Optional[float] = None  # 0°C-Grenze (Höhe ü. NN)
+    weather_code: int               # Open-Meteo WMO code
+    wind_speed_kmh: float
+    cloud_cover_pct: float
+
+
+class WeatherInfo(BaseModel):
+    daily: List[DailyWeather]
+    source: str = "open-meteo"
+    summary: str = ""
+
 AVAILABLE_MODELS = [
     "gemma4:26b-ctx128k",
     "gemma4:31b-ctx128k",
@@ -29,5 +46,8 @@ class AppState(BaseModel):
     metadata: Dict[str, Any] = {}
     blog_post: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
+    weather: Optional[WeatherInfo] = None
+    poi_list: List[Dict[str, Any]] = []
+    enrichment_context: Dict[str, Any] = {}
     model: str = "gemma4:26b-ctx128k"
     
