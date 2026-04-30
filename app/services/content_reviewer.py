@@ -46,6 +46,26 @@ def _build_review_prompt(
     else:
         weather_text = "Keine Wetterdaten verfügbar."
 
+    # GPX-Stats
+    gpx_text = ""
+    if gpx_stats_d:
+        parts = []
+        if gpx_stats_d.get("total_distance_m"):
+            parts.append(f"Distanz: {gpx_stats_d['total_distance_m']/1000:.1f} km")
+        if gpx_stats_d.get("elevation_gain_m"):
+            parts.append(f"Höhenmeter: {gpx_stats_d['elevation_gain_m']:.0f} m auf")
+        points = gpx_stats_d.get("points", [])
+        if points:
+            elevations = [p.get("elevation", 0) or 0 for p in points if p.get("elevation")]
+            if elevations:
+                max_elev = max(elevations)
+                parts.append(f"Maximale Höhe: {max_elev:.0f} m")
+        gpx_text = "\n".join(parts)
+    if not gpx_text:
+        gpx_text = "Keine GPX-Daten verfügbar."
+
+    notes_text = notes if notes else "Keine Notizen verfügbar."
+
     # POI-Sektion
     if poi_list:
         poi_lines = []
@@ -77,6 +97,12 @@ Your job is to filter and curate for a compelling narrative.
 WETTERDATEN:
 {weather_text}
 
+TOUR-STATISTIKEN:
+{gpx_text}
+
+NOTIZEN ZUR TOUR:
+{notes_text}
+
 POINTS OF INTEREST ({len(poi_list)} gefunden):
 {poi_text}
 
@@ -88,6 +114,8 @@ AUFGABEN:
    Einträge (urbane Infrastruktur, banale Orte, Duplikate nach Name/Nähe).
    Behalte maximal 8 POIs. Gib einen kurzen Grund für jedes DISCARD an.
 2. Wetter-Kontext: Schreibe eine 2-3 sätzige Wetter-Zusammenfassung für die Blog-Einleitung.
+   Verwende die maximale Höhe aus den Tour-Statistiken, um zu beurteilen, ob die
+   0°C-Grenze relevant ist.
    WICHTIG — manche Wetterfelder sind kontextabhängig und MÜSSEN verworfen werden, wenn
    sie nicht relevant sind:
    - Niederschlagsdaten (Menge + Stunden): verwerfen, wenn die Tour kaum oder keinen
@@ -132,7 +160,7 @@ def _parse_review_response(response: Optional[str]) -> Dict[str, Any]:
         try:
             data = json.loads(json_match.group(0))
             result = {
-                "kept_pois": data.get("pois", []),
+                "kept_pois": [p for p in data.get("pois", []) if p.get("action") == "KEEP"],
                 "weather_summary": data.get("weather_summary", ""),
                 "discarded_weather_fields": data.get("discarded_weather_fields", []),
                 "image_ratings": data.get("image_ratings", {}),
