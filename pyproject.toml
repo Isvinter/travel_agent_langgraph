@@ -17,6 +17,8 @@ dependencies = [
     "selenium>=4.41.0",
     "sse-starlette>=2.2.0",
     "uvicorn[standard]>=0.34.0",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
 ]
 
 [project.scripts]
