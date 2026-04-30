@@ -12,6 +12,7 @@ from app.nodes.generate_blogpost import generate_blog_post_node
 from app.nodes.enrich_weather_node import enrich_weather_node
 from app.nodes.enrich_poi_node import enrich_poi_node
 from app.nodes.review_content_node import review_content_node
+from app.nodes.persist_article import persist_article_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
 EventEmitter = Callable[[str, str, str], None]
@@ -28,6 +29,7 @@ NODE_NAMES = {
     "enrich_weather": "Wetterdaten abrufen",
     "enrich_poi": "POIs suchen",
     "review_content": "Inhalte prüfen",
+    "persist_article": "Artikel speichern",
 }
 
 
@@ -95,6 +97,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     ewn = _wrap_node(enrich_weather_node, "enrich_weather", event_emitter) if event_emitter else enrich_weather_node
     epn = _wrap_node(enrich_poi_node, "enrich_poi", event_emitter) if event_emitter else enrich_poi_node
     rcn = _wrap_node(review_content_node, "review_content", event_emitter) if event_emitter else review_content_node
+    pan = _wrap_node(persist_article_node, "persist_article", event_emitter) if event_emitter else persist_article_node
 
     builder.add_node("process_gpx", pgn)
     builder.add_node("load_images", lin)
@@ -107,6 +110,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("enrich_weather", ewn)
     builder.add_node("enrich_poi", epn)
     builder.add_node("review_content", rcn)
+    builder.add_node("persist_article", pan)
 
     builder.set_entry_point("process_gpx")
 
@@ -120,7 +124,8 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("enrich_poi", "select_images")
     builder.add_edge("select_images", "review_content")
     builder.add_edge("review_content", "generate_blog_post")
+    builder.add_edge("generate_blog_post", "persist_article")
 
-    builder.set_finish_point("generate_blog_post")
+    builder.set_finish_point("persist_article")
 
     return builder.compile()
