@@ -12,6 +12,7 @@ wheels/
 # Test Data
 data/
 output/
+travel_agent.db
 
 # Node
 node_modules/
