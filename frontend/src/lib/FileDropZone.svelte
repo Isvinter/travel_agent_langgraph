@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { pipeline } from "./stores/pipeline";
-
   interface UploadedFile {
     name: string;
     path: string;
@@ -26,7 +24,6 @@
     formData.append("file", file);
 
     try {
-      const sessionId = $pipeline.sessionId;
       const res = await fetch("/api/files/upload", {
         method: "POST",
         body: formData,
@@ -83,7 +80,6 @@
 
   async function removeFile(f: UploadedFile) {
     try {
-      const sessionId = $pipeline.sessionId;
       await fetch(`/api/files/${f.name}`, {
         method: "DELETE",
         credentials: "include",

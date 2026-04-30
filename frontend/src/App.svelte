@@ -1,3 +1,5 @@
+<svelte:options runes />
+
 <script lang="ts">
   import ModelSelector from "./lib/ModelSelector.svelte";
   import FileDropZone from "./lib/FileDropZone.svelte";

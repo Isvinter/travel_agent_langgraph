@@ -15,7 +15,11 @@ def load_images_node(state: AppState) -> AppState:
         image_count = len(list(images_dir.iterdir()))
         print(f"DEBUG: Found {image_count} items in directory")
     
-    state.images = load_images_from_directory(str(images_dir))
+    # Falls bereits Bilder via API-Upload vorliegen, diese nicht überschreiben
+    if state.images:
+        print(f"DEBUG: Using {len(state.images)} images provided via API upload")
+    else:
+        state.images = load_images_from_directory(str(images_dir))
     
     print(f"DEBUG: Loaded {len(state.images)} images")
     if state.images:

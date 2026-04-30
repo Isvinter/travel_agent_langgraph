@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { pipeline } from "./stores/pipeline";
+  import { runState, addLine, startStream, resetPipeline } from "./stores/pipeline";
 
   let { getModel, getFiles, getOutputDir, getNotes }: {
     getModel: () => string;
@@ -17,11 +17,11 @@
     const notes = getNotes();
 
     if (!gpxFile) {
-      pipeline.addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
+      addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
       return;
     }
 
-    pipeline.reset();
+    resetPipeline();
     loading = true;
 
     try {
@@ -39,34 +39,34 @@
 
       if (!res.ok) {
         const err = await res.json();
-        pipeline.addLine("validation", "error", err.detail || "Fehler beim Starten der Pipeline.");
+        addLine("validation", "error", err.detail || "Fehler beim Starten der Pipeline.");
         loading = false;
         return;
       }
 
       const data = await res.json();
-      pipeline.startStream(data.run_id);
+      startStream(data.run_id);
     } catch (e: any) {
-      pipeline.addLine("connection", "error", `Verbindungsfehler: ${e.message}`);
+      addLine("connection", "error", `Verbindungsfehler: ${e.message}`);
     } finally {
       loading = false;
     }
   }
 
-  let runState = $derived($pipeline.runState);
+  let rs = $derived($runState);
 </script>
 
 <button
   class="run-btn"
-  disabled={runState === "running" || loading}
+  disabled={rs === "running" || loading}
   onclick={handleRun}
 >
-  {#if runState === "running" || loading}
+  {#if rs === "running" || loading}
     <span class="spinner"></span>
     Läuft…
-  {:else if runState === "done"}
+  {:else if rs === "done"}
     ✓ Abgeschlossen
-  {:else if runState === "failed"}
+  {:else if rs === "failed"}
     ✗ Fehlgeschlagen — Erneut
   {:else}
     ▶ Pipeline starten

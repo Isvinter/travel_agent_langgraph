@@ -1,4 +1,4 @@
-import { writable, derived } from "svelte/store";
+import { writable, get } from "svelte/store";
 
 export type RunState = "idle" | "running" | "done" | "failed";
 
@@ -17,103 +17,85 @@ export interface RunResult {
   error?: string;
 }
 
-function createPipelineStore() {
-  const logLines = writable<LogLine[]>([]);
-  const runState = writable<RunState>("idle");
-  const currentRunId = writable<string | null>(null);
-  const result = writable<RunResult | null>(null);
-  // Regenerate on each page load; set cookie so backend receives it.
-  // Cookie lifetime: session only (deleted when browser closes).
-  const newSessionId = (() => {
-    const id = crypto.randomUUID();
-    document.cookie = `session_id=${id};path=/;SameSite=Lax`;
-    return id;
-  })();
-  const sessionId = writable<string>(newSessionId);
+// Regenerate on each page load; set cookie so backend receives it.
+// Cookie lifetime: session only (deleted when browser closes).
+const newSessionId = (() => {
+  const id = crypto.randomUUID();
+  document.cookie = `session_id=${id};path=/;SameSite=Lax`;
+  return id;
+})();
 
-  let eventSource: EventSource | null = null;
+export const logLines = writable<LogLine[]>([]);
+export const runState = writable<RunState>("idle");
+export const currentRunId = writable<string | null>(null);
+export const result = writable<RunResult | null>(null);
+export const sessionId = writable<string>(newSessionId);
 
-  function addLine(stage: string, status: string, message: string) {
-    const line: LogLine = {
-      timestamp: new Date().toLocaleTimeString("de-DE"),
-      stage,
-      status,
-      message,
-    };
-    logLines.update((lines) => [...lines, line]);
-  }
+let eventSource: EventSource | null = null;
 
-  function startStream(runId: string) {
-    runState.set("running");
-    currentRunId.set(runId);
+export function addLine(stage: string, status: string, message: string) {
+  const line: LogLine = {
+    timestamp: new Date().toLocaleTimeString("de-DE"),
+    stage,
+    status,
+    message,
+  };
+  logLines.update((lines) => [...lines, line]);
+}
 
-    const url = `/api/pipeline/stream/${runId}`;
-    eventSource = new EventSource(url);
+export function startStream(runId: string) {
+  runState.set("running");
+  currentRunId.set(runId);
 
-    eventSource.addEventListener("progress", (e: MessageEvent) => {
+  const url = `/api/pipeline/stream/${runId}`;
+  eventSource = new EventSource(url);
+
+  eventSource.addEventListener("progress", (e: MessageEvent) => {
+    const data = JSON.parse(e.data);
+    addLine(data.stage, data.status, data.message);
+  });
+
+  eventSource.addEventListener("error", (e: MessageEvent) => {
+    if (e.data) {
       const data = JSON.parse(e.data);
-      addLine(data.stage, data.status, data.message);
-    });
+      addLine(data.stage, "error", data.message);
+    }
+  });
 
-    eventSource.addEventListener("error", (e: MessageEvent) => {
-      if (e.data) {
-        const data = JSON.parse(e.data);
-        addLine(data.stage, "error", data.message);
-      }
-      // If no data, it's a connection error — EventSource will auto-reconnect
-    });
-
-    eventSource.addEventListener("done", async (e: MessageEvent) => {
-      eventSource?.close();
-      const data = JSON.parse(e.data);
-      addLine("__done__", data.status, `Pipeline ${data.status === "success" ? "erfolgreich" : "fehlgeschlagen"}.`);
-      runState.set(data.status === "success" ? "done" : "failed");
-
-      // Fetch the final result
-      try {
-        const res = await fetch(`/api/pipeline/result/${runId}`);
-        if (res.ok) {
-          result.set(await res.json());
-        }
-      } catch (err) {
-        console.error("Failed to fetch result:", err);
-      }
-    });
-
-    eventSource.onerror = () => {
-      // EventSource handles reconnection automatically; if it fails permanently,
-      // the browser will stop trying. We add a sentinel log line.
-      if (eventSource?.readyState === EventSource.CLOSED) {
-        addLine("connection", "error", "Verbindung zum Server verloren.");
-        runState.set("failed");
-      }
-    };
-  }
-
-  function stopStream() {
+  eventSource.addEventListener("done", async (e: MessageEvent) => {
     eventSource?.close();
-    eventSource = null;
-  }
+    const data = JSON.parse(e.data);
+    const isSuccess = data.status === "success";
+    addLine("__done__", data.status, `Pipeline ${isSuccess ? "erfolgreich" : "fehlgeschlagen"}.`);
+    runState.set(isSuccess ? "done" : "failed");
 
-  function reset() {
-    stopStream();
-    logLines.set([]);
-    runState.set("idle");
-    currentRunId.set(null);
-    result.set(null);
-  }
+    try {
+      const res = await fetch(`/api/pipeline/result/${runId}`);
+      if (res.ok) {
+        result.set(await res.json());
+      }
+    } catch (err) {
+      console.error("Failed to fetch result:", err);
+    }
+  });
 
-  return {
-    logLines,
-    runState,
-    currentRunId,
-    result,
-    sessionId,
-    addLine,
-    startStream,
-    stopStream,
-    reset,
+  eventSource.onerror = () => {
+    if (eventSource?.readyState === EventSource.CLOSED) {
+      addLine("connection", "error", "Verbindung zum Server verloren.");
+      runState.set("failed");
+    }
   };
 }
 
-export const pipeline = createPipelineStore();
+export function stopStream() {
+  eventSource?.close();
+  eventSource = null;
+}
+
+export function resetPipeline() {
+  stopStream();
+  logLines.set([]);
+  runState.set("idle");
+  currentRunId.set(null);
+  result.set(null);
+}

@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { pipeline } from "./stores/pipeline";
+  import { logLines } from "./stores/pipeline";
 
   let logContainer: HTMLDivElement;
 
-  let logLines = $derived($pipeline.logLines);
+  let ll = $derived($logLines);
 
   $effect(() => {
+    ll;
     if (logContainer) {
       logContainer.scrollTop = logContainer.scrollHeight;
     }
@@ -27,10 +28,10 @@
 </script>
 
 <div class="output-window" bind:this={logContainer}>
-  {#if logLines.length === 0}
+  {#if ll.length === 0}
     <p class="placeholder">Die Pipeline-Ausgabe erscheint hier…</p>
   {:else}
-    {#each logLines as line}
+    {#each ll as line}
       <div class="log-line">
         <span class="timestamp">{line.timestamp}</span>
         <span class="stage" style="color: {statusColor(line.status)}">{line.stage}</span>
