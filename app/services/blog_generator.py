@@ -15,6 +15,8 @@ from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
 
+from app.config import PERSONAS, LENGTH_PRESETS
+
 
 def encode_image_to_base64(image_path: str, max_size: int = 800) -> Optional[str]:
     """
@@ -127,6 +129,7 @@ def construct_blog_post_prompt(
     enrichment_context: Optional[Dict[str, Any]] = None,
     weather: Any = None,
     poi_list: Optional[List[Dict[str, Any]]] = None,
+    output_config: Any = None,
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
     Konstruiert den Prompt für das multimodale Modell.
@@ -144,14 +147,28 @@ def construct_blog_post_prompt(
         Tuple von (text_prompt, list_of_messages_for_ollama)
     """
 
-    # Header für den Prompt
-    text_prompt = """
-    Du bist ein abenteuerlustiger, erfahrener Backpacker und ein gefeierter Reiseblogger. Dein Schreibstil ist fesselnd, humorvoll, authentisch und voller Leidenschaft. Deine Leser lieben dich für deine langen, lebhaften und immersiven Erzählungen, bei denen sie das Gefühl haben, direkt neben dir zu wandern.
+    # Header für den Prompt — Persona und Länge aus Config
+    if output_config and hasattr(output_config, 'style_persona'):
+        persona = PERSONAS.get(output_config.style_persona, list(PERSONAS.values())[0])
+        persona_prompt = persona["prompt"]
+        length = LENGTH_PRESETS.get(output_config.article_length, LENGTH_PRESETS["normal"])
+        length_guidance = (
+            f"UMFANG: Schreibe {length['min_words']}–{length['max_words']} Wörter. "
+            f"Halte dich an diese Vorgabe — weder deutlich kürzer noch deutlich länger.\n"
+        )
+    else:
+        # Fallback für Aufrufe ohne OutputConfig (CLI, alte Tests)
+        persona_prompt = PERSONAS["mountain_veteran"]["prompt"]
+        length_guidance = "UMFANG: Schreibe 650–1300 Wörter.\n"
 
-    Deine Aufgabe ist es, einen ausführlichen, spannenden und mitreißenden Long-Form-Blogpost über unsere neueste Tour zu verfassen. Schreibe nicht nur einen Bericht, sondern erzähle eine echte Geschichte!
+    text_prompt = f"""{persona_prompt}
 
-    HIER SIND DIE DATEN ZUR TOUR:
-    """
+{length_guidance}
+Deine Aufgabe ist es, einen Blogpost über unsere neueste Tour zu verfassen.
+Schreibe nicht nur einen Bericht, sondern erzähle eine echte Geschichte!
+
+HIER SIND DIE DATEN ZUR TOUR:
+"""
 
     available_images = []
 
@@ -183,7 +200,7 @@ def construct_blog_post_prompt(
             text_prompt += """
     DEINE AUFGABE:
 
-    1. **UMFANG & TIEFE (SEHR WICHTIG)**: Schreibe einen ausführlichen Artikel (mindestens 800-1000 Wörter). Nimm dir Zeit für Details. Beschreibe die Atmosphäre, das Wetter, die körperliche Anstrengung (brennende Waden bei Höhenmetern!), die Geräusche der Natur und das Gefühl der Belohnung am Ziel. "Show, don't tell!"
+    1. **TIEFE**: Nimm dir Zeit für Details. Beschreibe die Atmosphäre, das Wetter, die körperliche Anstrengung (brennende Waden bei Höhenmetern!), die Geräusche der Natur und das Gefühl der Belohnung am Ziel. "Show, don't tell!"
 
     2. **KARTE + HÖHENPROFIL**: 
     - Übersichtskarte am Anfang: ![Karte der Route](./images/00_map.png)
@@ -193,7 +210,7 @@ def construct_blog_post_prompt(
     - Schreibe für jedes Bild eine atmosphärische Bildunterschrift (1-2 Sätze), die emotional zum Text passt.
     - Leite im Fließtext elegant auf die Bilder über (z.B. "Als wir um die Ecke bogen, bot sich uns dieser Anblick...", "Der Schweiß hat sich gelohnt, seht euch das an:").
 
-    4. **STIL & PERSPEKTIVE**: Locker, persönlich, kumpelhaft. Nutze konsequent "wir" statt "ich". Streue etwas Humor ein (z.B. über schwere Rucksäcke oder falsche Abzweigungen). Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze, um den Lesefluss dynamisch zu halten.
+    4. **TEXTFLUSS**: Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze, um den Lesefluss dynamisch zu halten.
 
     5. **STRUKTUR EINER HELDENREISE**:
     - **Hook & Einleitung**: Ein packender Einstieg. Warum diese Tour? Die Vorfreude am frühen Morgen.
@@ -407,6 +424,7 @@ def generate_blog_post(
     enrichment_context: Optional[Dict[str, Any]] = None,
     weather: Any = None,
     poi_list: Optional[List[Dict[str, Any]]] = None,
+    output_config: Any = None,
 ) -> Dict[str, Any]:
     """
     Generiert einen kompletten Blogpost und speichert ihn als .md und .html Datei.
@@ -469,6 +487,7 @@ def generate_blog_post(
         enrichment_context=enrichment_context,
         weather=weather,
         poi_list=poi_list,
+        output_config=output_config,
     )
     print(f"🗺️  Map: {final_map_path or 'N/A'}, Elevation: {final_elevation_path or 'N/A'}")
 
