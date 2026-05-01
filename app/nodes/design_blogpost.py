@@ -22,21 +22,24 @@ def design_blogpost_node(state: AppState) -> AppState:
         print("⚠️  Design: Kein HTML-Inhalt — überspringe")
         return state
 
-    styled = design_blogpost_service(html, model=state.model)
+    try:
+        styled = design_blogpost_service(html, model=state.model)
 
-    if styled:
-        state.blog_post["html"] = styled
-        print("✅ Design styling applied successfully")
+        if styled:
+            state.blog_post["html"] = styled
+            print("✅ Design styling applied successfully")
 
-        html_path = state.blog_post.get("file_paths", {}).get("html")
-        if html_path:
-            try:
-                with open(html_path, "w", encoding="utf-8") as f:
-                    f.write(styled)
-                print(f"💾 Styled HTML written to: {html_path}")
-            except Exception as e:
-                print(f"⚠️  Design: Could not write styled HTML file: {e}")
-    else:
-        print("⚠️  Design: Styling failed — Original-HTML bleibt erhalten")
+            html_path = state.blog_post.get("file_paths", {}).get("html")
+            if html_path:
+                try:
+                    with open(html_path, "w", encoding="utf-8") as f:
+                        f.write(styled)
+                    print(f"💾 Styled HTML written to: {html_path}")
+                except Exception as e:
+                    print(f"⚠️  Design: Could not write styled HTML file: {e}")
+        else:
+            print("⚠️  Design: Styling failed — Original-HTML bleibt erhalten")
+    except Exception as e:
+        print(f"⚠️  Design: Error during styling: {e} — Original-HTML bleibt erhalten")
 
     return state

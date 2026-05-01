@@ -37,6 +37,17 @@ class TestDesignBlogpostNode:
         assert result.blog_post["html"] == styled
         assert result.blog_post["markdown"] == "# Old"
 
+    def test_keeps_original_html_when_service_raises(self):
+        state = AppState(blog_post={
+            "success": True,
+            "html": "<h1>Old</h1>",
+            "markdown": "# Old",
+        })
+        with patch("app.nodes.design_blogpost.design_blogpost_service",
+                   side_effect=Exception("Ollama not reachable")):
+            result = design_blogpost_node(state)
+        assert result.blog_post["html"] == "<h1>Old</h1>"
+
     def test_keeps_original_html_when_service_fails(self):
         state = AppState(blog_post={
             "success": True,
