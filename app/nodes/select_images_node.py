@@ -1,11 +1,12 @@
 # app/nodes/select_images_node.py
+import math
+
 from app.state import AppState
 from app.services.image_selector import select_images_for_blog
 
 
 def select_images_node(state: AppState) -> AppState:
     """Wählt die besten Bilder für den Blogpost mit einem multimodalen LLM."""
-    import math
     n = len(state.images)
     target = math.ceil(state.output_config.wildcard_max * 1.5)
     target = min(target, n)  # nicht mehr als verfügbar
@@ -26,5 +27,5 @@ def select_images_node(state: AppState) -> AppState:
     ]
     state.metadata["selected_image_count"] = len(state.selected_images)
 
-    print(f"✅ Selected {len(selected)} images for blog post")
+    print(f"✅ Selected {len(state.selected_images)} images for blog post")
     return state
