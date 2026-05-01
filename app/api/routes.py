@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -131,8 +131,8 @@ class RunPipelineRequest(BaseModel):
     gpx_file: str = ""
     image_files: list[str] = []
     wildcard_max: int = 12
-    article_length: str = "normal"
-    style_persona: str = "mountain_veteran"
+    article_length: Literal["short", "normal", "detailed"] = "normal"
+    style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
 
 
 @router.post("/pipeline/run")
