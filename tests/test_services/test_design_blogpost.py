@@ -19,7 +19,9 @@ class TestBuildDesignPrompt:
 
         assert "Web-Designer" in prompt
         assert "Reiseblogs" in prompt
-        assert "NICHT verändert" in prompt
+        assert "SCHEMA-INTEGRITÄT" in prompt
+        assert "STRENG VERBOTEN" in prompt
+        assert "<h1> oder <h2> oder <h3> in <p>" in prompt
         assert "<style>" in prompt
         assert "kein JavaScript" in prompt
         assert "---CONTENT---" in prompt

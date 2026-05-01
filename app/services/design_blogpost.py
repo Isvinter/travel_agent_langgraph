@@ -16,13 +16,31 @@ def _build_design_prompt(html_body: str) -> str:
 Deine Aufgabe: Bette den folgenden HTML-Inhalt in ein vollständiges,
 self-contained HTML-Dokument ein.
 
-STRENGE REGELN:
-1. Der übergebene HTML-Inhalt darf NICHT verändert, umformuliert, gekürzt
-   oder ergänzt werden. Füge NUR die umschließende HTML-Struktur und CSS hinzu.
-2. Alle CSS-Regeln gehören in EINEN <style>-Block im <head>.
-3. Keine externen Ressourcen, keine CDN-Links, kein JavaScript.
-4. Das Dokument muss valides, vollständiges HTML5 sein.
-5. Gib NUR das HTML zurück — keine Erklärungen, keine Markdown-Fences.
+⚠️  KRITISCH — SCHEMA-INTEGRITÄT:
+JEDER einzelne HTML-Tag im übergebenen Inhalt MUSS 1:1 erhalten bleiben.
+Das HTML-Tag-Schema ist die Basis des Dokuments — du darfst es NICHT
+antasten, verändern, ersetzen oder umstrukturieren.
+
+FOLGENDE TRANSFORMATIONEN SIND STRENG VERBOTEN:
+- ❌ <h1> oder <h2> oder <h3> in <p> umwandeln
+- ❌ <p> in <div> oder <br> umwandeln
+- ❌ <img> in <figure> oder <div> wrappen (das src-Attribut muss bleiben)
+- ❌ <ul>/<ol>/<li> in <p> umwandeln
+- ❌ <blockquote> entfernen oder in <p> umwandeln
+- ❌ Textinhalt umformulieren, kürzen oder ergänzen
+- ❌ Tags löschen, verschachteln oder neu anordnen
+
+ERLAUBT ist NUR:
+- ✅ Umschließendes <!DOCTYPE html>, <html>, <head>, <body> hinzufügen
+- ✅ <meta>-Tags und <title> im <head> ergänzen
+- ✅ EINEN <style>-Block im <head> mit allen CSS-Regeln platzieren
+- ✅ Den gesamten Original-Inhalt zwischen <body>...</body> EINBETTEN
+
+TECHNISCHE REGELN:
+- Alle CSS-Regeln in EINEM <style>-Block im <head>
+- Keine externen Ressourcen, keine CDN-Links, kein JavaScript
+- Valides, vollständiges HTML5
+- Gib NUR das HTML zurück — keine Erklärungen, keine Markdown-Fences
 
 DESIGN-RICHTUNG:
 - Lesbare, gut proportionierte Typographie (serif oder sans-serif)
@@ -32,6 +50,10 @@ DESIGN-RICHTUNG:
 - Angenehme Zeilenabstände (line-height: 1.6–1.8)
 - Klare visuelle Hierarchie: h1, h2, h3 deutlich unterscheidbar
 - Subtile Akzente: dezente Trennlinien, Blockquote-Styling
+
+BEISPIEL — so MUSS der Inhalt erhalten bleiben:
+Input:  <h1>Titel</h1><p>Text</p><img alt="Foto" src="a.jpg">
+Output: ...<body><h1>Titel</h1><p>Text</p><img alt="Foto" src="a.jpg"></body>...
 
 ---CONTENT---
 {html_body}"""
