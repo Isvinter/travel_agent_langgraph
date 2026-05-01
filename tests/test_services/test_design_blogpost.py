@@ -6,10 +6,47 @@ import pytest
 
 from app.services.design_blogpost import (
     design_blogpost_service,
+    _alias_image_paths,
+    _restore_image_paths,
     _build_design_prompt,
     _call_ollama_text,
     _extract_styled_html,
 )
+
+
+class TestAliasImagePaths:
+    def test_aliases_map_and_elevation(self):
+        html = '<p>Text</p><img alt="Map" src="./images/00_map.png"><img alt="Elev" src="./images/00_elevation_profile.png">'
+        aliased, rev_map = _alias_image_paths(html)
+        assert 'src="MAP"' in aliased
+        assert 'src="ELEV"' in aliased
+        assert rev_map["MAP"] == "./images/00_map.png"
+        assert rev_map["ELEV"] == "./images/00_elevation_profile.png"
+
+    def test_aliases_numbered_images(self):
+        html = '<img src="./images/01_IMG_5513.jpg"><img src="./images/02_IMG_5515.jpg"><img src="./images/12_IMG_5538.jpg">'
+        aliased, rev_map = _alias_image_paths(html)
+        assert 'src="IMG_01"' in aliased
+        assert 'src="IMG_02"' in aliased
+        assert 'src="IMG_12"' in aliased
+        assert rev_map["IMG_01"] == "./images/01_IMG_5513.jpg"
+        assert rev_map["IMG_02"] == "./images/02_IMG_5515.jpg"
+        assert rev_map["IMG_12"] == "./images/12_IMG_5538.jpg"
+
+    def test_aliases_no_images(self):
+        html = "<h1>Title</h1><p>Text</p>"
+        aliased, rev_map = _alias_image_paths(html)
+        assert aliased == html
+        assert rev_map == {}
+
+    def test_restore_paths(self):
+        styled = '<body><h1>Hi</h1><img alt="X" src="IMG_01"><img alt="Y" src="MAP"></body>'
+        rev_map = {"IMG_01": "./images/01_IMG_5513.jpg", "MAP": "./images/00_map.png"}
+        restored = _restore_image_paths(styled, rev_map)
+        assert 'src="./images/01_IMG_5513.jpg"' in restored
+        assert 'src="./images/00_map.png"' in restored
+        assert 'src="IMG_01"' not in restored
+        assert 'src="MAP"' not in restored
 
 
 class TestBuildDesignPrompt:
@@ -120,7 +157,7 @@ class TestExtractStyledHtml:
 
 
 class TestDesignBlogpostServiceIntegration:
-    def test_returns_styled_html(self):
+    def test_returns_styled_html_with_restored_image_paths(self):
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -129,20 +166,32 @@ class TestDesignBlogpostServiceIntegration:
                     "<!DOCTYPE html>\n<html>\n<head>\n"
                     "<meta charset='utf-8'>\n"
                     "<style>body{font-family:serif;max-width:800px}</style>\n"
-                    "</head>\n<body>\n<h1>Test</h1>\n<p>Content</p>\n</body>\n</html>"
+                    "</head>\n<body>\n<h1>Test</h1>\n"
+                    "<img alt=\"Foto\" src=\"IMG_01\">\n"
+                    "<img alt=\"Karte\" src=\"MAP\">\n"
+                    "<p>Content</p>\n</body>\n</html>"
                 ),
             },
         }
 
         with patch("requests.post", return_value=mock_resp):
             result = design_blogpost_service(
-                html_body="<h1>Test</h1><p>Content</p>",
+                html_body=(
+                    "<h1>Test</h1>"
+                    '<img alt="Foto" src="./images/01_IMG_5513.jpg">'
+                    '<img alt="Karte" src="./images/00_map.png">'
+                    "<p>Content</p>"
+                ),
                 model="gemma4:26b-ctx128k",
             )
         assert result is not None
         assert "<style>" in result
         assert "font-family" in result
-        assert "<h1>Test</h1>" in result
+        assert 'src="./images/01_IMG_5513.jpg"' in result
+        assert 'src="./images/00_map.png"' in result
+        # Keine Alias-Reste
+        assert 'src="IMG_01"' not in result
+        assert 'src="MAP"' not in result
 
     def test_returns_none_when_ollama_fails(self):
         with patch("requests.post",

@@ -4,9 +4,60 @@ Design Blogpost Service
 Nimmt das rohe HTML-Fragment aus der Blog-Generierung und lässt es von
 einem Ollama-Modell in ein vollständiges, gestyltes HTML-Dokument einbetten.
 Rein textueller Call — keine Bilder.
+
+Bildpfade werden vor dem LLM-Call durch stabile Alias-Namen ersetzt
+(z. B. MAP, IMG_01, ELEV) und nach dem Call zurückgemappt. So kann
+das LLM keine Pfade korrumpieren.
 """
 
+import re
 from typing import Optional
+
+
+def _alias_image_paths(html_body: str) -> tuple[str, dict[str, str]]:
+    """Ersetzt alle src-Pfade durch korruptionssichere Alias-Namen.
+
+    Returns:
+        (aliased_html, reverse_map) — reverse_map: alias → original_path
+    """
+    reverse_map: dict[str, str] = {}
+
+    def _make_alias(match: re.Match) -> str:
+        path = match.group(1)
+        if path in reverse_map.values():
+            # Bereits bekannter Pfad — existierenden Alias finden
+            for alias, orig in reverse_map.items():
+                if orig == path:
+                    return f'src="{alias}"'
+        filename = path.rsplit("/", 1)[-1]
+        if filename.startswith("00_map"):
+            alias = "MAP"
+        elif filename.startswith("00_elevation_profile"):
+            alias = "ELEV"
+        else:
+            m = re.match(r"(\d{2})_", filename)
+            if m:
+                alias = f"IMG_{m.group(1)}"
+            else:
+                alias = f"IMG_X{len(reverse_map)}"
+        # Kollision vermeiden
+        base = alias
+        suffix = 0
+        while alias in reverse_map:
+            suffix += 1
+            alias = f"{base}_{suffix}"
+        reverse_map[alias] = path
+        return f'src="{alias}"'
+
+    aliased = re.sub(r'src="([^"]+)"', _make_alias, html_body)
+    return aliased, reverse_map
+
+
+def _restore_image_paths(styled_html: str, reverse_map: dict[str, str]) -> str:
+    """Ersetzt Alias-Namen in src-Attributen zurück durch Original-Pfade."""
+    for alias, original in reverse_map.items():
+        styled_html = styled_html.replace(f'src="{alias}"', f'src="{original}"')
+    return styled_html
 
 
 def _build_design_prompt(html_body: str) -> str:
@@ -52,8 +103,8 @@ DESIGN-RICHTUNG:
 - Subtile Akzente: dezente Trennlinien, Blockquote-Styling
 
 BEISPIEL — so MUSS der Inhalt erhalten bleiben:
-Input:  <h1>Titel</h1><p>Text</p><img alt="Foto" src="a.jpg">
-Output: ...<body><h1>Titel</h1><p>Text</p><img alt="Foto" src="a.jpg"></body>...
+Input:  <h1>Titel</h1><p>Text</p><img alt="Foto" src="IMG_01">
+Output: ...<body><h1>Titel</h1><p>Text</p><img alt="Foto" src="IMG_01"></body>...
 
 ---CONTENT---
 {html_body}"""
@@ -105,11 +156,11 @@ def _call_ollama_text(
         return None
 
 
-def _extract_styled_html(response: str) -> Optional[str]:
+def _extract_styled_html(response: str, reverse_map: dict[str, str] | None = None) -> Optional[str]:
     """Validiert die LLM-Antwort und bereinigt sie.
 
-    Entfernt ggf. Markdown-Code-Fences, prüft auf <style>- und <body>-Tag.
-    Gibt das bereinigte HTML zurück oder None bei Fehler.
+    Entfernt ggf. Markdown-Code-Fences, prüft auf <style>- und <body>-Tag,
+    stellt Original-Bildpfade wieder her. Gibt bereinigtes HTML oder None.
     """
     if not response or len(response.strip()) < 100:
         print("⚠️  Design: Response zu kurz (< 100 Zeichen)")
@@ -134,6 +185,9 @@ def _extract_styled_html(response: str) -> Optional[str]:
         print("⚠️  Design: Kein <body>-Tag in der Antwort — CSS-only-Output erkannt")
         return None
 
+    if reverse_map:
+        stripped = _restore_image_paths(stripped, reverse_map)
+
     return stripped
 
 
@@ -155,11 +209,14 @@ def design_blogpost_service(
         print("⚠️  Design: Kein HTML-Body zum Stylen vorhanden")
         return None
 
-    prompt = _build_design_prompt(html_body)
+    # Bildpfade durch Alias-Namen ersetzen — schützt vor LLM-Tippfehlern
+    aliased_body, reverse_map = _alias_image_paths(html_body)
+
+    prompt = _build_design_prompt(aliased_body)
     response = _call_ollama_text(prompt, model=model)
 
     if response is None:
         print("⚠️  Design: Keine Antwort von Ollama — Original-HTML bleibt erhalten")
         return None
 
-    return _extract_styled_html(response)
+    return _extract_styled_html(response, reverse_map)
