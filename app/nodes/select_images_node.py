@@ -5,9 +5,11 @@ from app.services.image_selector import select_images_for_blog
 
 def select_images_node(state: AppState) -> AppState:
     """Wählt die besten Bilder für den Blogpost mit einem multimodalen LLM."""
+    import math
     n = len(state.images)
-    target = 12
-    print(f"📸 Selecting {target} images for blog post from {n} images...")
+    target = math.ceil(state.output_config.wildcard_max * 1.5)
+    target = min(target, n)  # nicht mehr als verfügbar
+    print(f"📸 Oversampling: selecting {target} images (max {state.output_config.wildcard_max}) from {n} images...")
 
     selected = select_images_for_blog(
         images=[img.model_dump() for img in state.images],
