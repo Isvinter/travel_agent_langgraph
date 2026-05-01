@@ -42,6 +42,7 @@ def generate_blog_post_node(state: AppState) -> AppState:
             enrichment_context=state.enrichment_context,
             weather=state.weather,
             poi_list=state.poi_list,
+            output_config=state.output_config,
         )
 
         state.metadata["selected_images"] = result.get("selected_images", [])
