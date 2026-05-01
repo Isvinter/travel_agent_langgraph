@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from app.state import ImageData, WeatherInfo, DailyWeather, OutputConfig
+from app.state import ImageData, WeatherInfo, DailyWeather
 
 
 OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
@@ -185,7 +185,6 @@ def review_enrichment(
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
     base_url: str = "http://localhost:11434",
-    output_config: OutputConfig | None = None,
 ) -> Dict[str, Any]:
     """Führt die Content-Review durch und gibt kuratierten Kontext zurück.
 

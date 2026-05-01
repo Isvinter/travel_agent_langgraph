@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from app.api.events import event_manager
@@ -130,7 +130,7 @@ class RunPipelineRequest(BaseModel):
     notes: str = ""
     gpx_file: str = ""
     image_files: list[str] = []
-    wildcard_max: int = 12
+    wildcard_max: int = Field(default=12, ge=1, le=50)
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
 

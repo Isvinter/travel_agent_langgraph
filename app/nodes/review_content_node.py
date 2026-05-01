@@ -18,7 +18,6 @@ def review_content_node(state: AppState) -> AppState:
         gpx_stats=state.gpx_stats,
         notes=state.notes,
         model=state.model,
-        output_config=state.output_config,
     )
 
     # Auf wildcard_max kappen — die ≥33% Discard-Quote ist automatisch

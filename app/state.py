@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Literal, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.services.gpx_analytics import GPXStats
 
 class ImageData(BaseModel):
@@ -37,7 +37,7 @@ AVAILABLE_MODELS = [
 
 class OutputConfig(BaseModel):
     """Konfiguration für die Blog-Ausgabe — vom Benutzer vor Pipeline-Start gesetzt."""
-    wildcard_max: int = 12
+    wildcard_max: int = Field(default=12, ge=1, le=50)
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
 
