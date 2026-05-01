@@ -1,6 +1,5 @@
-from typing import List, Optional
+from typing import Dict, Any, List, Literal, Optional
 from pydantic import BaseModel
-from typing import Dict, Any
 from app.services.gpx_analytics import GPXStats
 
 class ImageData(BaseModel):
@@ -35,6 +34,14 @@ AVAILABLE_MODELS = [
     "qwen3.6:35b-ctx128k",
 ]
 
+
+class OutputConfig(BaseModel):
+    """Konfiguration für die Blog-Ausgabe — vom Benutzer vor Pipeline-Start gesetzt."""
+    wildcard_max: int = 12
+    article_length: Literal["short", "normal", "detailed"] = "normal"
+    style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
+
+
 class AppState(BaseModel):
     images: List[ImageData] = []
     selected_images: List[ImageData] = []
@@ -50,4 +57,5 @@ class AppState(BaseModel):
     poi_list: List[Dict[str, Any]] = []
     enrichment_context: Dict[str, Any] = {}
     model: str = "gemma4:26b-ctx128k"
-    
+    output_config: OutputConfig = OutputConfig()
+
