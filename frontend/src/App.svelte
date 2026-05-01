@@ -6,6 +6,9 @@
   import FileDropZone from "./lib/FileDropZone.svelte";
   import OutputDirInput from "./lib/OutputDirInput.svelte";
   import NotesInput from "./lib/NotesInput.svelte";
+  import WildcardCount from "./lib/WildcardCount.svelte";
+  import LengthSelector from "./lib/LengthSelector.svelte";
+  import StyleSelector from "./lib/StyleSelector.svelte";
   import RunButton from "./lib/RunButton.svelte";
   import OutputWindow from "./lib/OutputWindow.svelte";
   import ArticleList from "./lib/ArticleList.svelte";
@@ -15,6 +18,9 @@
   let fileDropZone: FileDropZone;
   let outputDirInput: OutputDirInput;
   let notesInput: NotesInput;
+  let wildcardCount: WildcardCount;
+  let lengthSelector: LengthSelector;
+  let styleSelector: StyleSelector;
 
   let rt = $derived($route);
 </script>
@@ -45,6 +51,9 @@
       <FileDropZone bind:this={fileDropZone} />
       <OutputDirInput bind:this={outputDirInput} />
       <NotesInput bind:this={notesInput} />
+      <WildcardCount bind:this={wildcardCount} />
+      <LengthSelector bind:this={lengthSelector} />
+      <StyleSelector bind:this={styleSelector} />
 
       <div class="run-section">
         <RunButton
@@ -52,6 +61,9 @@
           getFiles={() => fileDropZone.getFiles()}
           getOutputDir={() => outputDirInput.getOutputDir()}
           getNotes={() => notesInput.getNotes()}
+          getWildcardMax={() => wildcardCount.getValue()}
+          getArticleLength={() => lengthSelector.getValue()}
+          getStylePersona={() => styleSelector.getValue()}
         />
       </div>
     {/if}
