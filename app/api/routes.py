@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from app.api.events import event_manager
-from app.state import AVAILABLE_MODELS
+from app.state import AVAILABLE_MODELS, OutputConfig
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository, ArticleFilters
 from app.db.models import Article, ArticleImage
@@ -130,6 +130,9 @@ class RunPipelineRequest(BaseModel):
     notes: str = ""
     gpx_file: str = ""
     image_files: list[str] = []
+    wildcard_max: int = 12
+    article_length: str = "normal"
+    style_persona: str = "mountain_veteran"
 
 
 @router.post("/pipeline/run")
@@ -166,6 +169,7 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
             model=body.model,
             output_dir=body.output_dir,
             notes=body.notes,
+            body=body,
         )
     )
 
@@ -179,6 +183,7 @@ async def _run_pipeline_in_background(
     model: str,
     output_dir: str,
     notes: str,
+    body: RunPipelineRequest,
 ):
     """Execute the LangGraph pipeline in a thread, emitting progress events."""
     from app.graph import build_graph
@@ -197,6 +202,11 @@ async def _run_pipeline_in_background(
             gpx_file=gpx_file,
             model=model,
             notes=notes if notes else None,
+            output_config=OutputConfig(
+                wildcard_max=body.wildcard_max,
+                article_length=body.article_length,
+                style_persona=body.style_persona,
+            ),
         )
 
         # If images provided, pre-populate ImageData list
