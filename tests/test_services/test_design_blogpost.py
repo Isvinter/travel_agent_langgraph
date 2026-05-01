@@ -1,6 +1,6 @@
 """Tests for app/services/design_blogpost.py"""
-import json
 from unittest.mock import patch, Mock
+from requests.exceptions import ConnectionError
 
 import pytest
 
@@ -53,7 +53,7 @@ class TestCallOllamaText:
 
     def test_returns_none_on_connection_error(self):
         with patch("requests.post",
-                   side_effect=Exception("Connection refused")):
+                   side_effect=ConnectionError("Connection refused")):
             result = _call_ollama_text(
                 prompt="Make it pretty",
                 model="gemma4:26b-ctx128k",
