@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from app.state import ImageData, WeatherInfo, DailyWeather
+from app.state import ImageData, WeatherInfo, DailyWeather, OutputConfig
 
 
 OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
@@ -185,6 +185,7 @@ def review_enrichment(
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
     base_url: str = "http://localhost:11434",
+    output_config: OutputConfig | None = None,
 ) -> Dict[str, Any]:
     """Führt die Content-Review durch und gibt kuratierten Kontext zurück.
 
@@ -244,6 +245,19 @@ def review_enrichment(
     if result["coherence_score"] < 3 and result["coherence_score"] > 0:
         print(f"⚠️ Low coherence score ({result['coherence_score']}/10) — continuing anyway")
 
+    # Bilder nach Qualitätsbewertung filtern
+    ratings = result.get("image_ratings", {})
+    if ratings and selected_images:
+        rated = []
+        for img in selected_images:
+            score = ratings.get(img.path, 3)
+            rated.append((score, img))
+        rated.sort(key=lambda x: x[0], reverse=True)
+        result["filtered_images"] = [img for _, img in rated]
+        print(f"🖼️  Images sorted by quality rating (best first)")
+    else:
+        result["filtered_images"] = list(selected_images)
+
     kept = len(result.get("kept_pois", []))
     print(f"✅ Review complete: {kept} POIs kept, coherence {result['coherence_score']}/10")
     return result
@@ -264,6 +278,7 @@ def _build_fallback_context(
         "weather_summary": summary,
         "discarded_weather_fields": [],
         "image_ratings": {img.path: 3 for img in selected_images},
+        "filtered_images": list(selected_images),
         "coherence_score": 0,
         "flags": ["review_unavailable"],
     }
