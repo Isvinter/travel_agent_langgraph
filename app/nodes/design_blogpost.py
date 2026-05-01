@@ -26,9 +26,6 @@ def design_blogpost_node(state: AppState) -> AppState:
         styled = design_blogpost_service(html, model=state.model)
 
         if styled:
-            state.blog_post["html"] = styled
-            print("✅ Design styling applied successfully")
-
             html_path = state.blog_post.get("file_paths", {}).get("html")
             if html_path:
                 try:
@@ -37,6 +34,9 @@ def design_blogpost_node(state: AppState) -> AppState:
                     print(f"💾 Styled HTML written to: {html_path}")
                 except Exception as e:
                     print(f"⚠️  Design: Could not write styled HTML file: {e}")
+                    return state
+            state.blog_post["html"] = styled
+            print("✅ Design styling applied successfully")
         else:
             print("⚠️  Design: Styling failed — Original-HTML bleibt erhalten")
     except Exception as e:
