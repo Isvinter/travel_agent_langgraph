@@ -1,11 +1,14 @@
 <script lang="ts">
   import { runState, addLine, startStream, resetPipeline } from "./stores/pipeline";
 
-  let { getModel, getFiles, getOutputDir, getNotes }: {
+  let { getModel, getFiles, getOutputDir, getNotes, getWildcardMax, getArticleLength, getStylePersona }: {
     getModel: () => string;
     getFiles: () => { gpxFile: string; imageFiles: string[]; txtFile: string | null };
     getOutputDir: () => string;
     getNotes: () => string;
+    getWildcardMax: () => number;
+    getArticleLength: () => string;
+    getStylePersona: () => string;
   } = $props();
 
   let loading: boolean = $state(false);
@@ -15,6 +18,9 @@
     const { gpxFile, imageFiles } = getFiles();
     const outputDir = getOutputDir();
     const notes = getNotes();
+    const wildcardMax = getWildcardMax();
+    const articleLength = getArticleLength();
+    const stylePersona = getStylePersona();
 
     if (!gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
@@ -34,6 +40,9 @@
           notes,
           gpx_file: gpxFile,
           image_files: imageFiles,
+          wildcard_max: wildcardMax,
+          article_length: articleLength,
+          style_persona: stylePersona,
         }),
       });
 
