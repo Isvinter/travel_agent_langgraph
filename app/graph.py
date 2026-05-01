@@ -13,6 +13,7 @@ from app.nodes.enrich_weather_node import enrich_weather_node
 from app.nodes.enrich_poi_node import enrich_poi_node
 from app.nodes.review_content_node import review_content_node
 from app.nodes.persist_article import persist_article_node
+from app.nodes.design_blogpost import design_blogpost_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
 EventEmitter = Callable[[str, str, str], None]
@@ -30,6 +31,7 @@ NODE_NAMES = {
     "enrich_poi": "POIs suchen",
     "review_content": "Inhalte prüfen",
     "persist_article": "Artikel speichern",
+    "design_blogpost": "Design anwenden",
 }
 
 
@@ -92,6 +94,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     ltn = _wrap_node(load_tour_notes_node, "load_tour_notes", event_emitter) if event_emitter else load_tour_notes_node
     sin = _wrap_node(select_images_node, "select_images", event_emitter) if event_emitter else select_images_node
     gbp = _wrap_node(generate_blog_post_node, "generate_blog_post", event_emitter) if event_emitter else generate_blog_post_node
+    dsn = _wrap_node(design_blogpost_node, "design_blogpost", event_emitter) if event_emitter else design_blogpost_node
 
     # Enrichment nodes
     ewn = _wrap_node(enrich_weather_node, "enrich_weather", event_emitter) if event_emitter else enrich_weather_node
@@ -107,6 +110,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("load_tour_notes", ltn)
     builder.add_node("select_images", sin)
     builder.add_node("generate_blog_post", gbp)
+    builder.add_node("design_blogpost", dsn)
     builder.add_node("enrich_weather", ewn)
     builder.add_node("enrich_poi", epn)
     builder.add_node("review_content", rcn)
@@ -124,7 +128,8 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("enrich_poi", "select_images")
     builder.add_edge("select_images", "review_content")
     builder.add_edge("review_content", "generate_blog_post")
-    builder.add_edge("generate_blog_post", "persist_article")
+    builder.add_edge("generate_blog_post", "design_blogpost")
+    builder.add_edge("design_blogpost", "persist_article")
 
     builder.set_finish_point("persist_article")
 
