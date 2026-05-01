@@ -31,6 +31,7 @@ class WeatherInfo(BaseModel):
 AVAILABLE_MODELS = [
     "gemma4:26b-ctx128k",
     "gemma4:31b-ctx128k",
+    "qwen3.6:27b-ctx128k",
     "qwen3.6:35b-ctx128k",
 ]
 

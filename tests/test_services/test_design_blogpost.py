@@ -90,9 +90,31 @@ class TestExtractStyledHtml:
         assert _extract_styled_html("short") is None
 
     def test_returns_none_if_no_style_tag(self):
-        html = "<html><body><h1>No CSS</h1></body></html>"
+        html = "<html><head></head><body><h1>No CSS</h1></body></html>"
         result = _extract_styled_html(html)
         assert result is None
+
+    def test_returns_none_if_no_body_tag(self):
+        html = ("<html><head><style>body{color:red;font-family:serif;margin:0;"
+                "padding:0;line-height:1.8;max-width:800px}</style></head></html>")
+        result = _extract_styled_html(html)
+        assert result is None
+
+    def test_strips_markdown_html_fence(self):
+        html = ("<html><head><meta charset='utf-8'><title>T</title>"
+                "<style>body{color:red;font-family:serif}</style></head>"
+                "<body><h1>Hi</h1><p>Content here.</p></body></html>")
+        fenced = f"```html\n{html}\n```"
+        result = _extract_styled_html(fenced)
+        assert result == html
+
+    def test_strips_markdown_plain_fence(self):
+        html = ("<html><head><meta charset='utf-8'><title>T</title>"
+                "<style>body{color:red;font-family:serif}</style></head>"
+                "<body><h1>Hi</h1><p>Content here.</p></body></html>")
+        fenced = f"```\n{html}\n```"
+        result = _extract_styled_html(fenced)
+        assert result == html
 
 
 class TestDesignBlogpostServiceIntegration:
@@ -133,7 +155,7 @@ class TestDesignBlogpostServiceIntegration:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "message": {"content": "<h1>Just content, no CSS</h1>"},
+            "message": {"content": "<html><body><h1>Just content, no CSS</h1></body></html>"},
         }
 
         with patch("requests.post", return_value=mock_resp):

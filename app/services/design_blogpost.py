@@ -61,7 +61,7 @@ def _call_ollama_text(
             "options": {
                 "temperature": 0.7,
                 "top_p": 0.9,
-                "num_predict": 4096,
+                "num_predict": 16384,
             },
         }
 
@@ -84,10 +84,10 @@ def _call_ollama_text(
 
 
 def _extract_styled_html(response: str) -> Optional[str]:
-    """Validiert die LLM-Antwort.
+    """Validiert die LLM-Antwort und bereinigt sie.
 
-    Gibt die Antwort nur zurück, wenn sie ein vollständiges HTML-Dokument
-    mit <style>-Tag enthält. Sonst None.
+    Entfernt ggf. Markdown-Code-Fences, prüft auf <style>- und <body>-Tag.
+    Gibt das bereinigte HTML zurück oder None bei Fehler.
     """
     if not response or len(response.strip()) < 100:
         print("⚠️  Design: Response zu kurz (< 100 Zeichen)")
@@ -95,8 +95,21 @@ def _extract_styled_html(response: str) -> Optional[str]:
 
     stripped = response.strip()
 
+    # Markdown-Code-Fences entfernen (LLMs ignorieren die Anweisung oft)
+    if stripped.startswith("```html"):
+        stripped = stripped[7:]
+    elif stripped.startswith("```"):
+        stripped = stripped[3:]
+    if stripped.endswith("```"):
+        stripped = stripped[:-3]
+    stripped = stripped.strip()
+
     if "<style>" not in stripped and "<style " not in stripped:
         print("⚠️  Design: Kein <style>-Tag in der Antwort gefunden")
+        return None
+
+    if "<body>" not in stripped and "<body " not in stripped:
+        print("⚠️  Design: Kein <body>-Tag in der Antwort — CSS-only-Output erkannt")
         return None
 
     return stripped
