@@ -1,15 +1,17 @@
 <script lang="ts">
-  let selected: string = $state("normal");
+  import { articleLength } from "./stores/pipeline";
 
-  export function getValue(): string {
-    return selected;
-  }
+  let selected: string = $state("normal");
 
   const options = [
     { value: "short", label: "Kurz", desc: "300–650 Wörter" },
     { value: "normal", label: "Normal", desc: "650–1300 Wörter" },
     { value: "detailed", label: "Ausführlich", desc: "1300–2500 Wörter" },
   ];
+
+  function handleChange() {
+    articleLength.set(selected);
+  }
 </script>
 
 <div class="length">
@@ -22,6 +24,7 @@
           name="length"
           value={opt.value}
           bind:group={selected}
+          onchange={handleChange}
         />
         <div class="option-text">
           <span class="option-label">{opt.label}</span>

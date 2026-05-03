@@ -144,19 +144,34 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
     run_id = str(uuid.uuid4())
     event_manager.create_run(run_id)
 
-    # Resolve paths relative to session upload dir if not absolute
+    # Pfad-Auflösung: relativ zum Session-Upload-Verzeichnis oder
+    # absolute Pfade, die innerhalb des UPLOADS_DIR liegen (vom Upload-Endpoint).
     session_dir = _get_session_dir(session_id) if session_id else PROJECT_ROOT
 
-    # Validate and resolve GPX file path
     if os.path.isabs(body.gpx_file):
-        gpx_path = str(_safe_join(Path("/"), body.gpx_file.lstrip("/")))
+        # Nur absolute Pfade innerhalb UPLOADS_DIR oder PROJECT_ROOT erlauben
+        resolved = Path(body.gpx_file).resolve()
+        if not str(resolved).startswith(str(UPLOADS_DIR.resolve())) and \
+           not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+            raise HTTPException(
+                status_code=400,
+                detail="Absolute path outside allowed directories.",
+            )
+        gpx_path = str(resolved)
     else:
         gpx_path = str(_safe_join(session_dir, body.gpx_file))
 
     image_paths = []
     for img in body.image_files:
         if os.path.isabs(img):
-            image_paths.append(str(_safe_join(Path("/"), img.lstrip("/"))))
+            resolved = Path(img).resolve()
+            if not str(resolved).startswith(str(UPLOADS_DIR.resolve())) and \
+               not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Absolute path outside allowed directories.",
+                )
+            image_paths.append(str(resolved))
         else:
             image_paths.append(str(_safe_join(session_dir, img)))
 

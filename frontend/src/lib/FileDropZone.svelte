@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { pipelineFiles } from "./stores/pipeline";
+
   interface UploadedFile {
     name: string;
     path: string;
@@ -91,15 +93,23 @@
     if (f.type === "gpx" && gpxFile === f.path) {
       gpxFile = files.find((x) => x.type === "gpx")?.path ?? null;
     }
+    syncStore();
   }
 
-  export function getFiles(): { gpxFile: string; imageFiles: string[]; txtFile: string | null } {
-    return {
+  function syncStore() {
+    pipelineFiles.set({
       gpxFile: gpxFile || "",
       imageFiles: files.filter((f) => f.type === "image").map((f) => f.path),
       txtFile: files.find((f) => f.type === "txt")?.path ?? null,
-    };
+    });
   }
+
+  // Nach jedem Upload/Delete den Store synchronisieren
+  $effect(() => {
+    files;
+    gpxFile;
+    syncStore();
+  });
 </script>
 
 <div class="dropzone" class:active={dragging}>

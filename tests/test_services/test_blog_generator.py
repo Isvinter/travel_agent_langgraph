@@ -69,3 +69,28 @@ class TestConstructBlogPostPrompt:
         prompt, image_data = bg.construct_blog_post_prompt(images=[])
         assert len(image_data) >= 0
         assert isinstance(prompt, str)
+
+
+class TestStripThinkingTokens:
+    def test_strips_thinking_tags(self):
+        text = "<thinking>This is CoT reasoning\nwith multiple lines</thinking>\n# Title\nContent"
+        result = bg._strip_thinking_tokens(text)
+        assert "<thinking>" not in result
+        assert "CoT reasoning" not in result
+        assert "# Title" in result
+
+    def test_strips_think_tags(self):
+        text = "<think>reasoning here</think>\n\n# Title"
+        result = bg._strip_thinking_tokens(text)
+        assert "reasoning here" not in result
+        assert "# Title" in result
+
+    def test_passes_through_clean_text(self):
+        text = "# Title\n## Section\nContent"
+        result = bg._strip_thinking_tokens(text)
+        assert result == text
+
+    def test_strips_leading_whitespace(self):
+        text = "\n\n\n# Title"
+        result = bg._strip_thinking_tokens(text)
+        assert result == "# Title"

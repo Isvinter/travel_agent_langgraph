@@ -10,10 +10,11 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, WeatherInfo, DailyWeather
 
 
-OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
+OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/api/chat"
 MAX_REVIEW_RESPONSE_TOKENS = 2048
 
 
@@ -184,7 +185,7 @@ def review_enrichment(
     gpx_stats: Any = None,
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
-    base_url: str = "http://localhost:11434",
+    base_url: str = OLLAMA_BASE_URL,
 ) -> Dict[str, Any]:
     """Führt die Content-Review durch und gibt kuratierten Kontext zurück.
 
@@ -235,7 +236,7 @@ def review_enrichment(
         return _build_fallback_context(weather, poi_list, selected_images)
 
     if resp.status_code != 200:
-        print(f"⚠️ Review LLM returned {resp.status_code}")
+        print(f"⚠️ Review LLM returned {resp.status_code}: {resp.text[:500]}")
         return _build_fallback_context(weather, poi_list, selected_images)
 
     content = resp.json().get("message", {}).get("content", "")

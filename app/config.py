@@ -1,5 +1,10 @@
 # app/config.py
-"""Konfigurierbare Ausgabeparameter für die Blog-Generierung."""
+"""Zentrale Konfiguration für die Travel-Agent-Pipeline."""
+
+import os
+
+# Ollama API (konfigurierbar via Umgebungsvariable)
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
 LENGTH_PRESETS = {
     "short": {"label": "Kurz", "min_words": 300, "max_words": 650},

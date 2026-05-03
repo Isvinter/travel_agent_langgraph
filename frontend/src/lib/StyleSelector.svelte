@@ -1,9 +1,7 @@
 <script lang="ts">
-  let selected: string = $state("mountain_veteran");
+  import { stylePersona } from "./stores/pipeline";
 
-  export function getValue(): string {
-    return selected;
-  }
+  let selected: string = $state("mountain_veteran");
 
   const options = [
     {
@@ -17,6 +15,10 @@
       desc: "Sachlich, objektiv, trockener Humor",
     },
   ];
+
+  function handleChange() {
+    stylePersona.set(selected);
+  }
 </script>
 
 <div class="style">
@@ -29,6 +31,7 @@
           name="style"
           value={opt.value}
           bind:group={selected}
+          onchange={handleChange}
         />
         <div class="option-text">
           <span class="option-label">{opt.label}</span>

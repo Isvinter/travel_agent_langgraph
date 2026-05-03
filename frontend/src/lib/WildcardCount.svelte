@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { wildcardCount } from "./stores/pipeline";
+
   let count: number = $state(12);
 
-  export function getValue(): number {
-    return count;
+  function handleInput() {
+    wildcardCount.set(count);
   }
 </script>
 
@@ -15,6 +17,7 @@
       min={4}
       max={20}
       bind:value={count}
+      oninput={handleInput}
     />
     <span class="count-badge">{count}</span>
   </div>

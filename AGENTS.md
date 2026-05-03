@@ -19,7 +19,7 @@ result = run_pipeline()          # prompts for model selection
 ## Key conventions
 
 - **`uv` is the only package manager** — `requirements.txt` is empty, dependencies live in `pyproject.toml`. Always prefix commands with `uv run`.
-- **No tests, linters, or formatters are configured.** There is nothing to run for verification beyond manual execution.
+- **Tests use `pytest`** — run with `uv run pytest tests/ -v`. Write tests for new features alongside implementation code.
 - **Data files are gitignored.** `data/` and `output/` are runtime artifacts. Do not commit them.
 - **Code comments are in German.** Follow the existing convention when adding comments.
 - **Make minimal surgical changes** — see `CLAUDE.md` for the full editing philosophy.

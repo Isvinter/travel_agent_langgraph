@@ -8,6 +8,8 @@ reduziert die Auswahl schrittlich auf die gewünschte Endanzahl.
 import math
 from typing import Any, Dict, List, Optional
 
+from app.config import OLLAMA_BASE_URL
+
 
 BATCH_SIZE = 15
 
@@ -16,7 +18,7 @@ def select_images_for_blog(
     images: List[Dict[str, Any]],
     target_count: int = 8,
     model: str = "gemma4:26b-ctx128k",
-    base_url: str = "http://localhost:11434",
+    base_url: str = OLLAMA_BASE_URL,
 ) -> List[Dict[str, Any]]:
     """Wählt die besten Bilder für den Blogpost in zwei Schritten:
 

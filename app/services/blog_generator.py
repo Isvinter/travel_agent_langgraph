@@ -15,7 +15,18 @@ from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
 
-from app.config import PERSONAS, LENGTH_PRESETS
+from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS
+
+
+def _strip_thinking_tokens(text: str) -> str:
+    """Entfernt Thinking-/CoT-Tokens aus dem LLM-Output."""
+    text = re.sub(
+        r'<(?:think|thinking)[^>]*>.*?</(?:think|thinking)\s*>',
+        '',
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    return text.lstrip('\n')
 
 
 def encode_image_to_base64(image_path: str, max_size: int = 800) -> Optional[str]:
@@ -40,7 +51,11 @@ def encode_image_to_base64(image_path: str, max_size: int = 800) -> Optional[str
             # Resize wenn nötig (für Token-Effizienz)
             if max(img.size) > max_size:
                 img.thumbnail((max_size, max_size))
-            
+
+            # Konvertieren zu RGB (JPEG unterstützt kein RGBA)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+
             # Konvertieren zu Base64
             import io
             buffer = io.BytesIO()
@@ -183,69 +198,82 @@ HIER SIND DIE DATEN ZUR TOUR:
     - Ziel: {gpx_stats.get('end_time', 'N/A')}
     """
 
-        # Notizen hinzufügen (später)
-        if notes:
-                text_prompt += f"""
-        📝 NOTIZEN ZUR TOUR (Baue diese organisch als echte Erlebnisse in die Story ein):
-        {notes}
-        """
+    # Notizen hinzufügen
+    if notes:
+        text_prompt += f"""
+    📝 NOTIZEN ZUR TOUR (Baue diese organisch als echte Erlebnisse in die Story ein):
+    {notes}
+    """
 
-        # Karte und Höhengraph referenzieren
-        if elevation_profile_path:
-            text_prompt += f"\nHIER IST DAS HÖHENPROFIL dieser Tour: (Hochladen im nächsten Schritt)\n"
-        if map_image_path:
-            text_prompt += f"\nHIER IST DIE ÜBERSICHTSKARTE der Route: (Hochladen im nächsten Schritt)\n"
+    # Karte und Höhengraph referenzieren
+    if elevation_profile_path:
+        text_prompt += "\nHIER IST DAS HÖHENPROFIL dieser Tour (wird als Bild hochgeladen):\n"
+    if map_image_path:
+        text_prompt += "\nHIER IST DIE ÜBERSICHTSKARTE der Route (wird als Bild hochgeladen):\n"
 
-        # Hauptanweisung
-            text_prompt += """
+    # Hauptanweisung
+    text_prompt += """
     DEINE AUFGABE:
 
     1. **TIEFE**: Nimm dir Zeit für Details. Beschreibe die Atmosphäre, das Wetter, die körperliche Anstrengung (brennende Waden bei Höhenmetern!), die Geräusche der Natur und das Gefühl der Belohnung am Ziel. "Show, don't tell!"
 
-    2. **KARTE + HÖHENPROFIL**: 
-    - Übersichtskarte am Anfang: ![Karte der Route](./images/00_map.png)
-    - Höhengraph am Ende: ![Höhenprofil](./images/00_elevation_profile.png)
+    2. **KARTE + HÖHENPROFIL**:
+    - Übersichtskarte MUSS am Anfang des Artikels erscheinen, direkt nach der Einleitung — mit Beschreibung:
+      ![Routenverlauf unserer Tour — jeder markierte Punkt ein Stück Weg](./images/00_map.png)
+    - Höhengraphen MUSS am Ende des Artikels erscheinen, im Abschnitt "Hard Facts" oder "Fazit" — mit Beschreibung:
+      ![Höhenprofil der Tour — jeder Anstieg und jeder Abstieg auf einen Blick](./images/00_elevation_profile.png)
 
-    3. **BILDER & TEXTFLUSS**: Integriere die Bilder organisch als Meilensteine in die Geschichte. 
-    - Schreibe für jedes Bild eine atmosphärische Bildunterschrift (1-2 Sätze), die emotional zum Text passt.
-    - Leite im Fließtext elegant auf die Bilder über (z.B. "Als wir um die Ecke bogen, bot sich uns dieser Anblick...", "Der Schweiß hat sich gelohnt, seht euch das an:").
+    3. **BILDER & TEXTFLUSS**: Integriere die Tour-Fotos organisch als Meilensteine in die Geschichte.
+    - Schreibe für JEDES Bild (auch Karte und Höhengraphen!) eine aussagekräftige Bildunterschrift IM ALT-TEXT (1-2 Sätze).
+    - **WICHTIG:** Die Bildbeschreibung steht NUR im alt-Text des Bildes — schreibe sie NICHT zusätzlich als separaten Fließtext davor oder danach.
+    - Leite im Fließtext kurz auf das Bild hin (z.B. "Als wir um die Ecke bogen…"), aber wiederhole NICHT die Bildbeschreibung.
 
-    4. **TEXTFLUSS**: Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze, um den Lesefluss dynamisch zu halten.
+    4. **TEXTFLUSS**: Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze.
 
-    5. **STRUKTUR EINER HELDENREISE**:
-    - **Hook & Einleitung**: Ein packender Einstieg. Warum diese Tour? Die Vorfreude am frühen Morgen.
-    - **Die Übersicht**: Karte einbetten.
-    - **Der Aufbruch & erste Eindrücke**: Wie war der Start? Leichtes Einlaufen oder direkt steil bergauf?
-    - **Die Challenge**: Die Höhenmeter, die Erschöpfung, Hindernisse, spannende Passagen.
-    - **Das Highlight / Der Gipfel / Das Ziel**: Der emotionale Höhepunkt, die Aussicht, die Pause.
-    - **Der Abstieg & Fazit**: Die Rückkehr, wie fühlen sich Beine und Kopf an? Ein finales Resümee für die Leser.
-    - **Hard Facts**: Höhenprofil einbetten.
+    5. **STRUKTUR — als Markdown-Überschriften mit ## und ###**:
+    - **Ganz am Anfang MUSS ein # Haupttitel stehen** (eine Zeile mit # als erstes Zeichen).
+      Beispiel: # Meine Wintertour durch die Allgäuer Alpen
+    - Verwende `##` für Hauptabschnitte und `###` für Unterabschnitte.
+    - Deine Abschnitte:
+    - **Hook & Einleitung**: Ein packender Einstieg. Warum diese Tour? Die Vorfreude. (KEINE Überschrift nötig — Starte direkt mit dem Text.)
+    - **## Die Übersicht**: Beschreibe die Route anhand der Karte. Bette die Karte ein.
+    - **## Der Aufbruch**: Wie war der Start? Leichtes Einlaufen oder direkt steil?
+    - **## Die Challenge**: Die Höhenmeter, Erschöpfung, Hindernisse.
+    - **## Das Highlight**: Der emotionale Höhepunkt, Aussicht, Gipfelmoment.
+    - **## Der Abstieg & Fazit**: Die Rückkehr, Resümee. Bette hier den Höhengraphen ein.
 
-    6. **FORMATIERUNG (STRIKT)**: 
-    - Gib NUR den Markdown-Text des Blogposts zurück. 
+    6. **FORMATIERUNG (STRIKT)**:
+    - Gib NUR den Markdown-Text des Blogposts zurück.
     - Keine Einleitung deinerseits, keine Metatexte, keine Kommentare.
+    - Nutze ## und ### für Überschriften — MINDESTENS eine ##-Überschrift pro Abschnitt.
+    - Jeder Abschnitt der Heldenreise MUSS mit einer ##-Überschrift beginnen (außer der Einleitung).
     - Nutze für Bilder EXAKT folgendes Format: ![Deine Beschreibung](pfad/zum/bild)
-    - **WICHTIG:** Verwende IMMER den exakten Dateipfad aus der Liste unten. Niemals Platzhalter erfinden!
-    Beispiel: ![Morgennebel über der Wiese](./images/01_IMG_5527.jpg)
+    - **WICHTIG:** Verwende NUR die exakten Dateipfade aus der Liste unten. Kopiere den Pfad 1:1.
+      Erfinde NIEMALS eigene Pfade oder Nummern — jeder Pfad aus der Liste muss exakt verwendet werden.
+    - **JEDES Bild BRAUCHT eine Beschreibung im alt-Text** (auch Karte und Höhengraphen).
+      Beispiel: ![Atmosphärische Beschreibung des Bildinhalts](PFAD_AUS_DER_LISTE)
 
-    DIE FÜR DICH AUSGEWÄHLTEN BILDER (nutze den ./images/… Pfad für Bild-Links):
+    DIE FÜR DICH AUSGEWÄHLTEN BILDER (verwende GENAU diese Pfade):
     """
 
-        # Bilder-Informationen hinzufügen
-        for idx, img in enumerate(images, 1):
-            rel_path = f"{image_path_prefix}{os.path.basename(img.get('path', ''))}"
-            original = img.get("original_path", img.get("path", ""))
-            img_info = {
-                "id": idx,
-                "path": rel_path,
-                "original_path": original,
-                "timestamp": img.get("timestamp", "Unbekannt"),
-                "location": f"{img.get('latitude', 0):.6f}, {img.get('longitude', 0):.6f}" if img.get("latitude") else "Keine Geodaten"
-            }
-            available_images.append(img_info)
-            text_prompt += f"\nBild {idx}: {img_info['location']} ({img_info['timestamp']}) — {rel_path}"
+    # Bilder-Informationen hinzufügen
+    for idx, img in enumerate(images, 1):
+        rel_path = f"{image_path_prefix}{os.path.basename(img.get('path', ''))}"
+        original = img.get("original_path", img.get("path", ""))
+        img_info = {
+            "id": idx,
+            "path": rel_path,
+            "original_path": original,
+            "timestamp": img.get("timestamp", "Unbekannt"),
+            "location": f"{img.get('latitude', 0):.6f}, {img.get('longitude', 0):.6f}" if img.get("latitude") else "Keine Geodaten"
+        }
+        available_images.append(img_info)
+        text_prompt += (
+            f"\nBild {idx}: {img_info['timestamp']} | {img_info['location']}\n"
+            f"  Pfad: {rel_path}"
+        )
 
-        text_prompt += """
+    text_prompt += """
 
     Lass die Tastatur glühen und nimm uns mit auf dieses Abenteuer! BEGINNE JETZT MIT DEM BLOGPOST:
     """
@@ -353,7 +381,7 @@ def call_ollama_multimodal(
     prompt: str,
     images: List[Dict[str, Any]],
     model: str = "gemma4:26b-ctx128k",
-    base_url: str = "http://localhost:11434"
+    base_url: str = OLLAMA_BASE_URL,
 ) -> Optional[str]:
     """
     Ruft Ollama multimodales Modell auf und generiert Blogpost.
@@ -391,7 +419,7 @@ def call_ollama_multimodal(
             "options": {
                 "temperature": 0.7,
                 "top_p": 0.9,
-                "num_predict": 4096  # Längere Antworten erlauben
+                "num_predict": 16384  # Längere Antworten erlauben
             }
         }
         
@@ -510,6 +538,9 @@ def generate_blog_post(
 
     print("✅ Blog post generated successfully!")
 
+    # Thinking-Tokens entfernen
+    result = _strip_thinking_tokens(result)
+
     # ---- Post-processing: Bildpfade im Output normalisieren ----
     # Reverse-Mapping: alle Pfade die das LLM evtl. nutzt -> relativer Pfad
     reverse_map: dict[str, str] = {}
@@ -519,33 +550,44 @@ def generate_blog_post(
         reverse_map[orig] = rel
         reverse_map[bn] = rel
 
-    # Build forward lookup: index -> relative path for fallback resolution
+    # Build forward + backward lookup for path resolution
     index_to_rel: dict[int, str] = {}
+    basename_to_rel: dict[str, str] = {}
     for orig, rel in path_mapping.items():
         bn = os.path.basename(orig)
+        basename_to_rel[bn.lower()] = rel
         m_idx = re.match(r'(\d+)_', bn)
         if m_idx:
             index_to_rel[int(m_idx.group(1))] = rel
 
     def resolve_path(path: str) -> str:
+        # Exact match (full path, basename, relative path)
         if path in reverse_map:
             return reverse_map[path]
-        # Handle "Bild_N.jpg" pattern the LLM sometimes generates
-        m_bild = re.search(r'Bild_(\d+)\.jpg', path, re.IGNORECASE)
-        if m_bild:
-            idx = int(m_bild.group(1))
-            if idx in index_to_rel:
-                return index_to_rel[idx]
-            return path  # index out of range, leave as-is
+        # Case-insensitive basename lookup
+        bn = os.path.basename(path).lower()
+        if bn in basename_to_rel:
+            return basename_to_rel[bn]
+        # "Bild_N.jpg" / "photo_N.jpg" / "IMG_N.jpg" patterns
+        for prefix in ("Bild", "Photo", "IMG", "Image"):
+            m_fmt = re.match(
+                rf'{prefix}[_\s]*(\d+)\.(jpg|jpeg|png)',
+                path, re.IGNORECASE,
+            )
+            if m_fmt:
+                idx = int(m_fmt.group(1))
+                if idx in index_to_rel:
+                    return index_to_rel[idx]
+                break
+        # Valid image extension — keep as-is (map/elevation)
         if re.search(r'\.(jpg|jpeg|png)', path, re.IGNORECASE):
             return path
-        # Platzhalter wie "Bild 1" versuchen zu mappen
-        m = re.search(r'(\d+)', path)
-        if m:
-            for candidate in [f"Bild {int(m.group(1)) - 1}",
-                              f"Bild_{path.strip()}", path]:
-                if candidate in reverse_map:
-                    return reverse_map[candidate]
+        # Last resort: extract last number and try index match
+        numbers = re.findall(r'(\d+)', path)
+        for num_str in reversed(numbers):
+            idx = int(num_str)
+            if idx in index_to_rel:
+                return index_to_rel[idx]
         return path
 
     md_images = re.findall(r'!\[([^\]]+)\]\(([^)]+)\)', result)

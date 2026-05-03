@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { notesField } from "./stores/pipeline";
+
   let notes: string = $state("");
 
-  export function getNotes(): string {
-    return notes;
+  function handleInput() {
+    notesField.set(notes);
   }
 </script>
 
@@ -11,6 +13,7 @@
   <textarea
     id="notes-input"
     bind:value={notes}
+    oninput={handleInput}
     placeholder="Optionale Notizen zur Tour…"
     rows={5}
   ></textarea>

@@ -14,14 +14,6 @@
   import ArticleList from "./lib/ArticleList.svelte";
   import ArticleDetail from "./lib/ArticleDetail.svelte";
 
-  let modelSelector: ModelSelector;
-  let fileDropZone: FileDropZone;
-  let outputDirInput: OutputDirInput;
-  let notesInput: NotesInput;
-  let wildcardCount: WildcardCount;
-  let lengthSelector: LengthSelector;
-  let styleSelector: StyleSelector;
-
   let rt = $derived($route);
 </script>
 
@@ -47,24 +39,16 @@
     </nav>
 
     {#if rt.page === "pipeline"}
-      <ModelSelector bind:this={modelSelector} />
-      <FileDropZone bind:this={fileDropZone} />
-      <OutputDirInput bind:this={outputDirInput} />
-      <NotesInput bind:this={notesInput} />
-      <WildcardCount bind:this={wildcardCount} />
-      <LengthSelector bind:this={lengthSelector} />
-      <StyleSelector bind:this={styleSelector} />
+      <ModelSelector />
+      <FileDropZone />
+      <OutputDirInput />
+      <NotesInput />
+      <WildcardCount />
+      <LengthSelector />
+      <StyleSelector />
 
       <div class="run-section">
-        <RunButton
-          getModel={() => modelSelector.getModel()}
-          getFiles={() => fileDropZone.getFiles()}
-          getOutputDir={() => outputDirInput.getOutputDir()}
-          getNotes={() => notesInput.getNotes()}
-          getWildcardMax={() => wildcardCount.getValue()}
-          getArticleLength={() => lengthSelector.getValue()}
-          getStylePersona={() => styleSelector.getValue()}
-        />
+        <RunButton />
       </div>
     {/if}
   </aside>

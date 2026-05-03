@@ -1,26 +1,29 @@
 <script lang="ts">
-  import { runState, addLine, startStream, resetPipeline } from "./stores/pipeline";
-
-  let { getModel, getFiles, getOutputDir, getNotes, getWildcardMax, getArticleLength, getStylePersona }: {
-    getModel: () => string;
-    getFiles: () => { gpxFile: string; imageFiles: string[]; txtFile: string | null };
-    getOutputDir: () => string;
-    getNotes: () => string;
-    getWildcardMax: () => number;
-    getArticleLength: () => string;
-    getStylePersona: () => string;
-  } = $props();
+  import { get } from "svelte/store";
+  import {
+    runState,
+    addLine,
+    startStream,
+    resetPipeline,
+    selectedModel,
+    pipelineFiles,
+    outputDir,
+    notesField,
+    wildcardCount,
+    articleLength,
+    stylePersona,
+  } from "./stores/pipeline";
 
   let loading: boolean = $state(false);
 
   async function handleRun() {
-    const model = getModel();
-    const { gpxFile, imageFiles } = getFiles();
-    const outputDir = getOutputDir();
-    const notes = getNotes();
-    const wildcardMax = getWildcardMax();
-    const articleLength = getArticleLength();
-    const stylePersona = getStylePersona();
+    const model = get(selectedModel);
+    const { gpxFile, imageFiles } = get(pipelineFiles);
+    const dir = get(outputDir);
+    const notes = get(notesField);
+    const wc = get(wildcardCount);
+    const length = get(articleLength);
+    const persona = get(stylePersona);
 
     if (!gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
@@ -36,13 +39,13 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model,
-          output_dir: outputDir,
+          output_dir: dir,
           notes,
           gpx_file: gpxFile,
           image_files: imageFiles,
-          wildcard_max: wildcardMax,
-          article_length: articleLength,
-          style_persona: stylePersona,
+          wildcard_max: wc,
+          article_length: length,
+          style_persona: persona,
         }),
       });
 

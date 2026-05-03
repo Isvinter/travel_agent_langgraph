@@ -31,6 +31,20 @@ export const currentRunId = writable<string | null>(null);
 export const result = writable<RunResult | null>(null);
 export const sessionId = writable<string>(newSessionId);
 
+// Pipeline form fields — shared via stores (Svelte 5 runes mode:
+// export function creates props, not callable instance methods via bind:this)
+export const selectedModel = writable<string>("");
+export const pipelineFiles = writable<{ gpxFile: string; imageFiles: string[]; txtFile: string | null }>({
+  gpxFile: "",
+  imageFiles: [],
+  txtFile: null,
+});
+export const outputDir = writable<string>("output");
+export const notesField = writable<string>("");
+export const wildcardCount = writable<number>(12);
+export const articleLength = writable<string>("normal");
+export const stylePersona = writable<string>("mountain_veteran");
+
 let eventSource: EventSource | null = null;
 
 export function addLine(stage: string, status: string, message: string) {

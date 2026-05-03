@@ -1,10 +1,33 @@
 # app/services/persist_article.py
 """Service zum Persistieren generierter Blogposts in der Datenbank."""
+import re
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository
+
+
+def _sanitize_html(html: str) -> str:
+    """Entfernt potenziell gefährliche Inhalte aus LLM-generiertem HTML.
+
+    - <script>-Tags und deren Inhalt
+    - Event-Handler-Attribute (onerror, onclick, ...)
+    - javascript:-URIs in href/src
+    """
+    if not html:
+        return html
+    # <script>...</script> komplett entfernen (inkl. Inhalt)
+    html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
+    # Event-Handler-Attribute entfernen
+    html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
+    html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
+    html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
+    # javascript:-URIs entfernen
+    html = re.sub(r'(href|src)\s*=\s*"[^"]*javascript:[^"]*"', r'\1="#"', html, flags=re.IGNORECASE)
+    html = re.sub(r"(href|src)\s*=\s*'[^']*javascript:[^']*'", r"\1='#'", html, flags=re.IGNORECASE)
+    return html
 
 
 def _extract_title(markdown: str) -> Optional[str]:
@@ -32,11 +55,17 @@ def _compute_tour_date_and_duration(gpx_stats, images) -> tuple[Optional[date], 
 
     # Photos fallback
     if images:
-        timestamps = [
-            datetime.fromisoformat(img.get("timestamp"))
-            for img in images
-            if isinstance(img, dict) and img.get("timestamp")
-        ]
+        timestamps = []
+        for img in images:
+            if not isinstance(img, dict):
+                continue
+            ts = img.get("timestamp")
+            if not ts:
+                continue
+            try:
+                timestamps.append(datetime.fromisoformat(ts))
+            except (ValueError, TypeError):
+                continue
         if len(timestamps) >= 2:
             start = min(timestamps)
             end = max(timestamps)
@@ -96,7 +125,7 @@ def persist_article(
         "elevation_loss_m": round(loss_m, 0) if loss_m else None,
         "image_count": len(selected_images),
         "markdown_content": markdown,
-        "html_content": html,
+        "html_content": _sanitize_html(html),
         "markdown_path": file_paths.get("markdown", ""),
         "html_path": file_paths.get("html", ""),
         "model_used": model,

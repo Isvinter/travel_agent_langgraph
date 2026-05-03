@@ -1,14 +1,16 @@
 <script lang="ts">
+  import { outputDir } from "./stores/pipeline";
+
   let dir: string = $state("output");
 
-  export function getOutputDir(): string {
-    return dir || "output";
+  function handleInput() {
+    outputDir.set(dir || "output");
   }
 </script>
 
 <div class="output-dir">
   <label for="output-dir">Ausgabe-Verzeichnis</label>
-  <input id="output-dir" type="text" bind:value={dir} placeholder="output" />
+  <input id="output-dir" type="text" bind:value={dir} oninput={handleInput} placeholder="output" />
 </div>
 
 <style>

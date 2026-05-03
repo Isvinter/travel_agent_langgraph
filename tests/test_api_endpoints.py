@@ -96,7 +96,7 @@ class TestPipelineRun:
     def test_run_with_gpx_returns_run_id(self, client):
         response = client.post("/api/pipeline/run", json={
             "model": "gemma4:26b-ctx128k",
-            "gpx_file": "/some/fake/path.gpx",
+            "gpx_file": "tests/fixtures/nonexistent.gpx",
             "image_files": [],
         })
         assert response.status_code == 200
