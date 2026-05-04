@@ -10,7 +10,7 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated, lo
 - **Map generation** — renders an interactive Folium map and captures it as a PNG via headless Chrome
 - **Elevation profile** — Matplotlib chart of elevation vs. distance
 - **Historical weather** — fetches past weather data via Open-Meteo Archive API (no API key required), estimates 0°C freezing level from elevation data
-- **POI discovery** — queries Overpass API for viewpoints, alpine huts, peaks, ruins, castles near pause locations (no API key required), enriches with Wikipedia extracts
+- **POI discovery** — queries Overpass API for ~60 outdoor-relevant POI categories (peaks, waterfalls, huts, ruins, castles, shelters, etc.) near pause locations, with multi-instance fallback, exponential backoff retry, and file-based JSON cache; enriches with Wikipedia extracts (no API key required)
 - **AI content review** — LLM quality gate that curates enrichment data: filters irrelevant POIs, discards non-applicable weather fields, rates image suitability, scores overall coherence
 - **AI image selection** — multimodal LLM selects the best photos for the blog (batched, iterative)
 - **AI blog generation** — multimodal LLM writes a narrative travel blog post enriched with weather, POIs, images, map, and elevation profile
