@@ -70,6 +70,31 @@ class TestConstructBlogPostPrompt:
         assert len(image_data) >= 0
         assert isinstance(prompt, str)
 
+    @pytest.mark.unit
+    def test_prompt_requires_foto_x_format(self, tmp_path):
+        """Prompt soll 'Foto X:'-Format für Tour-Fotos verlangen."""
+        from PIL import Image
+        img_path = str(tmp_path / "photo.jpg")
+        img = Image.new("RGB", (100, 100), color="blue")
+        img.save(img_path)
+
+        images = [{"path": img_path, "timestamp": "2025-06-01", "latitude": 47.0, "longitude": 8.0}]
+        prompt, _ = bg.construct_blog_post_prompt(images=images)
+
+        assert "Foto X:" in prompt
+        assert "![Foto" in prompt
+
+    @pytest.mark.unit
+    def test_prompt_excludes_foto_prefix_for_map_and_elevation(self):
+        """Karte und Höhenprofil sollen KEIN 'Foto X:'-Prefix bekommen."""
+        prompt, _ = bg.construct_blog_post_prompt(images=[])
+
+        assert "![Routenverlauf" in prompt
+        # Karte/Höhenprofil verwenden "OHNE Nummer"-Format (ohne "Foto X:")
+        assert "OHNE Nummer)" in prompt
+        # Tour-Fotos verwenden dagegen "Foto X:"-Format (mit Nummer)
+        assert "mit Nummer:" in prompt
+
 
 class TestStripThinkingTokens:
     def test_strips_thinking_tags(self):

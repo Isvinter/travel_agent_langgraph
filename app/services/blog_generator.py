@@ -242,16 +242,23 @@ HIER SIND DIE DATEN ZUR TOUR:
     - **## Das Highlight**: Der emotionale Höhepunkt, Aussicht, Gipfelmoment.
     - **## Der Abstieg & Fazit**: Die Rückkehr, Resümee. Bette hier den Höhengraphen ein.
 
-    6. **FORMATIERUNG (STRIKT)**:
-    - Gib NUR den Markdown-Text des Blogposts zurück.
-    - Keine Einleitung deinerseits, keine Metatexte, keine Kommentare.
-    - Nutze ## und ### für Überschriften — MINDESTENS eine ##-Überschrift pro Abschnitt.
-    - Jeder Abschnitt der Heldenreise MUSS mit einer ##-Überschrift beginnen (außer der Einleitung).
-    - Nutze für Bilder EXAKT folgendes Format: ![Deine Beschreibung](pfad/zum/bild)
-    - **WICHTIG:** Verwende NUR die exakten Dateipfade aus der Liste unten. Kopiere den Pfad 1:1.
-      Erfinde NIEMALS eigene Pfade oder Nummern — jeder Pfad aus der Liste muss exakt verwendet werden.
-    - **JEDES Bild BRAUCHT eine Beschreibung im alt-Text** (auch Karte und Höhengraphen).
-      Beispiel: ![Atmosphärische Beschreibung des Bildinhalts](PFAD_AUS_DER_LISTE)
+     6. **FORMATIERUNG (STRIKT)**:
+     - Gib NUR den Markdown-Text des Blogposts zurück.
+     - Keine Einleitung deinerseits, keine Metatexte, keine Kommentare.
+     - Nutze ## und ### für Überschriften — MINDESTENS eine ##-Überschrift pro Abschnitt.
+     - Jeder Abschnitt der Heldenreise MUSS mit einer ##-Überschrift beginnen (außer der Einleitung).
+     - Nutze für Karte und Höhenprofil folgendes Format (OHNE Nummer):
+       ![Routenverlauf unserer Tour — jeder markierte Punkt ein Stück Weg](./images/00_map.png)
+       ![Höhenprofil der Tour — jeder Anstieg und jeder Abstieg auf einen Blick](./images/00_elevation_profile.png)
+     - Nutze für Tour-Fotos EXAKT folgendes Format mit Nummer:
+       ![Foto X: Deine Beschreibung](pfad/zum/bild)
+       Die Nummer X entspricht der Position in der Bildliste. Auf der Übersichtskarte
+       findest du jedes Foto mit dem Label "Foto X" am Aufnahmeort eingezeichnet.
+     - **WICHTIG:** Verwende NUR die exakten Dateipfade aus der Liste unten. Kopiere den Pfad 1:1.
+       Erfinde NIEMALS eigene Pfade oder Nummern — jeder Pfad aus der Liste muss exakt verwendet werden.
+     - **JEDES Bild BRAUCHT eine Beschreibung im alt-Text** (auch Karte und Höhengraphen).
+       Beispiel Tour-Foto: ![Foto 1: Atmosphärische Beschreibung des Bildinhalts](PFAD_AUS_DER_LISTE)
+       Beispiel Karte: ![Routenverlauf unserer Tour](PFAD_ZUR_KARTE)
 
     DIE FÜR DICH AUSGEWÄHLTEN BILDER (verwende GENAU diese Pfade):
     """
