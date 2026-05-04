@@ -7,7 +7,9 @@ Findet Points of Interest in der Nähe von Pause-Orten entlang der Route.
 
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+import json
 import math
+from pathlib import Path
 import time
 
 import requests
@@ -52,8 +54,38 @@ DEFAULT_SEARCH_RADIUS_M = 2000
 MAX_POIS_PER_LOCATION = 15
 PROXIMITY_DEDUP_M = 500
 
+POI_CACHE_PATH = Path("output/poi_cache.json")
+
 MAX_RETRIES = 3
 RETRY_BACKOFF = [1, 2, 4]  # Sekunden
+
+
+def _get_cache_key(lat: float, lon: float, radius: int) -> str:
+    """Erzeugt einen Cache-Key aus Koordinaten und Radius."""
+    return f"{lat:.4f}_{lon:.4f}_{radius}"
+
+
+def _load_cache(cache_path: Path = POI_CACHE_PATH) -> Dict[str, Any]:
+    """Lädt den POI-Cache aus der JSON-Datei."""
+    try:
+        if cache_path.exists():
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Cache-Datei konnte nicht geladen werden: {e}")
+    return {}
+
+
+def _save_to_cache(key: str, pois: List[Dict[str, Any]], cache_path: Path = POI_CACHE_PATH):
+    """Speichert POIs für einen Key im Cache."""
+    try:
+        cache = _load_cache(cache_path)
+        cache[key] = pois
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️ Cache konnte nicht gespeichert werden: {e}")
 
 
 def _try_overpass_query(query: str) -> Optional[List[Dict[str, Any]]]:
@@ -257,6 +289,7 @@ def fetch_pois(
         return []
 
     all_pois: List[Dict[str, Any]] = []
+    cache = _load_cache()
 
     for pause in pauses:
         loc = pause.get("location", {})
@@ -264,10 +297,18 @@ def fetch_pois(
         if lat is None or lon is None:
             continue
 
+        cache_key = _get_cache_key(lat, lon, search_radius_m)
+
+        # Cache-Check
+        if cache_key in cache:
+            all_pois.extend(cache[cache_key])
+            continue
+
         query = _build_overpass_query(lat, lon, search_radius_m)
         elements = _try_overpass_query(query)
         if elements:
             pois = _parse_overpass_response({"elements": elements}, lat, lon)
+            _save_to_cache(cache_key, pois)
             all_pois.extend(pois)
         else:
             print(f"⚠️ Keine POI-Daten für ({lat}, {lon})")

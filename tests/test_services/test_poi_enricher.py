@@ -211,7 +211,9 @@ class TestOverpassRetry:
         pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
         with patch("app.services.poi_enricher.requests.post", side_effect=mock_post):
             with patch("app.services.poi_enricher.time.sleep", return_value=None):
-                result = fetch_pois(pauses=pauses)
+                with patch("app.services.poi_enricher._load_cache", return_value={}):
+                    with patch("app.services.poi_enricher._save_to_cache"):
+                        result = fetch_pois(pauses=pauses)
 
         assert result == []
         assert len(called_urls) == 3
@@ -236,7 +238,9 @@ class TestOverpassRetry:
         pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
         with patch("app.services.poi_enricher.requests.post", side_effect=mock_post):
             with patch("app.services.poi_enricher.time.sleep", side_effect=mock_sleep):
-                fetch_pois(pauses=pauses)
+                with patch("app.services.poi_enricher._load_cache", return_value={}):
+                    with patch("app.services.poi_enricher._save_to_cache"):
+                        fetch_pois(pauses=pauses)
 
         assert len(sleep_times) >= 1
         assert sleep_times[0] == 1  # erster Retry nach 1s
@@ -266,7 +270,8 @@ class TestFetchPois:
 
         with patch("app.services.poi_enricher.requests.post",
                    return_value=mock_overpass_resp):
-            result = fetch_pois(pauses=pauses)
+            with patch("app.services.poi_enricher._save_to_cache"):
+                result = fetch_pois(pauses=pauses)
             assert len(result) >= 1
             assert result[0]["name"] == "Berggipfel"
 
@@ -278,5 +283,28 @@ class TestFetchPois:
         with patch("app.services.poi_enricher.requests.post",
                    side_effect=Exception("Connection refused")):
             with patch("app.services.poi_enricher.time.sleep", return_value=None):
-                result = fetch_pois(pauses=pauses)
-                assert result == []
+                with patch("app.services.poi_enricher._load_cache", return_value={}):
+                    with patch("app.services.poi_enricher._save_to_cache"):
+                        result = fetch_pois(pauses=pauses)
+                        assert result == []
+
+
+class TestPoiCache:
+    def test_cache_hit_returns_cached_pois(self, tmp_path):
+        from app.services.poi_enricher import _load_cache, _save_to_cache, _get_cache_key
+
+        cache_file = tmp_path / "poi_cache.json"
+        key = _get_cache_key(47.3, 11.4, 2000)
+        dummy_pois = [{"name": "Test", "type": "peak", "lat": 47.3, "lon": 11.4}]
+        _save_to_cache(key, dummy_pois, cache_file)
+
+        cache = _load_cache(cache_file)
+        assert cache[key] == dummy_pois
+
+    def test_cache_miss_returns_none(self, tmp_path):
+        from app.services.poi_enricher import _load_cache, _get_cache_key
+
+        cache_file = tmp_path / "nonexistent.json"
+        key = _get_cache_key(99.0, 99.0, 2000)
+        cache = _load_cache(cache_file)
+        assert key not in cache
