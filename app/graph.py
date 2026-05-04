@@ -1,5 +1,5 @@
 from typing import Callable, Optional
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END
 from app.state import AppState, AVAILABLE_MODELS
 from app.nodes.process_gpx import process_gpx_node
 from app.nodes.load_images import load_images_node
@@ -14,6 +14,7 @@ from app.nodes.enrich_poi_node import enrich_poi_node
 from app.nodes.review_content_node import review_content_node
 from app.nodes.persist_article import persist_article_node
 from app.nodes.design_blogpost import design_blogpost_node
+from app.nodes.generate_pdf import generate_pdf_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
 EventEmitter = Callable[[str, str, str], None]
@@ -32,6 +33,7 @@ NODE_NAMES = {
     "review_content": "Inhalte prüfen",
     "persist_article": "Artikel speichern",
     "design_blogpost": "Design anwenden",
+    "generate_pdf": "PDF generieren",
 }
 
 
@@ -101,6 +103,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     epn = _wrap_node(enrich_poi_node, "enrich_poi", event_emitter) if event_emitter else enrich_poi_node
     rcn = _wrap_node(review_content_node, "review_content", event_emitter) if event_emitter else review_content_node
     pan = _wrap_node(persist_article_node, "persist_article", event_emitter) if event_emitter else persist_article_node
+    gpn = _wrap_node(generate_pdf_node, "generate_pdf", event_emitter) if event_emitter else generate_pdf_node
 
     builder.add_node("process_gpx", pgn)
     builder.add_node("load_images", lin)
@@ -115,6 +118,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("enrich_poi", epn)
     builder.add_node("review_content", rcn)
     builder.add_node("persist_article", pan)
+    builder.add_node("generate_pdf", gpn)
 
     builder.set_entry_point("process_gpx")
 
@@ -131,6 +135,16 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("generate_blog_post", "design_blogpost")
     builder.add_edge("design_blogpost", "persist_article")
 
-    builder.set_finish_point("persist_article")
+    def _should_generate_pdf(state: AppState) -> str:
+        if state.output_config.pdf_export:
+            return "generate_pdf"
+        return END
+
+    builder.add_conditional_edges(
+        "persist_article",
+        _should_generate_pdf,
+        {"generate_pdf": "generate_pdf", END: END},
+    )
+    builder.add_edge("generate_pdf", END)
 
     return builder.compile()

@@ -286,7 +286,20 @@ async def _run_pipeline_in_background(
         })
 
         output_path = output_paths.get("markdown", output_dir)
-        event_manager.complete_run(run_id, "success", output_path)
+
+        # Extrahiere article_id und pdf_available aus dem Ergebnis
+        article_id = None
+        pdf_available = False
+        if hasattr(result, "metadata"):
+            article_id = result.metadata.get("article_id")
+        if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
+            pdf_available = True
+
+        event_manager.complete_run(
+            run_id, "success", output_path,
+            article_id=article_id,
+            pdf_available=pdf_available,
+        )
 
     except Exception as e:
         emit_fn("error", "error", str(e))

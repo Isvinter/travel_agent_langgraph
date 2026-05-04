@@ -28,12 +28,16 @@ class PipelineEventManager:
         event = {"stage": stage, "status": status, "message": message}
         self._loop.call_soon_threadsafe(queue.put_nowait, event)
 
-    def complete_run(self, run_id: str, status: str, output_dir: str = ""):
+    def complete_run(self, run_id: str, status: str, output_dir: str = "",
+                     article_id: int = None, pdf_available: bool = False):
         """Signal pipeline completion and store the result."""
         queue = self._runs.get(run_id)
         if queue is None or self._loop is None:
             return
         event = {"stage": "__done__", "status": status, "output_dir": output_dir}
+        if article_id is not None:
+            event["article_id"] = article_id
+        event["pdf_available"] = pdf_available
         self._loop.call_soon_threadsafe(queue.put_nowait, event)
 
     def store_result(self, run_id: str, result: dict):
