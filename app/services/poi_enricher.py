@@ -52,6 +52,54 @@ DEFAULT_SEARCH_RADIUS_M = 2000
 MAX_POIS_PER_LOCATION = 15
 PROXIMITY_DEDUP_M = 500
 
+MAX_RETRIES = 3
+RETRY_BACKOFF = [1, 2, 4]  # Sekunden
+
+
+def _try_overpass_query(query: str) -> Optional[List[Dict[str, Any]]]:
+    """Sendet eine Overpass-Query mit Retry und Instanz-Fallback.
+
+    Probiert alle Instanzen mit exponentiellem Backoff.
+    Gibt None zurück wenn keine Instanz erreichbar ist.
+    """
+    request_headers = {
+        "Content-Type": "text/plain",
+        "Accept": "application/json",
+        "User-Agent": "TravelBlogBot/1.0",
+    }
+
+    for attempt in range(MAX_RETRIES + 1):
+        instance_idx = attempt % len(OVERPASS_INSTANCES)
+        url = OVERPASS_INSTANCES[instance_idx]
+
+        try:
+            resp = requests.post(
+                url,
+                data=query.encode("utf-8"),
+                headers=request_headers,
+                timeout=30,
+            )
+        except Exception as e:
+            print(f"⚠️ Overpass {url} nicht erreichbar: {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)])
+            continue
+
+        if resp.status_code == 200:
+            try:
+                return resp.json().get("elements", [])
+            except Exception:
+                print(f"⚠️ Ungültiges JSON von {url}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)])
+                continue
+
+        print(f"⚠️ Overpass {url} antwortete mit {resp.status_code}")
+        if attempt < MAX_RETRIES:
+            time.sleep(RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)])
+
+    return None
+
 
 def _build_overpass_query(lat: float, lon: float, radius: int = DEFAULT_SEARCH_RADIUS_M) -> str:
     """Baut eine Overpass QL-Query aus den Kategorien in OVERPASS_POI_CATEGORIES."""
@@ -217,42 +265,12 @@ def fetch_pois(
             continue
 
         query = _build_overpass_query(lat, lon, search_radius_m)
-
-        try:
-            resp = requests.post(
-                OVERPASS_URL,
-                data=query.encode("utf-8"),
-                headers={"Content-Type": "text/plain"},
-                timeout=60,
-            )
-        except Exception as e:
-            print(f"⚠️ Overpass API nicht erreichbar für ({lat}, {lon}): {e}")
-            continue
-
-        if resp.status_code == 429:
-            print("⚠️ Overpass rate limit — warte 2 Sekunden und versuche erneut")
-            time.sleep(2)
-            try:
-                resp = requests.post(
-                    OVERPASS_URL,
-                    data=query.encode("utf-8"),
-                    headers={"Content-Type": "text/plain"},
-                    timeout=60,
-                )
-            except Exception:
-                continue
-
-        if resp.status_code != 200:
-            print(f"⚠️ Overpass antwortete mit {resp.status_code}")
-            continue
-
-        try:
-            data = resp.json()
-        except Exception:
-            continue
-
-        pois = _parse_overpass_response(data, lat, lon)
-        all_pois.extend(pois)
+        elements = _try_overpass_query(query)
+        if elements:
+            pois = _parse_overpass_response({"elements": elements}, lat, lon)
+            all_pois.extend(pois)
+        else:
+            print(f"⚠️ Keine POI-Daten für ({lat}, {lon})")
 
     # Deduplizieren
     all_pois = _deduplicate_pois_by_name_and_proximity(all_pois)

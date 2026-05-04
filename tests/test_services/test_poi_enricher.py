@@ -191,6 +191,57 @@ class TestCategories:
                 assert " " not in v  # OSM-Tags haben keine Leerzeichen
 
 
+class TestOverpassRetry:
+    def test_retries_on_406_and_falls_back_to_next_instance(self):
+        from datetime import datetime
+
+        fails = Mock()
+        fails.status_code = 406
+        falls_fails = Mock()
+        falls_fails.status_code = 406
+        success = Mock()
+        success.status_code = 200
+        success.json.return_value = {"elements": []}
+
+        responses = [fails, falls_fails, success]
+
+        def mock_post(url, *args, **kwargs):
+            return responses.pop(0)
+
+        pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
+        with patch("app.services.poi_enricher.requests.post", side_effect=mock_post):
+            with patch("app.services.poi_enricher.time.sleep", return_value=None):
+                result = fetch_pois(pauses=pauses)
+
+        assert result == []
+
+    def test_retries_with_exponential_backoff(self):
+        from datetime import datetime
+
+        fails = Mock()
+        fails.status_code = 503
+        success = Mock()
+        success.status_code = 200
+        success.json.return_value = {"elements": []}
+
+        responses = [fails, success]
+        sleep_times = []
+
+        def mock_post(url, *args, **kwargs):
+            return responses.pop(0)
+
+        def mock_sleep(seconds):
+            sleep_times.append(seconds)
+
+        pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
+        with patch("app.services.poi_enricher.requests.post", side_effect=mock_post):
+            with patch("app.services.poi_enricher.time.sleep", side_effect=mock_sleep):
+                fetch_pois(pauses=pauses)
+
+        assert len(sleep_times) >= 1
+        assert sleep_times[0] == 1  # erster Retry nach 1s
+
+
 class TestFetchPois:
     def test_returns_empty_without_pauses(self):
         result = fetch_pois(pauses=[])
@@ -226,5 +277,6 @@ class TestFetchPois:
         }]
         with patch("app.services.poi_enricher.requests.post",
                    side_effect=Exception("Connection refused")):
-            result = fetch_pois(pauses=pauses)
-            assert result == []
+            with patch("app.services.poi_enricher.time.sleep", return_value=None):
+                result = fetch_pois(pauses=pauses)
+                assert result == []
