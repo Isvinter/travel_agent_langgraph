@@ -309,6 +309,7 @@ def fetch_pois(
         if elements:
             pois = _parse_overpass_response({"elements": elements}, lat, lon)
             _save_to_cache(cache_key, pois)
+            cache[cache_key] = pois
             all_pois.extend(pois)
         else:
             print(f"⚠️ Keine POI-Daten für ({lat}, {lon})")
