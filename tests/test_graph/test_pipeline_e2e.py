@@ -41,6 +41,8 @@ class TestPipelineE2E:
             graph = build_graph()
             result = graph.invoke(state)
 
+            assert "enriched_map_image_path" in result.get("metadata", {})
+
             assert result["blog_post"] is not None
             blog = result["blog_post"]
             assert "markdown" in blog or "html" in blog or "error" in blog
