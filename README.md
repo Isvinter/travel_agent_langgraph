@@ -14,16 +14,18 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated, lo
 - **AI content review** — LLM quality gate that curates enrichment data: filters irrelevant POIs, discards non-applicable weather fields, rates image suitability, scores overall coherence
 - **AI image selection** — multimodal LLM selects the best photos for the blog (batched, iterative)
 - **AI blog generation** — multimodal LLM writes a narrative travel blog post enriched with weather, POIs, images, map, and elevation profile
+- **AI blog design** — template-based CSS styling wraps generated HTML into a polished, responsive layout
 - **Outputs** — styled HTML + Markdown files with compressed JPEG images, map, and elevation profile in a timestamped `output/` directory
+- **PDF export** — generate downloadable PDFs from article HTML via headless Chrome CDP, available as a pipeline checkbox ("Als PDF exportieren") and from the article detail view
 - **Database persistence** — SQLAlchemy-powered storage for generated articles with filterable queries (tour date, duration, generation time). Image paths stored, not BLOBs. Defaults to SQLite, PostgreSQL-ready via `DATABASE_URL` env var
 - **Article browser** — filterable article table with checkboxes, single/batch delete with confirmation dialog, inline HTML rendering with images served via API
-- **Web UI** — Svelte 5 frontend with drag-and-drop file uploads (GPX, images, .txt notes), live SSE progress streaming, model selection, output config (wildcard count, article length, style persona)
-- **REST API** — FastAPI backend with pipeline run/stream, article CRUD + batch delete, image serving, file upload endpoints
+- **Web UI** — Svelte 5 frontend with drag-and-drop file uploads (GPX, images, .txt notes), live SSE progress streaming, model selection, output config (wildcard count, article length, style persona, PDF export toggle)
+- **REST API** — FastAPI backend with pipeline run/stream, article CRUD + batch delete, PDF export, image serving, file upload endpoints
 
 ## Architecture
 
 ```
-process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post → design_blogpost → persist_article
+process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post → design_blogpost → persist_article → generate_pdf
 ```
 
 All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` that delegate to pure functions in `app/services/`.
@@ -32,13 +34,13 @@ All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic 
 |-------|--------|---------|
 | State | `app/state.py` | `AppState` (images, clusters, GPX stats, weather, POIs, enrichment context, notes, blog_post) + `ImageData`, `DailyWeather`, `WeatherInfo`, `OutputConfig` |
 | Graph | `app/graph.py` | LangGraph `StateGraph` definition — nodes, edges, entry/finish points |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 13 nodes total |
-| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, elevation profiles, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, blog design (template-based HTML/CSS), image selection, article persistence |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 14 nodes total |
+| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, elevation profiles, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, blog design (template-based HTML/CSS), image selection, article persistence, PDF generation (headless Chrome CDP) |
 | Database | `app/db/` | SQLAlchemy ORM models (`Article`, `ArticleImage`), repository pattern (CRUD + batch delete), connection management, auto-indexes. Default SQLite, PostgreSQL-ready |
 | Pipeline | `app/pipeline/process_images.py` | Higher-level image processing orchestration |
 | API | `app/api/` | FastAPI server, routes (CRUD, batch delete, image serving), SSE event manager |
 | Utils | `app/utils/` | Low-level EXIF helpers |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (11 components)
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (12 components)
 
 ## Tech Stack
 
@@ -135,8 +137,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 ├── app/
 │   ├── api/            # FastAPI server, routes, SSE events
 │   ├── db/             # SQLAlchemy models, connection, repository
-│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers, 12 nodes)
-│   ├── services/       # Business logic (15 services: GPX, images, clustering, maps, weather, POIs, review, blog, persistence, etc.)
+│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers, 14 nodes)
+│   ├── services/       # Business logic (15 services: GPX, images, clustering, maps, weather, POIs, review, blog, persistence, PDF, etc.)
 │   ├── pipeline/       # Higher-level image processing orchestration
 │   ├── utils/          # EXIF helpers
 │   ├── graph.py        # StateGraph builder + build_graph() + run_pipeline()
@@ -156,7 +158,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │       ├── RunButton.svelte
 │   │       ├── WildcardCount.svelte
 │   │       ├── LengthSelector.svelte
-│   │       └── StyleSelector.svelte
+│   │       ├── StyleSelector.svelte
+│   │       └── PdfExportCheckbox.svelte
 │   └── dist/           # Production build (served by FastAPI)
 ├── tests/              # pytest suite (unit, integration, e2e)
 │   ├── test_api/       # API-specific tests
@@ -198,6 +201,7 @@ Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nod
 | `GET` | `/api/articles/{id}` | Get full article detail with markdown, HTML, and image references |
 | `DELETE` | `/api/articles/{id}` | Delete an article — removes DB record and output files |
 | `POST` | `/api/articles/delete-batch` | Delete multiple articles at once |
+| `GET` | `/api/articles/{id}/pdf` | Export an article as a downloadable PDF file |
 | `GET` | `/api/articles/{id}/images/{filename}` | Serve an article's image file |
 
 ## Database Configuration
