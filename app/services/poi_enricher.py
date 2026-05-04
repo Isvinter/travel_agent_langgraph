@@ -69,7 +69,7 @@ def _build_overpass_query(lat: float, lon: float, radius: int = DEFAULT_SEARCH_R
         )
 
     lines.append(");")
-    lines.append(f"out {MAX_POIS_PER_LOCATION};")
+    lines.append(f"out center {MAX_POIS_PER_LOCATION};")
     return "\n".join(lines)
 
 
@@ -81,21 +81,29 @@ def _parse_overpass_response(
     """Parst Overpass JSON-Antwort in POI-Dicts mit Distanzberechnung."""
     results = []
     for element in data.get("elements", []):
-        if element.get("type") not in ("node", "way"):
-            continue
         tags = element.get("tags", {})
 
-        # POI-Typ bestimmen
+        # POI-Typ bestimmen — alle Kategorien aus OVERPASS_POI_CATEGORIES prüfen
         poi_type = "unknown"
-        for tag_key in ("tourism", "natural", "historic"):
+        for tag_key in OVERPASS_POI_CATEGORIES:
             if tag_key in tags:
                 poi_type = tags[tag_key]
                 break
-        if poi_type == "unknown" and element.get("type") == "node":
+
+        if poi_type == "unknown":
             continue
 
-        el_lat = element.get("lat", ref_lat)
-        el_lon = element.get("lon", ref_lon)
+        # Koordinaten: nodes direkt, ways über center
+        if element.get("type") == "node":
+            el_lat = element.get("lat", ref_lat)
+            el_lon = element.get("lon", ref_lon)
+        elif element.get("type") == "way":
+            center = element.get("center", {})
+            el_lat = center.get("lat", ref_lat)
+            el_lon = center.get("lon", ref_lon)
+        else:
+            continue
+
         name = tags.get("name", f"{poi_type} ({el_lat:.3f}, {el_lon:.3f})")
 
         # Distanz berechnen (Haversine-Approximation)
@@ -114,7 +122,6 @@ def _parse_overpass_response(
             "distance_km": round(distance_km, 2),
         }
 
-        # Wikipedia-Tag extrahieren falls vorhanden
         wiki_tag = tags.get("wikipedia")
         if wiki_tag:
             poi["wiki_tag"] = wiki_tag

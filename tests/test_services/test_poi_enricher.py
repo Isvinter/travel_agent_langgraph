@@ -20,7 +20,7 @@ class TestBuildOverpassQuery:
         assert 'tourism' in query
         assert 'natural' in query
         assert 'historic' in query
-        assert "out 15;" in query
+        assert "out center 15;" in query
 
     def test_respects_custom_radius(self):
         query = _build_overpass_query(47.3, 11.4, radius=5000)
@@ -35,7 +35,7 @@ class TestBuildOverpassQuery:
         assert 'tourism"~"alpine_hut|wilderness_hut' in query
         assert 'historic"~"castle|ruins' in query
         assert 'amenity"~"shelter|drinking_water' in query
-        assert "out 15;" in query  # MAX_POIS_PER_LOCATION
+        assert "out center 15;" in query  # MAX_POIS_PER_LOCATION
 
     def test_way_elements_queried(self):
         query = _build_overpass_query(47.3, 11.4)
@@ -98,6 +98,31 @@ class TestParseOverpassResponse:
         results = _parse_overpass_response(raw, ref_lat=47.3, ref_lon=11.4)
         assert len(results) == 1
         assert "viewpoint" in results[0]["name"]
+
+    def test_parses_way_element_with_center(self):
+        raw = {
+            "elements": [{
+                "id": 999,
+                "type": "way",
+                "center": {"lat": 47.3, "lon": 11.4},
+                "tags": {"name": "Bergsee", "natural": "water"},
+            }]
+        }
+        results = _parse_overpass_response(raw, ref_lat=47.305, ref_lon=11.405)
+        assert len(results) == 1
+        assert results[0]["name"] == "Bergsee"
+        assert results[0]["type"] == "water"
+
+    def test_parses_new_category_keys(self):
+        raw = {
+            "elements": [{
+                "id": 123, "type": "node", "lat": 47.3, "lon": 11.4,
+                "tags": {"name": "Schutzhütte", "amenity": "shelter"},
+            }]
+        }
+        results = _parse_overpass_response(raw, ref_lat=47.3, ref_lon=11.4)
+        assert len(results) == 1
+        assert results[0]["type"] == "shelter"
 
 
 class TestDeduplicatePois:
