@@ -60,6 +60,10 @@
     }
   }
 
+  function handlePdfExport() {
+    window.open(`/api/articles/${id}/pdf`, "_blank");
+  }
+
   function formatDate(iso: string | null): string {
     if (!iso) return "—";
     return new Date(iso).toLocaleDateString("de-DE");
@@ -83,9 +87,12 @@
       ← Zurück zur Liste
     </button>
     {#if article}
-      <button class="delete-btn" onclick={handleDelete} disabled={deleting}>
-        {deleting ? "Lösche..." : "🗑 Löschen"}
-      </button>
+      <div class="toolbar-right">
+        <button class="pdf-btn" onclick={handlePdfExport}>Als PDF exportieren</button>
+        <button class="delete-btn" onclick={handleDelete} disabled={deleting}>
+          {deleting ? "Lösche..." : "🗑 Löschen"}
+        </button>
+      </div>
     {/if}
   </div>
 
@@ -139,9 +146,14 @@
   .toolbar {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 1rem;
   }
-  .back-btn, .delete-btn {
+  .toolbar-right {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .back-btn, .delete-btn, .pdf-btn {
     padding: 0.4rem 0.75rem;
     font-size: 0.8rem;
   }
@@ -151,6 +163,13 @@
   }
   .back-btn:hover {
     background: var(--accent);
+  }
+  .pdf-btn {
+    background: #27ae60;
+    color: white;
+  }
+  .pdf-btn:hover {
+    background: #219a52;
   }
   .delete-btn {
     background: var(--error);
