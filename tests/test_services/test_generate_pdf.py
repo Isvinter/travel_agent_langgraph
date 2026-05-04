@@ -1,9 +1,4 @@
 """Tests for app/services/generate_pdf.py"""
-import os
-import tempfile
-import re
-from pathlib import Path
-
 import pytest
 
 
@@ -59,3 +54,12 @@ class TestRewriteImagePaths:
         # Sollte file:/// mit CWD-Absolutpfad enthalten
         assert "file:///" in result
         assert "images/photo.jpg" in result
+
+    def test_injects_css_when_no_head_tag(self):
+        from app.services.generate_pdf import _rewrite_html_for_pdf
+
+        html = '<html><body>Hallo</body></html>'
+        result = _rewrite_html_for_pdf(html, "/tmp")
+
+        assert "@page { size: A4; margin: 15mm; }" in result
+        assert "</head>" not in result  # kein head-tag drin

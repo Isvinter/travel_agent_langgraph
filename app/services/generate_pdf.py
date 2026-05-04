@@ -4,8 +4,6 @@ import os
 import re
 import tempfile
 import time
-from pathlib import Path
-from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -90,7 +88,6 @@ def generate_pdf(html_content: str, article_output_dir: str | None = None) -> by
                 "marginBottom": 0.59,
                 "marginLeft": 0.59,
                 "marginRight": 0.59,
-                "preferCSSPageSize": True,
             })
 
             pdf_bytes = base64.b64decode(pdf_result["data"])
