@@ -14,6 +14,7 @@ from app.nodes.enrich_poi_node import enrich_poi_node
 from app.nodes.review_content_node import review_content_node
 from app.nodes.persist_article import persist_article_node
 from app.nodes.design_blogpost import design_blogpost_node
+from app.nodes.generate_enriched_map import generate_enriched_map_node
 from app.nodes.generate_pdf import generate_pdf_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
@@ -34,6 +35,7 @@ NODE_NAMES = {
     "persist_article": "Artikel speichern",
     "design_blogpost": "Design anwenden",
     "generate_pdf": "PDF generieren",
+    "generate_enriched_map": "Angereicherte Karte generieren",
 }
 
 
@@ -102,6 +104,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     ewn = _wrap_node(enrich_weather_node, "enrich_weather", event_emitter) if event_emitter else enrich_weather_node
     epn = _wrap_node(enrich_poi_node, "enrich_poi", event_emitter) if event_emitter else enrich_poi_node
     rcn = _wrap_node(review_content_node, "review_content", event_emitter) if event_emitter else review_content_node
+    gem = _wrap_node(generate_enriched_map_node, "generate_enriched_map", event_emitter) if event_emitter else generate_enriched_map_node
     pan = _wrap_node(persist_article_node, "persist_article", event_emitter) if event_emitter else persist_article_node
     gpn = _wrap_node(generate_pdf_node, "generate_pdf", event_emitter) if event_emitter else generate_pdf_node
 
@@ -119,6 +122,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("review_content", rcn)
     builder.add_node("persist_article", pan)
     builder.add_node("generate_pdf", gpn)
+    builder.add_node("generate_enriched_map", gem)
 
     builder.set_entry_point("process_gpx")
 
@@ -131,7 +135,8 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("enrich_weather", "enrich_poi")
     builder.add_edge("enrich_poi", "select_images")
     builder.add_edge("select_images", "review_content")
-    builder.add_edge("review_content", "generate_blog_post")
+    builder.add_edge("review_content", "generate_enriched_map")
+    builder.add_edge("generate_enriched_map", "generate_blog_post")
     builder.add_edge("generate_blog_post", "design_blogpost")
     builder.add_edge("design_blogpost", "persist_article")
 
