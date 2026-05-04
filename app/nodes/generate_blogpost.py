@@ -28,7 +28,7 @@ def generate_blog_post_node(state: AppState) -> AppState:
         state.blog_post = {"success": False, "error": "No GPX stats"}
         return state
 
-    map_image_path = state.metadata.get("map_image_path")
+    map_image_path = state.metadata.get("enriched_map_image_path")
     print(f"📸 Using {len(images)} images for blog generation")
 
     try:
