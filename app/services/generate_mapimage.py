@@ -67,3 +67,84 @@ def html_to_png(html_path: str, output_png: str):
 
     driver.save_screenshot(output_png)
     driver.quit()
+
+
+def generate_enriched_map_html(
+    points: List[TrackPoint],
+    pauses: list,
+    images: list,
+    output_html: str,
+):
+    """Generiert eine Folium-Karte mit Route, Pausen-Markern und Bild-Markern."""
+    # Mittelpunkt und Bounding Box (wie generate_map_html)
+    avg_lat = sum(p.lat for p in points) / len(points)
+    avg_lon = sum(p.lon for p in points) / len(points)
+
+    min_lat = min(p.lat for p in points)
+    max_lat = max(p.lat for p in points)
+    min_lon = min(p.lon for p in points)
+    max_lon = max(p.lon for p in points)
+
+    padding_m = 500
+    lat_pad = padding_m / 111000
+    lon_pad = padding_m / (111000 * math.cos(math.radians(avg_lat)))
+
+    south = min_lat - lat_pad
+    north = max_lat + lat_pad
+    west = min_lon - lon_pad
+    east = max_lon + lon_pad
+
+    m = folium.Map(
+        location=[avg_lat, avg_lon],
+        tiles="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        attr="© OpenTopoMap",
+    )
+
+    coords = [(p.lat, p.lon) for p in points]
+    folium.PolyLine(coords, weight=4).add_to(m)
+
+    # Start / Ende Marker
+    folium.Marker(
+        coords[0],
+        tooltip="Start",
+        icon=folium.Icon(color="green", icon="flag", prefix="fa"),
+    ).add_to(m)
+    folium.Marker(
+        coords[-1],
+        tooltip="Ende",
+        icon=folium.Icon(color="red", icon="flag-checkered", prefix="fa"),
+    ).add_to(m)
+
+    # Pausen-Marker
+    for pause in pauses:
+        loc = pause.get("location", {})
+        lat = loc.get("lat")
+        lon = loc.get("lon")
+        if lat is None or lon is None:
+            continue
+        duration = pause.get("duration_minutes", 0)
+        start = pause.get("start_time", "")
+        end = pause.get("end_time", "")
+        popup_text = f"{start} – {end}" if start and end else ""
+        folium.Marker(
+            [lat, lon],
+            tooltip=f"Pause: {duration} min",
+            popup=folium.Popup(popup_text, max_width=200) if popup_text else None,
+            icon=folium.Icon(color="orange", icon="pause", prefix="fa"),
+        ).add_to(m)
+
+    # Bild-Marker
+    for idx, img in enumerate(images, 1):
+        lat = img.latitude if hasattr(img, "latitude") else img.get("latitude")
+        lon = img.longitude if hasattr(img, "longitude") else img.get("longitude")
+        if lat is None or lon is None:
+            continue
+        timestamp = img.timestamp if hasattr(img, "timestamp") else img.get("timestamp", "")
+        folium.Marker(
+            [lat, lon],
+            tooltip=f"Bild {idx}: {timestamp}",
+            icon=folium.Icon(color="blue", icon="camera", prefix="fa"),
+        ).add_to(m)
+
+    m.fit_bounds([[south, west], [north, east]])
+    m.save(output_html)
