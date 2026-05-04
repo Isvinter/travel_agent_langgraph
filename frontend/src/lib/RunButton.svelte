@@ -12,6 +12,7 @@
     wildcardCount,
     articleLength,
     stylePersona,
+    pdfExport,
   } from "./stores/pipeline";
 
   let loading: boolean = $state(false);
@@ -24,6 +25,7 @@
     const wc = get(wildcardCount);
     const length = get(articleLength);
     const persona = get(stylePersona);
+    const pdf = get(pdfExport);
 
     if (!gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
@@ -47,6 +49,7 @@
           wildcard_max: wc,
           article_length: length,
           style_persona: persona,
+          pdf_export: pdf,
         }),
       });
 

@@ -84,6 +84,11 @@ export function startStream(runId: string) {
     addLine("__done__", data.status, `Pipeline ${isSuccess ? "erfolgreich" : "fehlgeschlagen"}.`);
     runState.set(isSuccess ? "done" : "failed");
 
+    // Auto-download PDF if available
+    if (data.pdf_available && data.article_id) {
+      window.open(`/api/articles/${data.article_id}/pdf`, "_blank");
+    }
+
     try {
       const res = await fetch(`/api/pipeline/result/${runId}`);
       if (res.ok) {
