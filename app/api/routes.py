@@ -256,6 +256,7 @@ async def _run_pipeline_in_background(
                 wildcard_max=body.wildcard_max,
                 article_length=body.article_length,
                 style_persona=body.style_persona,
+                pdf_export=body.pdf_export,
             ),
         )
 
