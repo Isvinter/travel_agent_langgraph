@@ -99,6 +99,12 @@ def _match_photos_to_pauses(images: list, pauses: list, distance_m: float = 50.0
             except (ValueError, TypeError):
                 continue
             
+            # Normalisiere Zeitzonen: GPX-Zeiten können tz-aware sein, EXIF ist naiv
+            if start.tzinfo is not None:
+                start = start.replace(tzinfo=None)
+            if end.tzinfo is not None:
+                end = end.replace(tzinfo=None)
+            
             if start <= ts <= end:
                 result.setdefault(pause_idx, []).append(foto_idx)
     
