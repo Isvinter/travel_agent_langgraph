@@ -172,10 +172,11 @@ def _call_ollama(
             "top_p": 0.1,
             "num_predict": 128,
         },
+        "keep_alive": "10m",
     }
 
     try:
-        resp = requests.post(f"{base_url}/api/chat", json=payload, timeout=90)
+        resp = requests.post(f"{base_url}/api/chat", json=payload, timeout=300)
         if resp.status_code == 200:
             return resp.json().get("message", {}).get("content")
     except Exception as e:

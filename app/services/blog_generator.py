@@ -420,11 +420,12 @@ def call_ollama_multimodal(
                 "temperature": 0.7,
                 "top_p": 0.9,
                 "num_predict": 16384  # Längere Antworten erlauben
-            }
+            },
+            "keep_alive": "10m",
         }
         
         # Request senden
-        response = requests.post(url, json=messages_payload, timeout=120)
+        response = requests.post(url, json=messages_payload, timeout=600)
         
         if response.status_code == 200:
             result = response.json()

@@ -229,8 +229,9 @@ def review_enrichment(
                 "temperature": 0.3,
                 "num_predict": MAX_REVIEW_RESPONSE_TOKENS,
             },
+            "keep_alive": "10m",
         }
-        resp = requests.post(f"{base_url.rstrip('/')}/api/chat", json=payload, timeout=120)
+        resp = requests.post(f"{base_url.rstrip('/')}/api/chat", json=payload, timeout=300)
     except Exception as e:
         print(f"⚠️ Review LLM call failed: {e}")
         return _build_fallback_context(weather, poi_list, selected_images)
