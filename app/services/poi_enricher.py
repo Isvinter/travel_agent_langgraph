@@ -54,14 +54,23 @@ PROXIMITY_DEDUP_M = 500
 
 
 def _build_overpass_query(lat: float, lon: float, radius: int = DEFAULT_SEARCH_RADIUS_M) -> str:
-    """Baut eine Overpass QL-Query für POIs um eine Koordinate."""
-    return f"""[out:json];
-(
-  node["tourism"~"viewpoint|alpine_hut|information|museum"](around:{radius},{lat},{lon});
-  node["natural"="peak"](around:{radius},{lat},{lon});
-  node["historic"~"ruins|castle|memorial"](around:{radius},{lat},{lon});
-);
-out {MAX_POIS_PER_LOCATION};"""
+    """Baut eine Overpass QL-Query aus den Kategorien in OVERPASS_POI_CATEGORIES."""
+    lines = ["[out:json];", "("]
+
+    for category, values in OVERPASS_POI_CATEGORIES.items():
+        value_str = "|".join(values)
+        # Nodes
+        lines.append(
+            f'  node["{category}"~"{value_str}"](around:{radius},{lat},{lon});'
+        )
+        # Ways (für Flächen-POIs wie Seen, Burganlagen, etc.)
+        lines.append(
+            f'  way["{category}"~"{value_str}"](around:{radius},{lat},{lon});'
+        )
+
+    lines.append(");")
+    lines.append(f"out {MAX_POIS_PER_LOCATION};")
+    return "\n".join(lines)
 
 
 def _parse_overpass_response(

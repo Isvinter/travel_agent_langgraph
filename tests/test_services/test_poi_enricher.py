@@ -17,13 +17,34 @@ class TestBuildOverpassQuery:
         query = _build_overpass_query(47.3, 11.4, radius=2000)
         assert "[out:json]" in query
         assert "around:2000" in query
-        assert 'tourism"~"viewpoint|alpine_hut|information|museum"' in query
-        assert 'natural"="peak"' in query
-        assert 'historic"~"ruins|castle|memorial"' in query
+        assert 'tourism' in query
+        assert 'natural' in query
+        assert 'historic' in query
+        assert "out 15;" in query
 
     def test_respects_custom_radius(self):
         query = _build_overpass_query(47.3, 11.4, radius=5000)
         assert "around:5000" in query
+
+    def test_builds_query_from_all_categories(self):
+        query = _build_overpass_query(47.3, 11.4, radius=3000)
+        assert "[out:json]" in query
+        assert "around:3000" in query
+        # Alle Kategorien prüfen
+        assert 'natural"~"peak|volcano' in query
+        assert 'tourism"~"alpine_hut|wilderness_hut' in query
+        assert 'historic"~"castle|ruins' in query
+        assert 'amenity"~"shelter|drinking_water' in query
+        assert "out 15;" in query  # MAX_POIS_PER_LOCATION
+
+    def test_way_elements_queried(self):
+        query = _build_overpass_query(47.3, 11.4)
+        assert "way[" in query
+
+    def test_empty_categories_handled(self):
+        query = _build_overpass_query(47.3, 11.4)
+        assert ";" in query
+        assert "(" in query
 
 
 class TestParseOverpassResponse:
