@@ -193,8 +193,6 @@ class TestCategories:
 
 class TestOverpassRetry:
     def test_retries_on_406_and_falls_back_to_next_instance(self):
-        from datetime import datetime
-
         fails = Mock()
         fails.status_code = 406
         falls_fails = Mock()
@@ -204,8 +202,10 @@ class TestOverpassRetry:
         success.json.return_value = {"elements": []}
 
         responses = [fails, falls_fails, success]
+        called_urls = []
 
         def mock_post(url, *args, **kwargs):
+            called_urls.append(url)
             return responses.pop(0)
 
         pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
@@ -214,10 +214,10 @@ class TestOverpassRetry:
                 result = fetch_pois(pauses=pauses)
 
         assert result == []
+        assert len(called_urls) == 3
+        assert len(set(called_urls)) == 3
 
     def test_retries_with_exponential_backoff(self):
-        from datetime import datetime
-
         fails = Mock()
         fails.status_code = 503
         success = Mock()
