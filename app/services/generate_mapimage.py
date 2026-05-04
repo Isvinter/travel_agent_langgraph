@@ -16,6 +16,40 @@ def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     return R * c
 
 
+def _group_photos_by_location(images, threshold_m: float = 5.0):
+    """Gruppiert Fotos nach räumlicher Nähe (threshold_m).
+    
+    Greedy-Algorithmus: Jedes Foto wird der ersten Gruppe zugeordnet,
+    zu deren erstem Element die Distanz <= threshold_m ist. Sonst neue Gruppe.
+    
+    Rückgabe: [[idx1, idx2], [idx3], ...] — 0-basierte Indizes in images.
+    Fotos ohne Koordinaten werden übergangen.
+    """
+    groups: list[list[int]] = []
+    for idx, img in enumerate(images):
+        lat = img.latitude if hasattr(img, "latitude") else img.get("latitude")
+        lon = img.longitude if hasattr(img, "longitude") else img.get("longitude")
+        if lat is None or lon is None:
+            continue
+        
+        found = False
+        for group in groups:
+            # Prüfe gegen das erste Element der Gruppe (Referenzpunkt)
+            ref_idx = group[0]
+            ref = images[ref_idx]
+            ref_lat = ref.latitude if hasattr(ref, "latitude") else ref.get("latitude")
+            ref_lon = ref.longitude if hasattr(ref, "longitude") else ref.get("longitude")
+            if _haversine_distance(lat, lon, ref_lat, ref_lon) <= threshold_m:
+                group.append(idx)
+                found = True
+                break
+        
+        if not found:
+            groups.append([idx])
+    
+    return groups
+
+
 def generate_map_html(points: List[TrackPoint], output_html: str):
     # Mittelpunkt
     avg_lat = sum(p.lat for p in points) / len(points)
