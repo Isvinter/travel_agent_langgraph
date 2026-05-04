@@ -132,6 +132,19 @@ class TestEnrichWithWikipedia:
             assert "wiki_extract" not in result
 
 
+class TestCategories:
+    def test_categories_dict_is_well_formed(self):
+        from app.services.poi_enricher import OVERPASS_POI_CATEGORIES
+        assert isinstance(OVERPASS_POI_CATEGORIES, dict)
+        assert len(OVERPASS_POI_CATEGORIES) >= 5
+        for key, values in OVERPASS_POI_CATEGORIES.items():
+            assert isinstance(values, list)
+            assert len(values) > 0
+            for v in values:
+                assert isinstance(v, str)
+                assert " " not in v  # OSM-Tags haben keine Leerzeichen
+
+
 class TestFetchPois:
     def test_returns_empty_without_pauses(self):
         result = fetch_pois(pauses=[])

@@ -13,9 +13,43 @@ import time
 import requests
 
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_INSTANCES = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
+
+OVERPASS_POI_CATEGORIES = {
+    "natural": [
+        "peak", "volcano", "cliff", "cave_entrance", "rock",
+        "spring", "waterfall", "glacier", "ridge", "valley",
+        "saddle", "hill", "geyser", "crater",
+    ],
+    "tourism": [
+        "alpine_hut", "wilderness_hut", "viewpoint", "picnic_site",
+        "camp_site", "artwork", "attraction", "guest_house",
+    ],
+    "historic": [
+        "castle", "ruins", "memorial", "wayside_cross",
+        "archaeological_site", "boundary_stone", "battlefield",
+        "mine", "monument", "city_gate", "fort", "tower",
+    ],
+    "amenity": [
+        "shelter", "drinking_water", "fountain", "bench",
+        "hunting_stand", "biergarten",
+    ],
+    "leisure": [
+        "picnic_table", "firepit",
+    ],
+    "man_made": [
+        "cross", "tower", "observatory", "cairn",
+    ],
+    "waterway": ["waterfall", "dam"],
+    "water": ["lake", "reservoir"],
+}
+
 DEFAULT_SEARCH_RADIUS_M = 2000
-MAX_POIS_PER_LOCATION = 10
+MAX_POIS_PER_LOCATION = 15
 PROXIMITY_DEDUP_M = 500
 
 
