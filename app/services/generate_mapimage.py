@@ -50,6 +50,57 @@ def _group_photos_by_location(images, threshold_m: float = 5.0):
     return groups
 
 
+def _match_photos_to_pauses(images, pauses, distance_m: float = 50.0):
+    """Ordnet Fotos Pausen zu (räumlich + zeitlich).
+    
+    Kriterien (beide müssen erfüllt sein):
+      1. Haversine-Distanz Foto-Pause <= distance_m
+      2. Foto-Timestamp liegt zwischen Pausen-Start und Pausen-Ende
+    
+    Rückgabe: {pause_index: [foto_index, ...]}
+    Nur Pausen mit mindestens einem zugeordneten Foto erscheinen im Dict.
+    Ein Foto kann mehreren Pausen zugeordnet sein (Überlappung).
+    """
+    from datetime import datetime as _dt
+    
+    result: dict[int, list[int]] = {}
+    
+    for pause_idx, pause in enumerate(pauses):
+        loc = pause.get("location", {})
+        p_lat = loc.get("lat")
+        p_lon = loc.get("lon")
+        if p_lat is None or p_lon is None:
+            continue
+        
+        start = pause.get("start_time")
+        end = pause.get("end_time")
+        
+        for foto_idx, img in enumerate(images):
+            f_lat = img.latitude if hasattr(img, "latitude") else img.get("latitude")
+            f_lon = img.longitude if hasattr(img, "longitude") else img.get("longitude")
+            if f_lat is None or f_lon is None:
+                continue
+            
+            # Räumliche Prüfung
+            if _haversine_distance(p_lat, p_lon, f_lat, f_lon) > distance_m:
+                continue
+            
+            # Zeitliche Prüfung
+            ts_str = img.timestamp if hasattr(img, "timestamp") else img.get("timestamp")
+            if not ts_str or not start or not end:
+                continue
+            
+            try:
+                ts = _dt.fromisoformat(ts_str) if isinstance(ts_str, str) else ts_str
+            except (ValueError, TypeError):
+                continue
+            
+            if start <= ts <= end:
+                result.setdefault(pause_idx, []).append(foto_idx)
+    
+    return result
+
+
 def generate_map_html(points: List[TrackPoint], output_html: str):
     # Mittelpunkt
     avg_lat = sum(p.lat for p in points) / len(points)

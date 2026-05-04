@@ -1,6 +1,7 @@
 """Tests for map helper functions in app/services/generate_mapimage.py"""
 import pytest
-from app.services.generate_mapimage import _haversine_distance, _group_photos_by_location
+from datetime import datetime
+from app.services.generate_mapimage import _haversine_distance, _group_photos_by_location, _match_photos_to_pauses
 from app.state import ImageData
 
 
@@ -97,3 +98,169 @@ class TestGroupPhotosByLocation:
     @pytest.mark.unit
     def test_empty_images(self):
         assert _group_photos_by_location([]) == []
+
+
+class TestMatchPhotosToPauses:
+    @pytest.mark.unit
+    def test_both_criteria_met(self):
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0,
+                      timestamp="2024-07-15T10:05:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert 0 in result
+        assert result[0] == [0]
+
+    @pytest.mark.unit
+    def test_spatial_only_not_matched(self):
+        # Foto räumlich nah, aber zeitlich ausserhalb -> keine Zuordnung
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0,
+                      timestamp="2024-07-15T11:00:00"),  # ausserhalb 10:00-10:15
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert len(result) == 0
+
+    @pytest.mark.unit
+    def test_temporal_only_not_matched(self):
+        # Foto zeitlich in Pause, aber räumlich weit weg -> keine Zuordnung
+        images = [
+            ImageData(path="a.jpg", latitude=47.1, longitude=8.0,  # >50m
+                      timestamp="2024-07-15T10:05:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert len(result) == 0
+
+    @pytest.mark.unit
+    def test_multiple_photos_one_pause(self):
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0,
+                      timestamp="2024-07-15T10:05:00"),
+            ImageData(path="b.jpg", latitude=47.0, longitude=8.0002,  # ~22m
+                      timestamp="2024-07-15T10:10:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert 0 in result
+        assert sorted(result[0]) == [0, 1]
+
+    @pytest.mark.unit
+    def test_multiple_pauses(self):
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0,
+                      timestamp="2024-07-15T10:05:00"),
+            ImageData(path="b.jpg", latitude=47.1, longitude=8.1,
+                      timestamp="2024-07-15T12:35:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            },
+            {
+                "start_time": datetime(2024, 7, 15, 12, 30),
+                "end_time": datetime(2024, 7, 15, 12, 55),
+                "duration_minutes": 25.0,
+                "location": {"lat": 47.1, "lon": 8.1},
+            },
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert result[0] == [0]
+        assert result[1] == [1]
+
+    @pytest.mark.unit
+    def test_photo_matches_multiple_pauses(self):
+        # Foto liegt zeitlich+räumlich in zwei Pausen -> beide bekommen es
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0,
+                      timestamp="2024-07-15T10:05:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            },
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 30),
+                "duration_minutes": 30.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            },
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert len(result) == 2  # Beide Pausen matchen
+        assert result[0] == [0]
+        assert result[1] == [0]
+
+    @pytest.mark.unit
+    def test_photo_without_timestamp_skipped(self):
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0, timestamp=None),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert len(result) == 0
+
+    @pytest.mark.unit
+    def test_photo_without_coordinates_skipped(self):
+        images = [
+            ImageData(path="a.jpg", latitude=None, longitude=None,
+                      timestamp="2024-07-15T10:05:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert len(result) == 0
+
+    @pytest.mark.unit
+    def test_empty_inputs(self):
+        assert _match_photos_to_pauses([], [], 50.0) == {}
+        assert _match_photos_to_pauses([], [{"location": {"lat": 47.0, "lon": 8.0}}], 50.0) == {}
