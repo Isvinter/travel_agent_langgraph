@@ -1,8 +1,6 @@
 """Tests for app/services/poi_enricher.py"""
 from unittest.mock import patch, Mock
 
-import pytest
-
 from app.services.poi_enricher import (
     fetch_pois,
     _build_overpass_query,
@@ -276,7 +274,6 @@ class TestFetchPois:
             assert result[0]["name"] == "Berggipfel"
 
     def test_handles_overpass_failure(self):
-        from datetime import datetime
         pauses = [{
             "location": {"lat": 47.3, "lon": 11.4},
         }]

@@ -6,7 +6,6 @@ Findet Points of Interest in der Nähe von Pause-Orten entlang der Route.
 """
 
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 import json
 import math
 from pathlib import Path
