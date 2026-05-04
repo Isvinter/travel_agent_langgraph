@@ -3,11 +3,12 @@ from app.services.design_blogpost import design_blogpost_service
 
 
 def design_blogpost_node(state: AppState) -> AppState:
-    """Wendet LLM-gesteuertes CSS-Styling auf das Blog-HTML an.
+    """Wraps das Blog-HTML in ein vollständiges gestyltes HTML-Dokument.
 
-    Liest state.blog_post["html"], sendet es an Ollama zur Gestaltung,
-    überschreibt state.blog_post["html"] und die .html-Datei mit dem
-    gestylten Ergebnis.
+    Template-basiert — kein LLM-Aufruf, deterministisches Ergebnis.
+    Liest state.blog_post["html"], wrapped es in ein HTML-Dokument mit
+    eingebettetem CSS und überschreibt state.blog_post["html"] sowie
+    die .html-Datei.
 
     Best-Effort: Bei Fehlern bleibt das Original-HTML erhalten.
     """

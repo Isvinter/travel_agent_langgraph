@@ -6,6 +6,9 @@ import os
 # Ollama API (konfigurierbar via Umgebungsvariable)
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
+# Ausgabeverzeichnis für generierte Artikel, Höhenprofile etc.
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output")
+
 LENGTH_PRESETS = {
     "short": {"label": "Kurz", "min_words": 300, "max_words": 650},
     "normal": {"label": "Normal", "min_words": 650, "max_words": 1300},

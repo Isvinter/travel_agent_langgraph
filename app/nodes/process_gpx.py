@@ -1,5 +1,6 @@
 import os
 
+from app.config import OUTPUT_DIR
 from app.services.gpx_analytics import analyze_track
 from app.services.generate_elevation_profile import generate_elevation_profile
 from app.state import AppState
@@ -20,11 +21,11 @@ def process_gpx_node(state: AppState) -> AppState:
 
     print(f"DEBUG: Analysis complete - distance: {stats.total_distance_m}m")
 
-    # Sicherstellen, dass das output/-Verzeichnis existiert
-    os.makedirs("output", exist_ok=True)
+    # Sicherstellen, dass das Ausgabeverzeichnis existiert
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Elevation-Profil generieren (nicht kritisch — bei Fehler weitermachen)
-    elevation_path = "output/elevation_profile.png"
+    elevation_path = os.path.join(OUTPUT_DIR, "elevation_profile.png")
     print(f"DEBUG: Generating elevation profile to {elevation_path}")
     try:
         generate_elevation_profile(stats.points, elevation_path)

@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
 
-from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS
+from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
 
 
 def _strip_thinking_tokens(text: str) -> str:
@@ -400,7 +400,7 @@ def call_ollama_multimodal(
         import requests
         
         # Ollama API Endpoint für chat (besser für multimodal)
-        url = f"{base_url}/api/chat"
+        url = f"{base_url.rstrip('/')}/api/chat"
         
         # Vorbereitung des Requests
         # Ollama multimodal: Bilder als Top-Level "images" Key innerhalb der Message
@@ -464,7 +464,7 @@ def generate_blog_post(
     # ---- Per-Artikel-Unterverzeichnis ----
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    article_dir = os.path.join(project_root, "output", timestamp)
+    article_dir = os.path.join(project_root, OUTPUT_DIR, timestamp)
     images_dir = os.path.join(article_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
     image_path_prefix = f"./images/"

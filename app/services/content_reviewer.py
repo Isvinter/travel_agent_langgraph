@@ -14,7 +14,7 @@ from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, WeatherInfo, DailyWeather
 
 
-OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/api/chat"
+OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
 MAX_REVIEW_RESPONSE_TOKENS = 2048
 
 
@@ -230,7 +230,7 @@ def review_enrichment(
                 "num_predict": MAX_REVIEW_RESPONSE_TOKENS,
             },
         }
-        resp = requests.post(f"{base_url}/api/chat", json=payload, timeout=120)
+        resp = requests.post(f"{base_url.rstrip('/')}/api/chat", json=payload, timeout=120)
     except Exception as e:
         print(f"⚠️ Review LLM call failed: {e}")
         return _build_fallback_context(weather, poi_list, selected_images)
