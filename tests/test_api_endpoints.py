@@ -373,3 +373,108 @@ class TestArticleDelete:
     def test_delete_nonexistent_article_returns_404(self, client):
         response = client.delete("/api/articles/99999")
         assert response.status_code == 404
+
+
+class TestArticlePdf:
+    def test_pdf_endpoint_returns_404_for_missing_article(self, client):
+        response = client.get("/api/articles/99999/pdf")
+        assert response.status_code == 404
+
+    def test_pdf_endpoint_with_valid_article(self, monkeypatch):
+        """Testet, dass der Endpunkt einen 200-Status und application/pdf liefert.
+        Achtung: Mockt die PDF-Generierung, da Chrome im Test nicht verfügbar ist."""
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.repository import ArticleRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+        from unittest.mock import patch
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = ArticleRepository(session)
+            article_id = repo.insert(
+                article_data={
+                    "title": "PDF Test",
+                    "markdown_content": "# PDF Test",
+                    "html_content": "<h1>PDF Test</h1><p>Content</p>",
+                    "markdown_path": "output/test/md.md",
+                    "html_path": "output/test/html.html",
+                },
+                images=[],
+            )
+            session.commit()
+
+            # Mock generate_pdf um Chrome-Aufruf zu vermeiden
+            with patch("app.services.generate_pdf.generate_pdf", return_value=b"%PDF-1.4 mock") as mock_gen:
+                response = client.get(f"/api/articles/{article_id}/pdf")
+                assert response.status_code == 200
+                assert response.headers["content-type"] == "application/pdf"
+                assert "attachment" in response.headers["content-disposition"]
+                assert response.content == b"%PDF-1.4 mock"
+                mock_gen.assert_called_once()
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+    def test_pdf_endpoint_with_no_html_content(self, monkeypatch):
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.repository import ArticleRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = ArticleRepository(session)
+            article_id = repo.insert(
+                article_data={"title": "No HTML", "markdown_path": "output/test/md.md"},
+                images=[],
+            )
+            session.commit()
+
+            response = client.get(f"/api/articles/{article_id}/pdf")
+            assert response.status_code == 400
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)

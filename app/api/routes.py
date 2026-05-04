@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
@@ -16,6 +16,7 @@ from app.state import AVAILABLE_MODELS, OutputConfig
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository, ArticleFilters
 from app.db.models import Article, ArticleImage
+import re
 import shutil
 
 
@@ -409,6 +410,46 @@ async def delete_articles_batch(body: DeleteBatchRequest):
                     print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
 
         return {"deleted": deleted}
+    finally:
+        session.close()
+
+
+# ── PDF Export ─────────────────────────────────────────
+
+@router.get("/articles/{article_id}/pdf")
+async def export_article_pdf(article_id: int):
+    """Generiert PDF für einen Artikel und liefert es als Download aus."""
+    from app.services.generate_pdf import generate_pdf
+
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        article = repo.get_by_id(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
+        if not article.html_content:
+            raise HTTPException(status_code=400, detail="Artikel hat keinen HTML-Inhalt")
+
+        # Output-Verzeichnis aus html_path ableiten
+        output_dir = str(Path(article.html_path).parent) if article.html_path else ""
+
+        try:
+            pdf_bytes = generate_pdf(article.html_content, output_dir)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"PDF-Generierung fehlgeschlagen: {e}")
+
+        # Dateiname: Titel ohne Sonderzeichen, Fallback "artikel"
+        safe_title = re.sub(r"[^\w\- ]", "", article.title or "artikel").strip()[:100]
+        filename = f"{safe_title}.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-cache",
+            },
+        )
     finally:
         session.close()
 
