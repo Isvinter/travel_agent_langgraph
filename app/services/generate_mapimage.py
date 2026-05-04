@@ -69,6 +69,75 @@ def html_to_png(html_path: str, output_png: str):
     driver.quit()
 
 
+def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distanz in Metern zwischen zwei Koordinaten (Haversine-Formel)."""
+    R = 6371000  # Erdradius in Metern
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+def _match_photos_to_pauses(images, pauses, distance_m: float = 50.0):
+    """Ordnet Fotos Pausen zu (räumlich + zeitlich).
+
+    Kriterien (beide müssen erfüllt sein):
+      1. Haversine-Distanz Foto-Pause <= distance_m
+      2. Foto-Timestamp liegt zwischen Pausen-Start und Pausen-Ende
+
+    Rückgabe: {pause_index: [foto_index, ...]}
+    Nur Pausen mit mindestens einem zugeordneten Foto erscheinen im Dict.
+    Ein Foto kann mehreren Pausen zugeordnet sein (Überlappung).
+    """
+    from datetime import datetime as _dt
+
+    result: dict[int, list[int]] = {}
+
+    for pause_idx, pause in enumerate(pauses):
+        loc = pause.get("location", {})
+        p_lat = loc.get("lat")
+        p_lon = loc.get("lon")
+        if p_lat is None or p_lon is None:
+            continue
+
+        start = pause.get("start_time")
+        end = pause.get("end_time")
+
+        for foto_idx, img in enumerate(images):
+            f_lat = img.latitude if hasattr(img, "latitude") else img.get("latitude")
+            f_lon = img.longitude if hasattr(img, "longitude") else img.get("longitude")
+            if f_lat is None or f_lon is None:
+                continue
+
+            # Räumliche Prüfung
+            if _haversine_distance(p_lat, p_lon, f_lat, f_lon) > distance_m:
+                continue
+
+            # Zeitliche Prüfung
+            ts_str = img.timestamp if hasattr(img, "timestamp") else img.get("timestamp")
+            if not ts_str or not start or not end:
+                continue
+
+            try:
+                ts = _dt.fromisoformat(ts_str) if isinstance(ts_str, str) else ts_str
+            except (ValueError, TypeError):
+                continue
+
+            # Normalisiere Zeitzonen: GPX-Zeiten können tz-aware sein, EXIF ist naiv
+            if start.tzinfo is not None:
+                start = start.replace(tzinfo=None)
+            if end.tzinfo is not None:
+                end = end.replace(tzinfo=None)
+
+            if start <= ts <= end:
+                result.setdefault(pause_idx, []).append(foto_idx)
+
+    return result
+
+
 def generate_enriched_map_html(
     points: List[TrackPoint],
     pauses: list,
