@@ -261,6 +261,25 @@ class TestMatchPhotosToPauses:
         assert len(result) == 0
 
     @pytest.mark.unit
+    def test_exif_timestamp_format(self):
+        """EXIF-Format '2024:07:15 10:05:00' wird korrekt normalisiert."""
+        images = [
+            ImageData(path="a.jpg", latitude=47.0, longitude=8.0,
+                      timestamp="2024:07:15 10:05:00"),
+        ]
+        pauses = [
+            {
+                "start_time": datetime(2024, 7, 15, 10, 0),
+                "end_time": datetime(2024, 7, 15, 10, 15),
+                "duration_minutes": 15.0,
+                "location": {"lat": 47.0, "lon": 8.0},
+            }
+        ]
+        result = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+        assert 0 in result
+        assert result[0] == [0]
+
+    @pytest.mark.unit
     def test_empty_inputs(self):
         assert _match_photos_to_pauses([], [], 50.0) == {}
         assert _match_photos_to_pauses([], [{"location": {"lat": 47.0, "lon": 8.0}}], 50.0) == {}

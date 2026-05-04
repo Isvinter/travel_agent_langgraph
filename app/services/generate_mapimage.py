@@ -1,5 +1,6 @@
 import folium
 import math
+from datetime import datetime as _dt
 from typing import List
 from app.services.gpx_analytics import TrackPoint
 
@@ -50,7 +51,7 @@ def _group_photos_by_location(images, threshold_m: float = 5.0):
     return groups
 
 
-def _match_photos_to_pauses(images, pauses, distance_m: float = 50.0):
+def _match_photos_to_pauses(images: list, pauses: list, distance_m: float = 50.0) -> dict[int, list[int]]:
     """Ordnet Fotos Pausen zu (räumlich + zeitlich).
     
     Kriterien (beide müssen erfüllt sein):
@@ -61,8 +62,6 @@ def _match_photos_to_pauses(images, pauses, distance_m: float = 50.0):
     Nur Pausen mit mindestens einem zugeordneten Foto erscheinen im Dict.
     Ein Foto kann mehreren Pausen zugeordnet sein (Überlappung).
     """
-    from datetime import datetime as _dt
-    
     result: dict[int, list[int]] = {}
     
     for pause_idx, pause in enumerate(pauses):
@@ -91,7 +90,12 @@ def _match_photos_to_pauses(images, pauses, distance_m: float = 50.0):
                 continue
             
             try:
-                ts = _dt.fromisoformat(ts_str) if isinstance(ts_str, str) else ts_str
+                ts_str = str(ts_str)
+                # EXIF-Format "2024:07:15 10:05:00" -> ISO "2024-07-15T10:05:00"
+                # Nur Datumsteil normalisieren (erste 10 Zeichen), Zeit bleibt unverändert
+                date_part = ts_str[:10].replace(":", "-")
+                rest = ts_str[10:].replace(" ", "T", 1)
+                ts = _dt.fromisoformat(date_part + rest)
             except (ValueError, TypeError):
                 continue
             
