@@ -44,6 +44,7 @@ export const notesField = writable<string>("");
 export const wildcardCount = writable<number>(12);
 export const articleLength = writable<string>("normal");
 export const stylePersona = writable<string>("mountain_veteran");
+export const pdfExport = writable<boolean>(false);
 
 let eventSource: EventSource | null = null;
 

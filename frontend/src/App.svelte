@@ -10,6 +10,7 @@
   import LengthSelector from "./lib/LengthSelector.svelte";
   import StyleSelector from "./lib/StyleSelector.svelte";
   import RunButton from "./lib/RunButton.svelte";
+  import PdfExportCheckbox from "./lib/PdfExportCheckbox.svelte";
   import OutputWindow from "./lib/OutputWindow.svelte";
   import ArticleList from "./lib/ArticleList.svelte";
   import ArticleDetail from "./lib/ArticleDetail.svelte";
@@ -46,6 +47,7 @@
       <WildcardCount />
       <LengthSelector />
       <StyleSelector />
+      <PdfExportCheckbox />
 
       <div class="run-section">
         <RunButton />
