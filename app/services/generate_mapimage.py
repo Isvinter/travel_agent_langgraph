@@ -176,8 +176,8 @@ def generate_enriched_map_html(
     images: list,
     output_html: str,
 ):
-    """Generiert eine Folium-Karte mit Route, Pausen-Markern und Bild-Markern."""
-    # Mittelpunkt und Bounding Box (wie generate_map_html)
+    """Generiert eine statische Folium-Karte mit Route, Pausen- und Foto-Markern (DivIcon)."""
+    # Mittelpunkt und Bounding Box
     avg_lat = sum(p.lat for p in points) / len(points)
     avg_lon = sum(p.lon for p in points) / len(points)
 
@@ -204,47 +204,81 @@ def generate_enriched_map_html(
     coords = [(p.lat, p.lon) for p in points]
     folium.PolyLine(coords, weight=4).add_to(m)
 
-    # Start / Ende Marker
+    # Start / Ende Marker (ohne Tooltips — statisch)
     folium.Marker(
         coords[0],
-        tooltip="Start",
         icon=folium.Icon(color="green", icon="flag", prefix="fa"),
     ).add_to(m)
     folium.Marker(
         coords[-1],
-        tooltip="Ende",
         icon=folium.Icon(color="red", icon="flag-checkered", prefix="fa"),
     ).add_to(m)
 
-    # Pausen-Marker
-    for pause in pauses:
+    # Foto-Gruppierung
+    foto_groups = _group_photos_by_location(images, threshold_m=5.0)
+
+    # Pause-Foto-Zuordnung
+    pause_fotos = _match_photos_to_pauses(images, pauses, distance_m=50.0)
+
+    # Pause-Marker (DivIcon)
+    for pause_idx, pause in enumerate(pauses):
         loc = pause.get("location", {})
         lat = loc.get("lat")
         lon = loc.get("lon")
         if lat is None or lon is None:
             continue
         duration = pause.get("duration_minutes", 0)
-        start = pause.get("start_time", "")
-        end = pause.get("end_time", "")
-        popup_text = f"{start} – {end}" if start and end else ""
+        duration_str = f"{duration:.0f}" if duration == int(duration) else f"{duration:.1f}"
+
+        matched = pause_fotos.get(pause_idx, [])
+        if matched:
+            foto_labels = ", ".join(str(i + 1) for i in matched)
+            prefix = "Foto" if len(matched) == 1 else "Fotos"
+            html = (
+                f'<div style="font-size:12px;white-space:nowrap;font-family:sans-serif;">'
+                f'<i class="fa fa-pause" style="color:#f39c12;"></i> '
+                f'<b>Pause ({duration_str}min)</b> '
+                f'<span style="color:#1a73e8;">{prefix} {foto_labels}</span>'
+                f'</div>'
+            )
+        else:
+            html = (
+                f'<div style="font-size:12px;white-space:nowrap;font-family:sans-serif;">'
+                f'<i class="fa fa-pause" style="color:#f39c12;"></i> '
+                f'<b>Pause ({duration_str}min)</b>'
+                f'</div>'
+            )
         folium.Marker(
             [lat, lon],
-            tooltip=f"Pause: {duration} min",
-            popup=folium.Popup(popup_text, max_width=200) if popup_text else None,
-            icon=folium.Icon(color="orange", icon="pause", prefix="fa"),
+            icon=folium.DivIcon(html=html, icon_size=(250, 30), icon_anchor=(0, 15)),
         ).add_to(m)
 
-    # Bild-Marker
-    for idx, img in enumerate(images, 1):
-        lat = img.latitude if hasattr(img, "latitude") else img.get("latitude")
-        lon = img.longitude if hasattr(img, "longitude") else img.get("longitude")
+    # Foto-Marker (DivIcon)
+    for group in foto_groups:
+        if len(group) == 1:
+            idx = group[0]
+            foto_num = idx + 1
+            html = (
+                f'<div style="font-size:12px;white-space:nowrap;font-family:sans-serif;">'
+                f'<i class="fa fa-camera" style="color:#1a73e8;"></i> '
+                f'<b>Foto {foto_num}</b>'
+                f'</div>'
+            )
+        else:
+            foto_nums = ", ".join(str(i + 1) for i in group)
+            html = (
+                f'<div style="font-size:12px;white-space:nowrap;font-family:sans-serif;">'
+                f'<i class="fa fa-camera" style="color:#1a73e8;"></i> '
+                f'<b>Fotos {foto_nums}</b>'
+                f'</div>'
+            )
+        lat = images[group[0]].latitude if hasattr(images[group[0]], "latitude") else images[group[0]].get("latitude")
+        lon = images[group[0]].longitude if hasattr(images[group[0]], "longitude") else images[group[0]].get("longitude")
         if lat is None or lon is None:
             continue
-        timestamp = img.timestamp if hasattr(img, "timestamp") else img.get("timestamp", "")
         folium.Marker(
             [lat, lon],
-            tooltip=f"Bild {idx}: {timestamp}",
-            icon=folium.Icon(color="blue", icon="camera", prefix="fa"),
+            icon=folium.DivIcon(html=html, icon_size=(200, 30), icon_anchor=(0, 15)),
         ).add_to(m)
 
     m.fit_bounds([[south, west], [north, east]])
