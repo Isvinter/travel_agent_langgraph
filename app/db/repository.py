@@ -1,7 +1,7 @@
 # app/db/repository.py
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
@@ -79,3 +79,15 @@ class ArticleRepository:
         self.session.delete(article)
         self.session.commit()
         return True
+
+    def delete_batch(self, article_ids: List[int]) -> int:
+        """Löscht mehrere Artikel und ihre Bilder (CASCADE). Gibt Anzahl gelöschter Artikel zurück."""
+        if not article_ids:
+            return 0
+        count = (
+            self.session.query(Article)
+            .where(Article.id.in_(article_ids))
+            .delete(synchronize_session="fetch")
+        )
+        self.session.commit()
+        return count

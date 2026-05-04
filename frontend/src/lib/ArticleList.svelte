@@ -24,6 +24,33 @@
   let durationMin: string = $state("");
   let durationMax: string = $state("");
 
+  // Checkbox state
+  let selectedIds: Set<number> = $state(new Set());
+
+  // Confirmation dialog state
+  let dialogOpen: boolean = $state(false);
+  let dialogMode: "single" | "batch" = $state("single");
+  let dialogArticleId: number | null = $state(null);
+  let deleting: boolean = $state(false);
+
+  function toggleSelect(id: number) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    selectedIds = next;
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === articles.length) {
+      selectedIds = new Set();
+    } else {
+      selectedIds = new Set(articles.map(a => a.id));
+    }
+  }
+
   async function fetchArticles() {
     loading = true;
     error = null;
@@ -41,6 +68,7 @@
       const data = await res.json();
       articles = data.articles;
       total = data.total;
+      selectedIds = new Set();
     } catch (e: any) {
       error = e.message;
     } finally {
@@ -64,7 +92,47 @@
     navigateTo({ page: "article", id });
   }
 
-  // Fetch on mount
+  function openSingleDelete(id: number) {
+    dialogMode = "single";
+    dialogArticleId = id;
+    dialogOpen = true;
+  }
+
+  function openBatchDelete() {
+    if (selectedIds.size === 0) return;
+    dialogMode = "batch";
+    dialogArticleId = null;
+    dialogOpen = true;
+  }
+
+  function closeDialog() {
+    dialogOpen = false;
+    dialogArticleId = null;
+  }
+
+  async function confirmDelete() {
+    deleting = true;
+    try {
+      if (dialogMode === "single" && dialogArticleId !== null) {
+        const res = await fetch(`/api/articles/${dialogArticleId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      } else {
+        const res = await fetch("/api/articles/delete-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [...selectedIds] }),
+        });
+        if (!res.ok) throw new Error(`Batch delete failed: ${res.status}`);
+      }
+      closeDialog();
+      await fetchArticles();
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      deleting = false;
+    }
+  }
+
   $effect(() => {
     fetchArticles();
   });
@@ -73,6 +141,13 @@
 <div class="article-list">
   <div class="header">
     <h2>Gespeicherte Artikel ({total})</h2>
+    <button
+      class="batch-delete-btn"
+      disabled={selectedIds.size === 0}
+      onclick={openBatchDelete}
+    >
+      Auswahl löschen ({selectedIds.size})
+    </button>
   </div>
 
   <div class="filters">
@@ -106,6 +181,13 @@
       <table>
         <thead>
           <tr>
+            <th class="th-check">
+              <input
+                type="checkbox"
+                checked={selectedIds.size === articles.length && articles.length > 0}
+                onchange={toggleSelectAll}
+              />
+            </th>
             <th>Titel</th>
             <th>Tour-Datum</th>
             <th>Dauer</th>
@@ -113,11 +195,19 @@
             <th>Höhenmeter</th>
             <th>Bilder</th>
             <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {#each articles as a}
             <tr>
+              <td class="td-check">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(a.id)}
+                  onchange={() => toggleSelect(a.id)}
+                />
+              </td>
               <td>{a.title || "Ohne Titel"}</td>
               <td>{formatDate(a.tour_date)}</td>
               <td>{formatDuration(a.tour_duration_hours)}</td>
@@ -127,6 +217,9 @@
               <td>
                 <button class="view-btn" onclick={() => handleView(a.id)}>Ansehen</button>
               </td>
+              <td>
+                <button class="delete-btn" onclick={() => openSingleDelete(a.id)}>Löschen</button>
+              </td>
             </tr>
           {/each}
         </tbody>
@@ -135,6 +228,24 @@
   {/if}
 </div>
 
+{#if dialogOpen}
+  <div class="dialog-overlay" onclick={closeDialog}>
+    <div class="dialog" onclick={(e: MouseEvent) => e.stopPropagation()}>
+      <p>
+        {dialogMode === "single"
+          ? "Diesen Artikel wirklich löschen? Dies entfernt auch die Dateien."
+          : `${selectedIds.size} Artikel wirklich löschen? Dies entfernt auch die Dateien.`}
+      </p>
+      <div class="dialog-actions">
+        <button class="cancel-btn" onclick={closeDialog} disabled={deleting}>Abbrechen</button>
+        <button class="confirm-btn" onclick={confirmDelete} disabled={deleting}>
+          {deleting ? "Lösche..." : "Löschen"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .article-list {
     padding: 1rem;
@@ -142,7 +253,21 @@
     overflow-y: auto;
   }
   .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1rem;
+  }
+  .batch-delete-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    background: var(--error);
+    color: white;
+    white-space: nowrap;
+  }
+  .batch-delete-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
   .filters {
     display: flex;
@@ -194,10 +319,19 @@
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }
+  .th-check {
+    width: 2rem;
+  }
   td {
     padding: 0.5rem;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
+  }
+  .td-check {
+    width: 2rem;
+  }
+  .td-check input {
+    cursor: pointer;
   }
   tr:hover {
     background: rgba(255, 255, 255, 0.03);
@@ -210,5 +344,61 @@
   }
   .view-btn:hover {
     background: var(--accent);
+  }
+  .delete-btn {
+    padding: 0.3rem 0.6rem;
+    background: var(--error);
+    color: white;
+    font-size: 0.75rem;
+  }
+  .delete-btn:hover {
+    opacity: 0.85;
+  }
+
+  /* Dialog / Modal */
+  .dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .dialog {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem;
+    max-width: 400px;
+    width: 90%;
+  }
+  .dialog p {
+    margin: 0 0 1.25rem 0;
+    font-size: 0.9rem;
+  }
+  .dialog-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+  .cancel-btn {
+    padding: 0.4rem 0.75rem;
+    background: var(--surface-alt);
+    color: var(--text);
+    font-size: 0.8rem;
+  }
+  .cancel-btn:hover {
+    background: var(--accent);
+  }
+  .confirm-btn {
+    padding: 0.4rem 0.75rem;
+    background: var(--error);
+    color: white;
+    font-size: 0.8rem;
+  }
+  .confirm-btn:disabled, .cancel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>

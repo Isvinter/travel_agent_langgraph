@@ -18,7 +18,7 @@
 
   async function handleRun() {
     const model = get(selectedModel);
-    const { gpxFile, imageFiles } = get(pipelineFiles);
+    const { gpxFile, imageFiles, txtFile } = get(pipelineFiles);
     const dir = get(outputDir);
     const notes = get(notesField);
     const wc = get(wildcardCount);
@@ -41,6 +41,7 @@
           model,
           output_dir: dir,
           notes,
+          txt_file: txtFile || "",
           gpx_file: gpxFile,
           image_files: imageFiles,
           wildcard_max: wc,

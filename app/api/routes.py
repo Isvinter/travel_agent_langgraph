@@ -147,6 +147,7 @@ class RunPipelineRequest(BaseModel):
     model: str
     output_dir: str = "output"
     notes: str = ""
+    txt_file: str = ""
     gpx_file: str = ""
     image_files: list[str] = []
     wildcard_max: int = Field(default=12, ge=1, le=50)
@@ -200,6 +201,7 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
             run_id=run_id,
             gpx_file=gpx_path,
             image_files=image_paths,
+            txt_file=body.txt_file,
             model=body.model,
             output_dir=body.output_dir,
             notes=body.notes,
@@ -214,6 +216,7 @@ async def _run_pipeline_in_background(
     run_id: str,
     gpx_file: str,
     image_files: list[str],
+    txt_file: str,
     model: str,
     output_dir: str,
     notes: str,
@@ -231,11 +234,23 @@ async def _run_pipeline_in_background(
     try:
         emit_fn("start", "running", "Pipeline wird gestartet…")
 
-        # Build state from the provided inputs
+        # Text-Notizen: aus Textfeld oder aus hochgeladener .txt-Datei laden
+        combined_notes = notes if notes else None
+        if not combined_notes and txt_file:
+            if os.path.isfile(txt_file):
+                try:
+                    with open(txt_file, encoding="utf-8") as f:
+                        combined_notes = f.read()
+                    emit_fn("load_tour_notes", "info", f"Notizen aus {os.path.basename(txt_file)} geladen")
+                except Exception as e:
+                    print(f"⚠️  Konnte txt_file nicht lesen: {e}")
+            else:
+                print(f"⚠️  txt_file nicht gefunden: {txt_file}")
+
         state = AppState(
             gpx_file=gpx_file,
             model=model,
-            notes=notes if notes else None,
+            notes=combined_notes,
             output_config=OutputConfig(
                 wildcard_max=body.wildcard_max,
                 article_length=body.article_length,
@@ -354,6 +369,44 @@ async def delete_article(article_id: int):
                 print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
 
         return {"deleted": article_id}
+    finally:
+        session.close()
+
+
+class DeleteBatchRequest(BaseModel):
+    ids: list[int]
+
+
+@router.post("/articles/delete-batch")
+async def delete_articles_batch(body: DeleteBatchRequest):
+    """Mehrere Artikel und deren Dateien auf einmal löschen."""
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="No article IDs provided")
+
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+
+        # Output-Verzeichnisse vor dem Löschen merken
+        output_dirs: list[str] = []
+        for article_id in body.ids:
+            article = repo.get_by_id(article_id)
+            if article and article.markdown_path:
+                d = os.path.dirname(article.markdown_path)
+                if d not in output_dirs:
+                    output_dirs.append(d)
+
+        deleted = repo.delete_batch(body.ids)
+
+        # Dateien löschen
+        for d in output_dirs:
+            if os.path.exists(d):
+                try:
+                    shutil.rmtree(d)
+                except OSError as e:
+                    print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+
+        return {"deleted": deleted}
     finally:
         session.close()
 
