@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
@@ -35,11 +36,29 @@ def _article_to_summary(a: Article) -> dict:
     }
 
 
+def _rewrite_html_content(html_content: str | None, article_id: int) -> str | None:
+    """Passt HTML-Inhalt für das Frontend an:
+    - Ersetzt relative ./images/ Pfade mit API-URLs
+    - Erhöht max-width im eingebetteten CSS für breitere Darstellung
+    """
+    if not html_content:
+        return html_content
+    html_content = html_content.replace(
+        "./images/",
+        f"/api/articles/{article_id}/images/",
+    )
+    html_content = html_content.replace(
+        "max-width: 780px",
+        "max-width: 1400px",
+    )
+    return html_content
+
+
 def _article_to_detail(a: Article) -> dict:
     return {
         **_article_to_summary(a),
         "markdown_content": a.markdown_content,
-        "html_content": a.html_content,
+        "html_content": _rewrite_html_content(a.html_content, a.id),
         "markdown_path": a.markdown_path,
         "html_path": a.html_path,
         "gpx_file": a.gpx_file,
@@ -335,6 +354,42 @@ async def delete_article(article_id: int):
                 print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
 
         return {"deleted": article_id}
+    finally:
+        session.close()
+
+
+# ── Image Serving ─────────────────────────────────────
+
+@router.get("/articles/{article_id}/images/{filename}")
+async def get_article_image(article_id: int, filename: str):
+    """Bilddatei eines Artikels ausliefern."""
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        article = repo.get_by_id(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        # 1) Exakte Übereinstimmung über den Dateinamen in ArticleImage
+        for img in article.images:
+            if os.path.basename(img.image_path) == filename:
+                if os.path.isfile(img.image_path):
+                    return FileResponse(img.image_path)
+                break
+
+        # 2) Fallback: images/-Verzeichnis neben html_path/markdown_path
+        output_dir = None
+        if article.html_path:
+            output_dir = os.path.dirname(article.html_path)
+        elif article.markdown_path:
+            output_dir = os.path.dirname(article.markdown_path)
+
+        if output_dir:
+            image_path = os.path.join(output_dir, "images", filename)
+            if os.path.isfile(image_path):
+                return FileResponse(image_path)
+
+        raise HTTPException(status_code=404, detail="Image not found")
     finally:
         session.close()
 

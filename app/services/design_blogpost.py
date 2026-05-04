@@ -24,9 +24,9 @@ _PAGE_TEMPLATE = """\
     font-family: Georgia, "Times New Roman", serif;
     color: #3a3a3a;
     background: #fafaf7;
-    max-width: 780px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
+    padding: 2rem 2rem 4rem;
     line-height: 1.8;
     font-size: 1.05rem;
   }}

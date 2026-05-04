@@ -134,6 +134,7 @@
     padding: 1rem;
     height: 100%;
     overflow-y: auto;
+    max-width: 1400px;
   }
   .toolbar {
     display: flex;
