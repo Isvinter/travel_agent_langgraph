@@ -14,31 +14,31 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated, lo
 - **AI content review** — LLM quality gate that curates enrichment data: filters irrelevant POIs, discards non-applicable weather fields, rates image suitability, scores overall coherence
 - **AI image selection** — multimodal LLM selects the best photos for the blog (batched, iterative)
 - **AI blog generation** — multimodal LLM writes a narrative travel blog post enriched with weather, POIs, images, map, and elevation profile
-- **Outputs** — Markdown + HTML files with compressed JPEG images in a timestamped `output/` directory
+- **Outputs** — styled HTML + Markdown files with compressed JPEG images, map, and elevation profile in a timestamped `output/` directory
 - **Database persistence** — SQLAlchemy-powered storage for generated articles with filterable queries (tour date, duration, generation time). Image paths stored, not BLOBs. Defaults to SQLite, PostgreSQL-ready via `DATABASE_URL` env var
-- **Article browser** — Svelte 5 frontend tab for browsing and filtering persisted articles, with inline HTML rendering and delete support
-- **Web UI** — Svelte 5 frontend with drag-and-drop file uploads and live SSE progress streaming
-- **REST API** — FastAPI backend with `/api/pipeline/run`, `/api/pipeline/stream/{id}`, article CRUD, file upload endpoints
+- **Article browser** — filterable article table with checkboxes, single/batch delete with confirmation dialog, inline HTML rendering with images served via API
+- **Web UI** — Svelte 5 frontend with drag-and-drop file uploads (GPX, images, .txt notes), live SSE progress streaming, model selection, output config (wildcard count, article length, style persona)
+- **REST API** — FastAPI backend with pipeline run/stream, article CRUD + batch delete, image serving, file upload endpoints
 
 ## Architecture
 
 ```
-process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post → persist_article
+process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post → design_blogpost → persist_article
 ```
 
 All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` that delegate to pure functions in `app/services/`.
 
 | Layer | Module | Purpose |
 |-------|--------|---------|
-| State | `app/state.py` | `AppState` (images, clusters, GPX stats, weather, POIs, enrichment context, notes, blog_post) + `ImageData`, `DailyWeather`, `WeatherInfo` |
+| State | `app/state.py` | `AppState` (images, clusters, GPX stats, weather, POIs, enrichment context, notes, blog_post) + `ImageData`, `DailyWeather`, `WeatherInfo`, `OutputConfig` |
 | Graph | `app/graph.py` | LangGraph `StateGraph` definition — nodes, edges, entry/finish points |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 12 nodes total |
-| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, image selection, article persistence |
-| Database | `app/db/` | SQLAlchemy ORM models (`Article`, `ArticleImage`), repository pattern, connection management, auto-indexes. Default SQLite, PostgreSQL-ready |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 13 nodes total |
+| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, elevation profiles, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, blog design (template-based HTML/CSS), image selection, article persistence |
+| Database | `app/db/` | SQLAlchemy ORM models (`Article`, `ArticleImage`), repository pattern (CRUD + batch delete), connection management, auto-indexes. Default SQLite, PostgreSQL-ready |
 | Pipeline | `app/pipeline/process_images.py` | Higher-level image processing orchestration |
-| API | `app/api/` | FastAPI server, routes, SSE event manager |
+| API | `app/api/` | FastAPI server, routes (CRUD, batch delete, image serving), SSE event manager |
 | Utils | `app/utils/` | Low-level EXIF helpers |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (9 components)
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (11 components)
 
 ## Tech Stack
 
@@ -141,11 +141,11 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── utils/          # EXIF helpers
 │   ├── graph.py        # StateGraph builder + build_graph() + run_pipeline()
 │   └── state.py        # AppState, ImageData, DailyWeather, WeatherInfo Pydantic models
-├── frontend/           # Svelte 5 + Vite + TypeScript SPA (9 components)
+├── frontend/           # Svelte 5 + Vite + TypeScript SPA (11 components)
 │   ├── src/
 │   │   ├── App.svelte
 │   │   └── lib/
-│   │       ├── stores/     # pipeline.ts, router.ts
+│   │       ├── stores/          # pipeline.ts, router.ts
 │   │       ├── ArticleList.svelte
 │   │       ├── ArticleDetail.svelte
 │   │       ├── FileDropZone.svelte
@@ -153,7 +153,10 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │       ├── NotesInput.svelte
 │   │       ├── OutputDirInput.svelte
 │   │       ├── OutputWindow.svelte
-│   │       └── RunButton.svelte
+│   │       ├── RunButton.svelte
+│   │       ├── WildcardCount.svelte
+│   │       ├── LengthSelector.svelte
+│   │       └── StyleSelector.svelte
 │   └── dist/           # Production build (served by FastAPI)
 ├── tests/              # pytest suite (unit, integration, e2e)
 │   ├── test_api/       # API-specific tests
@@ -194,6 +197,8 @@ Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nod
 | `GET` | `/api/articles` | List persisted articles with filters (tour date, duration, generation time) and pagination |
 | `GET` | `/api/articles/{id}` | Get full article detail with markdown, HTML, and image references |
 | `DELETE` | `/api/articles/{id}` | Delete an article — removes DB record and output files |
+| `POST` | `/api/articles/delete-batch` | Delete multiple articles at once |
+| `GET` | `/api/articles/{id}/images/{filename}` | Serve an article's image file |
 
 ## Database Configuration
 
@@ -210,7 +215,8 @@ Default is SQLite — a single `travel_agent.db` file created in the project roo
 Configured in `app/state.py`:
 
 - `gemma4:26b-ctx128k` (default)
-- `gemma4:31b-ctx128k`
+- `gemma4:31b-ctx112k`
+- `qwen3.6:27b-ctx128k`
 - `qwen3.6:35b-ctx128k`
 
 Custom models can be entered interactively in the CLI pipeline.
