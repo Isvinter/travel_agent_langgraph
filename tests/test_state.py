@@ -51,3 +51,15 @@ class TestAppStateEnrichment:
         assert state.weather is None
         assert state.poi_list == []
         assert state.enrichment_context == {}
+
+
+class TestOutputConfig:
+    def test_pdf_export_defaults_to_false(self):
+        from app.state import OutputConfig
+        config = OutputConfig()
+        assert config.pdf_export is False
+
+    def test_pdf_export_can_be_true(self):
+        from app.state import OutputConfig
+        config = OutputConfig(pdf_export=True)
+        assert config.pdf_export is True

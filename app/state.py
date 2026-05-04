@@ -41,6 +41,7 @@ class OutputConfig(BaseModel):
     wildcard_max: int = Field(default=12, ge=1, le=50)
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
+    pdf_export: bool = False
 
 
 class AppState(BaseModel):
