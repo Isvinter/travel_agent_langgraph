@@ -10,9 +10,6 @@
     pipelineMode.set(mode);
   }
 
-  $effect(() => {
-    pipelineMode.set(current);
-  });
 </script>
 
 <div class="mode-tabs">
