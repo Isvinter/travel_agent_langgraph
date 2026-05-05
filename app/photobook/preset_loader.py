@@ -7,7 +7,7 @@ from pydantic import BaseModel
 _PRESETS_DIR = Path(__file__).parent / "presets"
 
 
-class SlotDefinition(BaseModel):
+class PresetSlot(BaseModel):
     """Ein einzelner Slot in einem Preset."""
     id: str
     type: str                          # "image" | "text"
@@ -27,7 +27,7 @@ class Preset(BaseModel):
     has_text: bool
     description: str
     css_class: str
-    slots: List[SlotDefinition]
+    slots: List[PresetSlot]
 
 
 def load_preset(preset_id: str) -> Preset:
