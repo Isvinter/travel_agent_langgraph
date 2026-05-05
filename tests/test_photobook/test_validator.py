@@ -1,5 +1,4 @@
 """Tests fuer den deterministischen Validator."""
-import pytest
 from app.photobook.validator import validate_page
 from app.state import PageDescription
 

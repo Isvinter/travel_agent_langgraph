@@ -107,6 +107,4 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
 def _normalize_path(path: str) -> str:
     """Konvertiert Pfade zu file:/// URIs fuer Headless Chrome."""
     abs_path = os.path.abspath(path)
-    if abs_path.startswith("/"):
-        return f"file://{abs_path}"
-    return f"file:///{abs_path}"
+    return f"file://{abs_path}"

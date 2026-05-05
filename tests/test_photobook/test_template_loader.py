@@ -3,8 +3,6 @@ import pytest
 from app.photobook.template_loader import (
     load_template,
     load_all_templates,
-    PhotobookTemplate,
-    SlotDefinition,
 )
 
 
