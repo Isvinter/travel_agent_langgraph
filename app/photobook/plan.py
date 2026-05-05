@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, WeatherInfo
+from app.utils.image_utils import encode_image_base64
 
 
 def _build_plan_prompt(
@@ -86,10 +87,29 @@ def plan_photobook_layout(
     if not images:
         return {"pages": [], "dramatic_arc": ""}
     prompt = _build_plan_prompt(len(images), gpx_stats, notes, weather, len(poi_list))
+    
+    # Bilder als Base64 encodieren
+    encoded_images = []
+    for img in images:
+        b64 = encode_image_base64(img.path)
+        if b64:
+            encoded_images.append(b64)
+    
     try:
+        payload = {
+            "model": model,
+            "messages": [{
+                "role": "user",
+                "content": prompt,
+                "images": encoded_images,
+            }],
+            "stream": False,
+            "options": {"temperature": 0.3, "num_predict": 4096},
+            "keep_alive": "10m",
+        }
         resp = requests.post(
             f"{base_url.rstrip('/')}/api/chat",
-            json={"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "options": {"temperature": 0.3, "num_predict": 4096}, "keep_alive": "10m"},
+            json=payload,
             timeout=300,
         )
         if resp.status_code == 200:
