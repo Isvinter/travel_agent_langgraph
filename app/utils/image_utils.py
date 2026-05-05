@@ -3,7 +3,9 @@
 Wird sowohl von der Blog- als auch der Photobuch-Pipeline verwendet.
 """
 
+import base64 as _b64
 import io
+import io as _io
 import os
 
 
@@ -74,4 +76,26 @@ def compress_image_to_jpeg(
 
     except Exception as e:
         print(f"⚠️ Error compressing image {image_path}: {e}")
+        return None
+
+
+def encode_image_base64(image_path: str, max_size: int = 600) -> str | None:
+    """Encodiert ein Bild als Base64-String für multimodale LLM-Requests.
+
+    Thumbnail auf max_size, JPEG-Qualität 60, RGB-Konvertierung.
+    """
+    try:
+        from PIL import Image
+
+        if not os.path.exists(image_path):
+            return None
+
+        with Image.open(image_path) as img:
+            if max(img.size) > max_size:
+                img.thumbnail((max_size, max_size))
+            buf = _io.BytesIO()
+            img.convert("RGB").save(buf, format="JPEG", quality=60)
+            return _b64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception as e:
+        print(f"⚠️ Error encoding image {image_path}: {e}")
         return None

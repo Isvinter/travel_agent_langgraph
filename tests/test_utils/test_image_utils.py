@@ -65,3 +65,24 @@ class TestCompressImageToJpeg:
 
         result = compress_image_to_jpeg(src, dst, max_size_bytes=500 * 1024, max_dim=100)
         assert result is None  # Verzeichnis existiert nicht → Fehler
+
+    @pytest.mark.unit
+    def test_encode_image_base64_returns_base64_string(self, tmp_path):
+        """encode_image_base64 muss einen validen Base64-String zurückgeben."""
+        from app.utils.image_utils import encode_image_base64
+        src = str(tmp_path / "src.jpg")
+        img = Image.new("RGB", (1200, 800), color="blue")
+        img.save(src)
+
+        result = encode_image_base64(src, max_size=600)
+        assert result is not None
+        assert isinstance(result, str)
+        import re
+        assert re.match(r'^[A-Za-z0-9+/]+=*$', result) is not None
+
+    @pytest.mark.unit
+    def test_encode_image_base64_returns_none_for_missing_file(self):
+        """Nonexistente Datei gibt None zurück."""
+        from app.utils.image_utils import encode_image_base64
+        result = encode_image_base64("/nonexistent/img.jpg")
+        assert result is None
