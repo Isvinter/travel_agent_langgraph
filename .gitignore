@@ -17,3 +17,4 @@ travel_agent.db
 # Node
 node_modules/
 .worktrees/
+.superpowers/
