@@ -9,10 +9,11 @@ from app.state import PageDescription
 from app.photobook.template_loader import load_all_templates
 
 
-def validate_page(page: PageDescription) -> List[str]:
+def validate_page(page: PageDescription, templates: dict = None) -> List[str]:
     """Prueft eine einzelne Seite auf Fehler. Gibt Liste von Fehlermeldungen zurueck."""
     errors = []
-    templates = load_all_templates()
+    if templates is None:
+        templates = load_all_templates()
 
     if page.template_id not in templates:
         errors.append(f"Template '{page.template_id}' existiert nicht im Katalog.")
@@ -31,7 +32,8 @@ def validate_page(page: PageDescription) -> List[str]:
         if slot.get("image_index") is not None:
             if slot["image_index"] < 0:
                 errors.append(f"Slot '{slot_id}': image_index {slot['image_index']} ist ungueltig.")
-            image_count += 1
+            else:
+                image_count += 1
 
     if image_count > template.max_images:
         errors.append(
@@ -78,10 +80,12 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
 
 def validate_all_pages(pages: List[PageDescription]) -> tuple[List[PageDescription], List[str]]:
     """Validiert alle Seiten. Fehlerhafte Seiten werden in Fallback umgewandelt."""
+    # Templates nur einmal laden
+    _templates = load_all_templates()
     validated = []
     warnings = []
     for i, page in enumerate(pages):
-        errors = validate_page(page)
+        errors = validate_page(page, _templates)
         if errors:
             warnings.append(f"Seite {i}: {', '.join(errors)}")
             validated.append(enforce_fallback(page))
