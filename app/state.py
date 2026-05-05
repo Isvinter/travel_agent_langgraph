@@ -98,5 +98,6 @@ class AppState(BaseModel):
     photobook_plan: Optional[Dict[str, Any]] = None
     photobook_pages: List[PageDescription] = []
     photobook_html: Optional[str] = None
+    photobook_timestamp: Optional[str] = None  # Wird von render_photobook_node gesetzt
     photobook_pdf_path: Optional[str] = None
 

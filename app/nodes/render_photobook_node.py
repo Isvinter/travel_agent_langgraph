@@ -20,7 +20,9 @@ def render_photobook_node(state: AppState) -> AppState:
     state.photobook_pages = validated_pages
 
     # --- Bilder komprimieren ---
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if not state.photobook_timestamp:
+        state.photobook_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = state.photobook_timestamp
     images_dir = Path(OUTPUT_DIR) / f"photobook_{timestamp}" / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,6 +50,9 @@ def render_photobook_node(state: AppState) -> AppState:
         else:
             print(f"  ⚠️ Kompression fehlgeschlagen für {orig}, verwende Original")
             compressed_images.append(img)
+
+    # --- Status updaten mit komprimierten Bildpfaden ---
+    state.photobook_images = compressed_images
 
     # --- Rendern mit komprimierten Bildern ---
     try:
