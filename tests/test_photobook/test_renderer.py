@@ -91,3 +91,19 @@ class TestRenderer:
         html = render_photobook(pages, TEST_IMAGES)
         assert "Einleitungstext zur Tour" in html
         assert "slot-text" in html
+
+    def test_render_title_slot(self):
+        """Title-Slot wird als slot-title gerendert."""
+        pages = [
+            PageDescription(
+                template_id="hero_single",
+                page_type="single",
+                slots=[
+                    {"slot_id": "title", "text": "Gipfelstürmer"},
+                    {"slot_id": "main", "image_index": 0},
+                ],
+            )
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert "slot-title" in html
+        assert "Gipfelstürmer" in html

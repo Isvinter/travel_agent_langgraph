@@ -10,6 +10,7 @@
   "supports_captions": false,
   "css_class": "layout-collection-3",
   "slots": [
+    {"id": "title", "type": "text", "css_area": "title", "optional": true},
     {"id": "top", "type": "image", "priority": "primary", "css_area": "top", "optional": false},
     {"id": "bottom_left", "type": "image", "priority": "secondary", "css_area": "bl", "optional": false},
     {"id": "bottom_right", "type": "image", "priority": "secondary", "css_area": "br", "optional": false}

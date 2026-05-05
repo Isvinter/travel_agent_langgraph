@@ -10,6 +10,7 @@
   "supports_captions": true,
   "css_class": "layout-split-dominant",
   "slots": [
+    {"id": "title", "type": "text", "css_area": "title", "optional": true},
     {"id": "primary", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
     {"id": "secondary", "type": "image", "priority": "secondary", "css_area": "side", "optional": false},
     {"id": "caption", "type": "caption", "priority": null, "css_area": "caption", "optional": true}

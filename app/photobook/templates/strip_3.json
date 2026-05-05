@@ -10,6 +10,7 @@
   "supports_captions": false,
   "css_class": "layout-strip-3",
   "slots": [
+    {"id": "title", "type": "text", "css_area": "title", "optional": true},
     {"id": "left", "type": "image", "priority": "secondary", "css_area": "left", "optional": false},
     {"id": "center", "type": "image", "priority": "primary", "css_area": "center", "optional": false},
     {"id": "right", "type": "image", "priority": "secondary", "css_area": "right", "optional": false}

@@ -10,6 +10,7 @@
   "supports_captions": false,
   "css_class": "layout-grid-2x2",
   "slots": [
+    {"id": "title", "type": "text", "css_area": "title", "optional": true},
     {"id": "tl", "type": "image", "priority": "primary", "css_area": "tl", "optional": false},
     {"id": "tr", "type": "image", "priority": "secondary", "css_area": "tr", "optional": false},
     {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl", "optional": false},

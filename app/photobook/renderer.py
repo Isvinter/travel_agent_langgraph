@@ -92,8 +92,9 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
 
             elif slot_def.type == "text":
                 text = html.escape(slot_data.get("text", ""))
+                css_class = "slot-title" if slot_id == "title" else "slot-text"
                 html_parts.append(
-                    f'<div class="slot-text" {area_style}>{text}</div>'
+                    f'<div class="{css_class}" {area_style}>{text}</div>'
                 )
 
             elif slot_def.type == "caption":

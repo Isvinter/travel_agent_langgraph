@@ -66,8 +66,9 @@ body {
 .layout-hero-single {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
+    "title"
     "main"
     "caption";
   gap: 0;
@@ -76,8 +77,9 @@ body {
 .layout-split-equal {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
+    "title title"
     "left right"
     "caption caption";
   gap: 4mm;
@@ -86,8 +88,9 @@ body {
 .layout-split-dominant {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
+    "title title"
     "main side"
     "caption caption";
   gap: 4mm;
@@ -96,8 +99,9 @@ body {
 .layout-grid-2x2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
   grid-template-areas:
+    "title title"
     "tl tr"
     "bl br";
   gap: 3mm;
@@ -106,16 +110,19 @@ body {
 .layout-strip-3 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr;
-  grid-template-areas: "left center right";
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "title title title"
+    "left center right";
   gap: 3mm;
 }
 
 .layout-image-text-left {
   display: grid;
   grid-template-columns: 3fr 2fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
+    "title title"
     "image text"
     "caption caption";
   gap: 4mm;
@@ -124,8 +131,9 @@ body {
 .layout-collection-3 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 2fr 1fr;
+  grid-template-rows: auto 2fr 1fr;
   grid-template-areas:
+    "title title"
     "top top"
     "bl br";
   gap: 3mm;
@@ -134,11 +142,21 @@ body {
 .layout-panorama {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
+    "title"
     "main"
     "caption";
   gap: 0;
+}
+
+.slot-title {
+  font-size: 14pt;
+  font-weight: bold;
+  color: #222;
+  padding: 4mm;
+  display: flex;
+  align-items: center;
 }
 
 @media print {
