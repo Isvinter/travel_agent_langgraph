@@ -78,11 +78,16 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
                         f'<div class="slot-image slot-placeholder" {area_style}>'
                         f'Bild {slot_data["image_index"]} nicht gefunden</div>'
                     )
-                # Caption kann auch am Image-Slot haengen
+                # Caption im dedizierten Caption-Slot des Templates rendern
                 caption = html.escape(slot_data.get("caption", ""))
                 if caption:
+                    caption_slot_def = next((s for s in template.slots if s.type == "caption"), None)
+                    if caption_slot_def:
+                        caption_area = f'style="grid-area: {caption_slot_def.css_area}"'
+                    else:
+                        caption_area = area_style  # Fallback: Template hat keinen Caption-Slot
                     html_parts.append(
-                        f'<div class="slot-caption" {area_style}>{caption}</div>'
+                        f'<div class="slot-caption" {caption_area}>{caption}</div>'
                     )
 
             elif slot_def.type == "text":
