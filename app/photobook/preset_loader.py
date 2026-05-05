@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 
-_PRESETS_DIR = Path(__file__).parent / "presets"
+_PRESETS_DIR = Path(__file__).parent / "preset_data"
 
 
 class PresetSlot(BaseModel):

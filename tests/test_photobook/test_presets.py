@@ -66,3 +66,40 @@ class TestPresetHelpers:
         table = get_constraint_table_for_llm()
         assert isinstance(table, str)
         assert "TEXT-CONSTRAINTS:" in table
+
+
+class TestPresetCatalog:
+    def test_catalog_has_21_entries(self):
+        from app.photobook.presets import PRESET_CATALOG
+        assert len(PRESET_CATALOG) == 21
+
+    def test_get_presets_by_image_count(self):
+        from app.photobook.presets import get_presets_by_image_count
+        p1 = get_presets_by_image_count(1)
+        # cover_hero, single_full, single_text_below, single_text_right, panorama, image_text_split
+        assert len(p1) == 6
+        p3 = get_presets_by_image_count(3)
+        assert len(p3) == 5
+
+    def test_get_presets_by_count_and_text(self):
+        from app.photobook.presets import get_presets_by_image_count
+        p3_no_text = get_presets_by_image_count(3, has_text=False)
+        assert len(p3_no_text) == 2  # triple_strip, triple_big_top
+        p3_text = get_presets_by_image_count(3, has_text=True)
+        assert len(p3_text) == 3
+
+    def test_get_any_preset_returns_valid(self):
+        from app.photobook.presets import get_any_preset
+        assert get_any_preset(1) == "cover_hero"
+        assert get_any_preset(3) == "triple_strip"
+        assert get_any_preset(99) == "quad_grid"
+
+    def test_constraint_summary_contains_limits(self):
+        from app.photobook.presets import get_constraint_summary
+        summary = get_constraint_summary()
+        assert "60" in summary
+        assert "170" in summary
+        assert "400" in summary
+        assert "14pt" in summary
+        assert "9pt" in summary
+        assert "11pt" in summary
