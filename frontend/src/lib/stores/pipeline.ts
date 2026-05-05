@@ -87,8 +87,13 @@ export function startStream(runId: string) {
     runState.set(isSuccess ? "done" : "failed");
 
     // Auto-download PDF if available
-    if (data.pdf_available && data.article_id) {
-      window.open(`/api/articles/${data.article_id}/pdf`, "_blank");
+    if (data.pdf_available) {
+      if (data.article_id) {
+        window.open(`/api/articles/${data.article_id}/pdf`, "_blank");
+      } else {
+        // Photobook: use run_id from the done event or currentRunId
+        window.open(`/api/photobook/${get(currentRunId)}/pdf`, "_blank");
+      }
     }
 
     try {

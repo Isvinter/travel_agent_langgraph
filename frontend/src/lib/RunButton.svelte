@@ -13,7 +13,14 @@
     articleLength,
     stylePersona,
     pdfExport,
+    photobookSize,
   } from "./stores/pipeline";
+
+  interface Props {
+    mode: "blog" | "photobook";
+  }
+
+  let { mode }: Props = $props();
 
   let loading: boolean = $state(false);
 
@@ -22,10 +29,6 @@
     const { gpxFile, imageFiles, txtFile } = get(pipelineFiles);
     const dir = get(outputDir);
     const notes = get(notesField);
-    const wc = get(wildcardCount);
-    const length = get(articleLength);
-    const persona = get(stylePersona);
-    const pdf = get(pdfExport);
 
     if (!gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
@@ -36,21 +39,34 @@
     loading = true;
 
     try {
+      const body: Record<string, unknown> = {
+        model,
+        output_dir: dir,
+        notes,
+        txt_file: txtFile || "",
+        gpx_file: gpxFile,
+        image_files: imageFiles,
+        mode,
+      };
+
+      if (mode === "blog") {
+        const wc = get(wildcardCount);
+        const length = get(articleLength);
+        const persona = get(stylePersona);
+        const pdf = get(pdfExport);
+        body.wildcard_max = wc;
+        body.article_length = length;
+        body.style_persona = persona;
+        body.pdf_export = pdf;
+      } else {
+        const size = get(photobookSize);
+        body.photobook_size = size;
+      }
+
       const res = await fetch("/api/pipeline/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          output_dir: dir,
-          notes,
-          txt_file: txtFile || "",
-          gpx_file: gpxFile,
-          image_files: imageFiles,
-          wildcard_max: wc,
-          article_length: length,
-          style_persona: persona,
-          pdf_export: pdf,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -70,6 +86,15 @@
   }
 
   let rs = $derived($runState);
+  let buttonLabel = $derived(
+    rs === "running" || loading
+      ? "Läuft…"
+      : rs === "done"
+        ? "✓ Abgeschlossen"
+        : rs === "failed"
+          ? "✗ Fehlgeschlagen — Erneut"
+          : `▶ ${mode === "blog" ? "Blog" : "Fotobuch"} generieren`
+  );
 </script>
 
 <button
@@ -80,22 +105,19 @@
   {#if rs === "running" || loading}
     <span class="spinner"></span>
     Läuft…
-  {:else if rs === "done"}
-    ✓ Abgeschlossen
-  {:else if rs === "failed"}
-    ✗ Fehlgeschlagen — Erneut
   {:else}
-    ▶ Pipeline starten
+    {buttonLabel}
   {/if}
 </button>
 
 <style>
   .run-btn {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.6rem;
     background: var(--accent);
     color: white;
     font-weight: bold;
+    font-size: 0.75rem;
     letter-spacing: 0.03em;
     display: flex;
     align-items: center;
