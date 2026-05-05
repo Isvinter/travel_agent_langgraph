@@ -119,6 +119,41 @@ class TestEnforceFallback:
         assert len(result.slots) == 1
         assert result.slots[0]["image_index"] == 3
 
+    def test_enforce_fallback_preserves_captions(self):
+        """Captions aus der Original-Seite muessen im Fallback erhalten bleiben."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="hero_single",
+            page_type="single",
+            slots=[
+                {"slot_id": "main", "image_index": 0, "caption": "Schöne Aussicht"},
+                {"slot_id": "wrong_slot", "image_index": 1},
+            ],
+        )
+        result = enforce_fallback(page)
+        captions = [s.get("caption", "") for s in result.slots]
+        assert "Schöne Aussicht" in captions
+
+    def test_enforce_fallback_preserves_template_when_possible(self):
+        """Wenn nur ein Slot-Name falsch ist, soll das Template erhalten bleiben."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="split_equal",
+            page_type="spread",
+            slots=[
+                {"slot_id": "left_", "image_index": 0},
+                {"slot_id": "right", "image_index": 1},
+            ],
+        )
+        result = enforce_fallback(page)
+        assert result.template_id == "split_equal"
+        slot_ids = [s.get("slot_id", "") for s in result.slots]
+        assert "left" in slot_ids
+
 
 class TestValidateAllPages:
     def test_returns_valid_pages_and_warnings(self):
