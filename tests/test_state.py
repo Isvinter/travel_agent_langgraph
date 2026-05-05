@@ -63,3 +63,87 @@ class TestOutputConfig:
         from app.state import OutputConfig
         config = OutputConfig(pdf_export=True)
         assert config.pdf_export is True
+
+
+class TestPhotobookConfig:
+    def test_defaults(self):
+        """PhotobookConfig standardmäßig mit photo_count=16."""
+        from app.state import PhotobookConfig
+        config = PhotobookConfig()
+        assert config.photo_count == 16
+
+    def test_min_boundary(self):
+        """photo_count=5 erlaubt (Minimum)."""
+        from app.state import PhotobookConfig
+        config = PhotobookConfig(photo_count=5)
+        assert config.photo_count == 5
+
+    def test_max_boundary(self):
+        """photo_count=24 erlaubt (Maximum)."""
+        from app.state import PhotobookConfig
+        config = PhotobookConfig(photo_count=24)
+        assert config.photo_count == 24
+
+    def test_below_min_raises(self):
+        """photo_count=4 wirft ValidationError."""
+        from app.state import PhotobookConfig
+        with pytest.raises(ValidationError):
+            PhotobookConfig(photo_count=4)
+
+    def test_above_max_raises(self):
+        """photo_count=25 wirft ValidationError."""
+        from app.state import PhotobookConfig
+        with pytest.raises(ValidationError):
+            PhotobookConfig(photo_count=25)
+
+
+class TestOutputConfigMode:
+    def test_mode_defaults_to_blog(self):
+        """mode ist standardmäßig 'blog'."""
+        from app.state import OutputConfig
+        config = OutputConfig()
+        assert config.mode == "blog"
+
+    def test_mode_can_be_photobook(self):
+        """mode='photobook' ist erlaubt."""
+        from app.state import OutputConfig
+        config = OutputConfig(mode="photobook")
+        assert config.mode == "photobook"
+
+    def test_photobook_config_default(self):
+        """photobook hat default PhotobookConfig."""
+        from app.state import OutputConfig
+        config = OutputConfig()
+        assert config.photobook.photo_count == 16
+
+
+class TestPageDescription:
+    def test_minimal_creation(self):
+        """PageDescription mit minimalen Feldern."""
+        from app.state import PageDescription
+        pd = PageDescription(template_id="hero_single", page_type="single")
+        assert pd.template_id == "hero_single"
+        assert pd.page_type == "single"
+        assert pd.slots == []
+
+    def test_with_slots(self):
+        """PageDescription mit gefüllten Slots."""
+        from app.state import PageDescription
+        pd = PageDescription(
+            template_id="split_dominant",
+            page_type="spread",
+            slots=[{"slot_id": "primary", "image_index": 0, "caption": "Test"}],
+        )
+        assert len(pd.slots) == 1
+        assert pd.slots[0]["slot_id"] == "primary"
+
+
+class TestAppStatePhotobook:
+    def test_photobook_fields_have_defaults(self):
+        """Photobook-Felder im AppState haben korrekte Defaults."""
+        state = AppState()
+        assert state.photobook_images == []
+        assert state.photobook_plan is None
+        assert state.photobook_pages == []
+        assert state.photobook_html is None
+        assert state.photobook_pdf_path is None
