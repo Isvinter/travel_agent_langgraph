@@ -1,0 +1,14 @@
+{
+  "id": "quad_grid",
+  "name": "Vier Bilder — 2×2 Raster",
+  "description": "Vier Bilder in einem gleichmäßigen 2×2-Raster. Für Sammlungen und Themengruppen.",
+  "image_count": 4,
+  "has_text": false,
+  "css_class": "preset-quad-grid",
+  "slots": [
+    {"id": "tl", "type": "image", "priority": "primary", "css_area": "tl", "optional": false},
+    {"id": "tr", "type": "image", "priority": "secondary", "css_area": "tr", "optional": false},
+    {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl", "optional": false},
+    {"id": "br", "type": "image", "priority": "secondary", "css_area": "br", "optional": false}
+  ]
+}

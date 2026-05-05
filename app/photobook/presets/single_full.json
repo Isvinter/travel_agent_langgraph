@@ -1,0 +1,11 @@
+{
+  "id": "single_full",
+  "name": "Einzelbild — Vollformat",
+  "description": "Ein Bild auf der ganzen Seite ohne Text. Für starke Einzelmotive.",
+  "image_count": 1,
+  "has_text": false,
+  "css_class": "preset-single-full",
+  "slots": [
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false}
+  ]
+}

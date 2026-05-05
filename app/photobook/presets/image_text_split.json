@@ -1,0 +1,12 @@
+{
+  "id": "image_text_split",
+  "name": "Bild + Text — 50:50",
+  "description": "Bild links (50%), Einleitungstext rechts (50%). Für Kapitelanfänge und Kontextseiten.",
+  "image_count": 1,
+  "has_text": true,
+  "css_class": "preset-image-text-split",
+  "slots": [
+    {"id": "image", "type": "image", "priority": "primary", "css_area": "image", "optional": false},
+    {"id": "text", "type": "text", "css_area": "text", "char_limit": 400, "font_size": "11pt", "text_role": "intro", "optional": false}
+  ]
+}

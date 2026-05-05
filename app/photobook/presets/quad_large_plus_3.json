@@ -1,0 +1,15 @@
+{
+  "id": "quad_large_plus_3",
+  "name": "Groß + drei + Text",
+  "description": "Ein großes Bild links (70%), drei kleinere rechts gestapelt (30%), Bildunterschrift unten.",
+  "image_count": 4,
+  "has_text": true,
+  "css_class": "preset-quad-large-plus-3",
+  "slots": [
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
+    {"id": "small1", "type": "image", "priority": "secondary", "css_area": "small1", "optional": false},
+    {"id": "small2", "type": "image", "priority": "secondary", "css_area": "small2", "optional": false},
+    {"id": "small3", "type": "image", "priority": "secondary", "css_area": "small3", "optional": false},
+    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 170, "font_size": "9pt", "text_role": "caption", "optional": true}
+  ]
+}

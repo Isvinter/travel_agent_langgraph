@@ -1,0 +1,15 @@
+{
+  "id": "collage_5",
+  "name": "Collage — 5 Bilder",
+  "description": "Fünf Bilder in asymmetrischer Collage: ein großes, drei kleine, ein breites. Ohne Text.",
+  "image_count": 5,
+  "has_text": false,
+  "css_class": "preset-collage-5",
+  "slots": [
+    {"id": "big", "type": "image", "priority": "primary", "css_area": "big", "optional": false},
+    {"id": "s1", "type": "image", "priority": "secondary", "css_area": "s1", "optional": false},
+    {"id": "s2", "type": "image", "priority": "secondary", "css_area": "s2", "optional": false},
+    {"id": "s3", "type": "image", "priority": "secondary", "css_area": "s3", "optional": false},
+    {"id": "wide", "type": "image", "priority": "secondary", "css_area": "wide", "optional": false}
+  ]
+}

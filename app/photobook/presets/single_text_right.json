@@ -1,0 +1,12 @@
+{
+  "id": "single_text_right",
+  "name": "Einzelbild + Text rechts",
+  "description": "Bild links (70%), Textblock rechts (30%).",
+  "image_count": 1,
+  "has_text": true,
+  "css_class": "preset-single-text-right",
+  "slots": [
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
+    {"id": "text", "type": "text", "css_area": "text", "char_limit": 170, "font_size": "9pt", "text_role": "caption", "optional": true}
+  ]
+}

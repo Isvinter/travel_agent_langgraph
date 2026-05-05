@@ -1,0 +1,13 @@
+{
+  "id": "triple_big_top",
+  "name": "Drei Bilder — Eins groß oben",
+  "description": "Ein großes Bild oben (70%), zwei kleinere darunter (30%).",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "preset-triple-big-top",
+  "slots": [
+    {"id": "top", "type": "image", "priority": "primary", "css_area": "top", "optional": false},
+    {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl", "optional": false},
+    {"id": "br", "type": "image", "priority": "secondary", "css_area": "br", "optional": false}
+  ]
+}

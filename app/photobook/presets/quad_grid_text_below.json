@@ -1,0 +1,15 @@
+{
+  "id": "quad_grid_text_below",
+  "name": "2×2 Raster + Unterschrift",
+  "description": "Vier Bilder im 2×2-Raster (70%) mit Bildunterschrift darunter (30%).",
+  "image_count": 4,
+  "has_text": true,
+  "css_class": "preset-quad-grid-text-below",
+  "slots": [
+    {"id": "tl", "type": "image", "priority": "primary", "css_area": "tl", "optional": false},
+    {"id": "tr", "type": "image", "priority": "secondary", "css_area": "tr", "optional": false},
+    {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl", "optional": false},
+    {"id": "br", "type": "image", "priority": "secondary", "css_area": "br", "optional": false},
+    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 170, "font_size": "9pt", "text_role": "caption", "optional": true}
+  ]
+}

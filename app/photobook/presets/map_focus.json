@@ -1,0 +1,13 @@
+{
+  "id": "map_focus",
+  "name": "Karte + Bild",
+  "description": "Karte und ein Bild nebeneinander (70%) mit Routenbeschreibung darunter (30%).",
+  "image_count": 2,
+  "has_text": true,
+  "css_class": "preset-map-focus",
+  "slots": [
+    {"id": "map", "type": "image", "priority": "primary", "css_area": "map", "optional": false},
+    {"id": "photo", "type": "image", "priority": "secondary", "css_area": "photo", "optional": false},
+    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 170, "font_size": "9pt", "text_role": "caption", "optional": true}
+  ]
+}

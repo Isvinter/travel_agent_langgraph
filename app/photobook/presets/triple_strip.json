@@ -1,0 +1,13 @@
+{
+  "id": "triple_strip",
+  "name": "Drei Bilder — Querstreifen",
+  "description": "Drei Bilder in einem horizontalen Streifen. Für Sequenzen und Zeitabläufe.",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "preset-triple-strip",
+  "slots": [
+    {"id": "left", "type": "image", "priority": "secondary", "css_area": "left", "optional": false},
+    {"id": "center", "type": "image", "priority": "primary", "css_area": "center", "optional": false},
+    {"id": "right", "type": "image", "priority": "secondary", "css_area": "right", "optional": false}
+  ]
+}

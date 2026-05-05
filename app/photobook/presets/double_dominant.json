@@ -1,0 +1,12 @@
+{
+  "id": "double_dominant",
+  "name": "Zwei Bilder — Groß+Klein",
+  "description": "Ein großes Bild (2/3) und ein kleineres (1/3) nebeneinander.",
+  "image_count": 2,
+  "has_text": false,
+  "css_class": "preset-double-dominant",
+  "slots": [
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
+    {"id": "secondary", "type": "image", "priority": "secondary", "css_area": "secondary", "optional": false}
+  ]
+}
