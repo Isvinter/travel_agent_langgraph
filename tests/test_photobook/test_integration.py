@@ -81,3 +81,90 @@ def test_full_photobook_pipeline():
                     assert result["photobook_html"] is not None
                     assert "preset-cover-hero" in result["photobook_html"]
                     assert result["photobook_plan"] is not None
+
+
+class TestPresetPipeline:
+    """Integrationstest: Plan → Generate → Validate → Render mit Presets."""
+
+    def test_full_pipeline_with_presets(self):
+        """Die komplette Pipeline mit Presets muss ein gueltiges HTML liefern."""
+        from app.photobook.plan import plan_photobook_layout
+        from app.photobook.generate import generate_photobook_pages
+        from app.photobook.validator import validate_all_pages
+        from app.photobook.renderer import render_photobook
+
+        images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(8)]
+
+        # Mock Pass 1: Preset-Auswahl
+        mock_plan_resp = MagicMock()
+        mock_plan_resp.status_code = 200
+        mock_plan_resp.json.return_value = {
+            "message": {"content": json.dumps({
+                "pages": [
+                    {"position": 0, "preset_id": "cover_hero", "image_indices": [0]},
+                    {"position": 1, "preset_id": "double_equal", "image_indices": [1, 2]},
+                    {"position": 2, "preset_id": "triple_strip", "image_indices": [3, 4, 5]},
+                    {"position": 3, "preset_id": "single_full", "image_indices": [6]},
+                    {"position": 4, "preset_id": "single_text_below", "image_indices": [7]},
+                ],
+                "dramatic_arc": "cover → buildup → highlight → closing"
+            })}
+        }
+
+        # Mock Pass 2: Slot-Befüllung
+        mock_gen_resp = MagicMock()
+        mock_gen_resp.status_code = 200
+        mock_gen_resp.json.return_value = {
+            "message": {"content": json.dumps([
+                {"preset_id": "cover_hero", "slots": [
+                    {"slot_id": "main", "image_index": 0},
+                    {"slot_id": "title", "text": "Bergtour 2026"},
+                ]},
+                {"preset_id": "double_equal", "slots": [
+                    {"slot_id": "left", "image_index": 1},
+                    {"slot_id": "right", "image_index": 2},
+                ]},
+                {"preset_id": "triple_strip", "slots": [
+                    {"slot_id": "left", "image_index": 3},
+                    {"slot_id": "center", "image_index": 4},
+                    {"slot_id": "right", "image_index": 5},
+                ]},
+                {"preset_id": "single_full", "slots": [
+                    {"slot_id": "main", "image_index": 6},
+                ]},
+                {"preset_id": "single_text_below", "slots": [
+                    {"slot_id": "main", "image_index": 7},
+                    {"slot_id": "caption", "text": "Gipfelblick"},
+                ]},
+            ])}
+        }
+
+        # Geschachtelte with-Blöcke: plan muss im äusseren Block
+        # aufgerufen werden, da beide Module dasselbe requests.post nutzen
+        with patch("app.photobook.plan.requests.post") as mock_plan_post:
+            mock_plan_post.return_value = mock_plan_resp
+
+            # Pipeline-Schritt 1: Plan (mit plan-mock aktiv)
+            plan = plan_photobook_layout(images, None, None, None, [], model="test")
+            assert len(plan["pages"]) == 5
+            assert plan["pages"][0]["preset_id"] == "cover_hero"
+
+            with patch("app.photobook.generate.requests.post") as mock_gen_post:
+                mock_gen_post.return_value = mock_gen_resp
+
+                # Pipeline-Schritt 2: Generate (mit generate-mock aktiv)
+                pages = generate_photobook_pages(plan, images, None, None, model="test")
+                assert len(pages) == 5
+
+                # Pipeline-Schritt 3+4: Validate und Render (kein LLM-Call mehr)
+                validated, warnings = validate_all_pages(pages)
+                assert len(validated) == 5
+                # Variety-Check: cover_hero muss auf Position 0 sein
+                assert validated[0].template_id == "cover_hero"
+
+                html = render_photobook(validated, images)
+                assert "preset-cover-hero" in html
+                assert "Bergtour 2026" in html
+                assert "Gipfelblick" in html
+                assert "<html" in html
+                assert "</html>" in html
