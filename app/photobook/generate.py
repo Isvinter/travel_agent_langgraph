@@ -42,14 +42,28 @@ PRESET-SLOTS:
 
 {constraints}
 
-AUFGABE PRO SEITE:
-1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan)
-2. Generiere Text NUR wenn das Preset Text-Slots hat
-3. Text MUSS innerhalb des Zeichenlimits bleiben (Validator kuerzt sonst)
-4. Textrollen: title (stimmungsvoller Seitentitel), caption (Bildunterschrift), intro (Einleitung)
+WICHTIG — TEXT IST PFLICHT:
+- Schaue dir die Bilder genau an.
+- Hat ein Preset Text-Slots, MUSST du diese befuellen. Lass KEINEN Text-Slot leer.
+- title: stimmungsvoller Seitentitel (z.B. "Aufbruch im Morgengrauen", "Gipfelstuermer")
+- caption: sachliche Bildbeschreibung (z.B. "Steiler Aufstieg durch dichten Nadelwald")
+- intro: kurzer Einleitungstext mit Kontext (z.B. "Nach drei Stunden Aufstieg erreichten wir die Baumgrenze. Vor uns lag das Gipfelpanorama.")
 
-ANTWORTE NUR mit JSON-Array:
-[{{"preset_id": "cover_hero", "slots": [{{"slot_id": "main", "image_index": 3}}, {{"slot_id": "title", "text": "Gipfelstuermer"}}]}}]"""
+AUFGABE PRO SEITE:
+1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
+2. Text-Slots muessen befuellt werden — KEINE Ausnahme. Text bleibt innerhalb des Zeichenlimits.
+3. Betrachte die Bilder und beschreibe, was du siehst.
+
+BEISPIEL fuer cover_hero (1 Bild, title):
+[{{"preset_id": "cover_hero", "slots": [{{"slot_id": "main", "image_index": 0}}, {{"slot_id": "title", "text": "Gipfelstuermer"}}]}}]
+
+BEISPIEL fuer single_text_below (1 Bild, caption):
+[{{"preset_id": "single_text_below", "slots": [{{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Weitblick ueber das Tal bei klarer Herbstluft"}}]}}]
+
+BEISPIEL fuer image_text_split (1 Bild, intro):
+[{{"preset_id": "image_text_split", "slots": [{{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Der zweite Tag fuehrte uns durch dichte Waelder und ueber offene Almwiesen. Die Stimmung war geloest, das Wetter perfekt."}}]}}]
+
+ANTWORTE NUR mit JSON-Array (ALLE Text-Slots befuellen!):"""
 
 
 def generate_photobook_pages(
@@ -94,6 +108,9 @@ def generate_photobook_pages(
             array_match = re.search(r'\[.*\]', content, re.DOTALL)
             if array_match:
                 pages_data = json.loads(array_match.group())
+                # Debug: zeige wie viele Text-Slots das LLM gefuellt hat
+                text_slots = sum(1 for pd in pages_data for s in pd.get("slots", []) if "text" in s)
+                print(f"  → LLM hat {text_slots} Text-Slots gefüllt (von {len(pages_data)} Seiten)")
                 result = []
                 for pd in pages_data:
                     valid_slots = []
