@@ -16,6 +16,11 @@ from app.nodes.persist_article import persist_article_node
 from app.nodes.design_blogpost import design_blogpost_node
 from app.nodes.generate_enriched_map import generate_enriched_map_node
 from app.nodes.generate_pdf import generate_pdf_node
+from app.nodes.select_photobook_images_node import select_photobook_images_node
+from app.nodes.plan_photobook_node import plan_photobook_node
+from app.nodes.generate_photobook_node import generate_photobook_node
+from app.nodes.render_photobook_node import render_photobook_node
+from app.nodes.generate_photobook_pdf_node import generate_photobook_pdf_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
 EventEmitter = Callable[[str, str, str], None]
@@ -36,6 +41,11 @@ NODE_NAMES = {
     "design_blogpost": "Design anwenden",
     "generate_pdf": "PDF generieren",
     "generate_enriched_map": "Angereicherte Karte generieren",
+    "select_photobook_images": "Fotobuch: Bilder auswählen",
+    "plan_photobook": "Fotobuch: Layout planen",
+    "generate_photobook": "Fotobuch: Seiten generieren",
+    "render_photobook": "Fotobuch: Rendern",
+    "generate_photobook_pdf": "Fotobuch: PDF erstellen",
 }
 
 
@@ -124,6 +134,19 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("generate_pdf", gpn)
     builder.add_node("generate_enriched_map", gem)
 
+    # Photobook nodes
+    spi = _wrap_node(select_photobook_images_node, "select_photobook_images", event_emitter) if event_emitter else select_photobook_images_node
+    ppb = _wrap_node(plan_photobook_node, "plan_photobook", event_emitter) if event_emitter else plan_photobook_node
+    gpb = _wrap_node(generate_photobook_node, "generate_photobook", event_emitter) if event_emitter else generate_photobook_node
+    rpb = _wrap_node(render_photobook_node, "render_photobook", event_emitter) if event_emitter else render_photobook_node
+    gpp = _wrap_node(generate_photobook_pdf_node, "generate_photobook_pdf", event_emitter) if event_emitter else generate_photobook_pdf_node
+
+    builder.add_node("select_photobook_images", spi)
+    builder.add_node("plan_photobook", ppb)
+    builder.add_node("generate_photobook", gpb)
+    builder.add_node("render_photobook", rpb)
+    builder.add_node("generate_photobook_pdf", gpp)
+
     builder.set_entry_point("process_gpx")
 
     builder.add_edge("process_gpx", "load_images")
@@ -136,7 +159,29 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("enrich_poi", "select_images")
     builder.add_edge("select_images", "review_content")
     builder.add_edge("review_content", "generate_enriched_map")
-    builder.add_edge("generate_enriched_map", "generate_blog_post")
+    # Mode-abhaengiges Routing nach generate_enriched_map
+    def _route_from_enriched_map(state: AppState) -> str:
+        mode = state.output_config.mode
+        if mode == "photobook":
+            return "select_photobook_images"
+        return "generate_blog_post"
+
+    builder.add_conditional_edges(
+        "generate_enriched_map",
+        _route_from_enriched_map,
+        {
+            "select_photobook_images": "select_photobook_images",
+            "generate_blog_post": "generate_blog_post",
+        },
+    )
+
+    # Photobook-Pfad
+    builder.add_edge("select_photobook_images", "plan_photobook")
+    builder.add_edge("plan_photobook", "generate_photobook")
+    builder.add_edge("generate_photobook", "render_photobook")
+    builder.add_edge("render_photobook", "generate_photobook_pdf")
+    builder.add_edge("generate_photobook_pdf", END)
+
     builder.add_edge("generate_blog_post", "design_blogpost")
     builder.add_edge("design_blogpost", "persist_article")
 
