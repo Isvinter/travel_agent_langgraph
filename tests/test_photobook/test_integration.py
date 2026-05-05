@@ -7,18 +7,18 @@ from app.graph import build_graph
 MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(12))})}}
 MOCK_PLAN = {"message": {"content": json.dumps({
     "pages": [
-        {"position": 0, "page_type": "cover", "template_category": "hero", "image_indices": [0], "purpose": "Cover"},
-        {"position": 1, "page_type": "spread", "template_category": "split", "image_indices": [1, 2], "purpose": "Split"},
-        {"position": 2, "page_type": "single", "template_category": "grid", "image_indices": [3, 4, 5, 6], "purpose": "Grid"},
+        {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
+        {"position": 1, "preset_id": "double_equal", "image_indices": [1, 2], "purpose": "Split"},
+        {"position": 2, "preset_id": "quad_grid", "image_indices": [3, 4, 5, 6], "purpose": "Grid"},
     ],
     "dramatic_arc": "test"
 })}}
 MOCK_GENERATE = {"message": {"content": json.dumps([
-    {"template_id": "hero_single", "page_type": "single", "slots": [{"slot_id": "main", "image_index": 0, "caption": "Cover Caption"}]},
-    {"template_id": "split_equal", "page_type": "spread", "slots": [
-        {"slot_id": "left", "image_index": 1, "caption": "Links"}, {"slot_id": "right", "image_index": 2, "caption": "Rechts"},
+    {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]},
+    {"preset_id": "double_equal", "slots": [
+        {"slot_id": "left", "image_index": 1}, {"slot_id": "right", "image_index": 2},
     ]},
-    {"template_id": "grid_2x2", "page_type": "single", "slots": [
+    {"preset_id": "quad_grid", "slots": [
         {"slot_id": "tl", "image_index": 3}, {"slot_id": "tr", "image_index": 4},
         {"slot_id": "bl", "image_index": 5}, {"slot_id": "br", "image_index": 6},
     ]},
@@ -79,5 +79,5 @@ def test_full_photobook_pipeline():
                     assert result["photobook_pdf_path"] is not None
                     assert len(result["photobook_pages"]) == 3
                     assert result["photobook_html"] is not None
-                    assert "layout-hero-single" in result["photobook_html"]
+                    assert "preset-cover-hero" in result["photobook_html"]
                     assert result["photobook_plan"] is not None

@@ -8,8 +8,8 @@ from app.nodes.generate_photobook_node import generate_photobook_node
 from app.nodes.render_photobook_node import render_photobook_node
 
 MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(16))})}}
-MOCK_PLAN = {"message": {"content": json.dumps({"pages": [{"position": 0, "page_type": "cover", "template_category": "hero", "image_indices": [0], "purpose": "Cover"}], "dramatic_arc": "test"})}}
-MOCK_GENERATE = {"message": {"content": json.dumps([{"template_id": "hero_single", "page_type": "single", "slots": [{"slot_id": "main", "image_index": 0, "caption": "Test"}]}])}}
+MOCK_PLAN = {"message": {"content": json.dumps({"pages": [{"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"}], "dramatic_arc": "test"})}}
+MOCK_GENERATE = {"message": {"content": json.dumps([{"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]}])}}
 
 
 def make_state(n_images=20):
@@ -53,8 +53,8 @@ class TestPhotobookNodes:
 
     def test_render_node(self):
         state = make_state()
-        state.photobook_pages = [PageDescription(template_id="hero_single", page_type="single", slots=[{"slot_id": "main", "image_index": 0, "caption": "Test"}])]
+        state.photobook_pages = [PageDescription(template_id="cover_hero", page_type="single", slots=[{"slot_id": "main", "image_index": 0}])]
         state.photobook_images = state.images[:1]
         result = render_photobook_node(state)
         assert result.photobook_html is not None
-        assert "layout-hero-single" in result.photobook_html
+        assert "preset-cover-hero" in result.photobook_html

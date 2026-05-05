@@ -40,7 +40,7 @@ class TestRenderPhotobookNodeCompression:
             ],
             photobook_pages=[
                 PageDescription(
-                    template_id="hero_single",
+                    template_id="cover_hero",
                     page_type="single",
                     slots=[{"slot_id": "main", "image_index": 0}],
                 ),
@@ -70,7 +70,7 @@ class TestRenderPhotobookNodeCompression:
             photobook_images=[],
             photobook_pages=[
                 PageDescription(
-                    template_id="hero_single",
+                    template_id="cover_hero",
                     page_type="single",
                     slots=[{"slot_id": "main", "image_index": 0}],
                 ),
@@ -92,7 +92,7 @@ class TestRenderPhotobookNodeCompression:
             ],
             photobook_pages=[
                 PageDescription(
-                    template_id="hero_single",
+                    template_id="cover_hero",
                     page_type="single",
                     slots=[{"slot_id": "main", "image_index": 0}],
                 ),

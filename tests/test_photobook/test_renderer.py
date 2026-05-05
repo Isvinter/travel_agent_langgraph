@@ -14,14 +14,17 @@ class TestRenderer:
     def test_render_single_page_hero(self):
         pages = [
             PageDescription(
-                template_id="hero_single",
+                template_id="cover_hero",
                 page_type="single",
-                slots=[{"slot_id": "main", "image_index": 0, "caption": "Cover"}],
+                slots=[
+                    {"slot_id": "main", "image_index": 0},
+                    {"slot_id": "title", "text": "Cover"},
+                ],
             )
         ]
         html = render_photobook(pages, TEST_IMAGES)
         assert "<!DOCTYPE html>" in html
-        assert "layout-hero-single" in html
+        assert "preset-cover-hero" in html
         assert "slot-image" in html
         assert "Cover" in html
 
@@ -29,21 +32,24 @@ class TestRenderer:
         """Caption soll im dedizierten caption-grid-area landen, nicht im image-grid-area."""
         pages = [
             PageDescription(
-                template_id="hero_single",
+                template_id="panorama",
                 page_type="single",
-                slots=[{"slot_id": "main", "image_index": 0, "caption": "Cover"}],
+                slots=[
+                    {"slot_id": "main", "image_index": 0},
+                    {"slot_id": "caption", "text": "Panorama-Blick"},
+                ],
             )
         ]
         html = render_photobook(pages, TEST_IMAGES)
         # Caption muss im grid-area: caption erscheinen, nicht grid-area: main
         assert 'slot-caption' in html
-        # Der caption-Slot des hero_single templates hat css_area="caption"
+        # Der caption-Slot des panorama presets hat css_area="caption"
         assert 'grid-area: caption' in html
 
     def test_render_spread_has_correct_dimensions(self):
         pages = [
             PageDescription(
-                template_id="split_equal",
+                template_id="double_equal",
                 page_type="spread",
                 slots=[
                     {"slot_id": "left", "image_index": 0},
@@ -52,13 +58,13 @@ class TestRenderer:
             )
         ]
         html = render_photobook(pages, TEST_IMAGES)
-        assert "page-spread" in html
-        assert "layout-split-equal" in html
+        assert "photobook-page" in html
+        assert "preset-double-equal" in html
 
     def test_render_multiple_pages(self):
         pages = [
-            PageDescription(template_id="hero_single", page_type="single", slots=[{"slot_id": "main", "image_index": 0}]),
-            PageDescription(template_id="grid_2x2", page_type="single", slots=[
+            PageDescription(template_id="cover_hero", page_type="single", slots=[{"slot_id": "main", "image_index": 0}]),
+            PageDescription(template_id="quad_grid", page_type="single", slots=[
                 {"slot_id": "tl", "image_index": 0},
                 {"slot_id": "tr", "image_index": 1},
                 {"slot_id": "bl", "image_index": 2},
@@ -67,12 +73,12 @@ class TestRenderer:
         ]
         html = render_photobook(pages, TEST_IMAGES)
         assert html.count("slot-image") >= 5
-        assert "layout-hero-single" in html
-        assert "layout-grid-2x2" in html
+        assert "preset-cover-hero" in html
+        assert "preset-quad-grid" in html
 
     def test_render_includes_css_classes(self):
         pages = [
-            PageDescription(template_id="hero_single", page_type="single", slots=[{"slot_id": "main", "image_index": 0}]),
+            PageDescription(template_id="cover_hero", page_type="single", slots=[{"slot_id": "main", "image_index": 0}]),
         ]
         html = render_photobook(pages, TEST_IMAGES)
         assert "grid-template-areas" in html
@@ -80,7 +86,7 @@ class TestRenderer:
     def test_render_text_slot(self):
         pages = [
             PageDescription(
-                template_id="image_text_left",
+                template_id="image_text_split",
                 page_type="spread",
                 slots=[
                     {"slot_id": "image", "image_index": 0},
@@ -96,7 +102,7 @@ class TestRenderer:
         """Title-Slot wird als slot-title gerendert."""
         pages = [
             PageDescription(
-                template_id="hero_single",
+                template_id="cover_hero",
                 page_type="single",
                 slots=[
                     {"slot_id": "title", "text": "Gipfelstürmer"},

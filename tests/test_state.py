@@ -169,8 +169,8 @@ class TestPageDescription:
     def test_minimal_creation(self):
         """PageDescription mit minimalen Feldern."""
         from app.state import PageDescription
-        pd = PageDescription(template_id="hero_single", page_type="single")
-        assert pd.template_id == "hero_single"
+        pd = PageDescription(template_id="cover_hero", page_type="single")
+        assert pd.template_id == "cover_hero"
         assert pd.page_type == "single"
         assert pd.slots == []
 
@@ -178,12 +178,12 @@ class TestPageDescription:
         """PageDescription mit gefüllten Slots."""
         from app.state import PageDescription
         pd = PageDescription(
-            template_id="split_dominant",
+            template_id="double_dominant",
             page_type="spread",
-            slots=[{"slot_id": "primary", "image_index": 0, "caption": "Test"}],
+            slots=[{"slot_id": "main", "image_index": 0}],
         )
         assert len(pd.slots) == 1
-        assert pd.slots[0]["slot_id"] == "primary"
+        assert pd.slots[0]["slot_id"] == "main"
 
 
 class TestAppStatePhotobook:
