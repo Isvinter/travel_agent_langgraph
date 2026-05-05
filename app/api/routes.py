@@ -155,6 +155,7 @@ class RunPipelineRequest(BaseModel):
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
     pdf_export: bool = False
+    photobook_size: Literal["short", "normal", "detailed"] | None = None
 
 
 @router.post("/pipeline/run")
@@ -249,6 +250,10 @@ async def _run_pipeline_in_background(
             else:
                 print(f"⚠️  txt_file nicht gefunden: {txt_file}")
 
+        # Fotobuch-Konfiguration aus Grössenstufe ableiten
+        from app.state import apply_photobook_size
+        photobook_config = apply_photobook_size(body.photobook_size or "normal")
+
         state = AppState(
             gpx_file=gpx_file,
             model=model,
@@ -258,6 +263,7 @@ async def _run_pipeline_in_background(
                 article_length=body.article_length,
                 style_persona=body.style_persona,
                 pdf_export=body.pdf_export,
+                photobook=photobook_config,
             ),
         )
 
@@ -274,6 +280,9 @@ async def _run_pipeline_in_background(
 
         # Extract output paths
         blog_post = result.blog_post if hasattr(result, "blog_post") else None
+        photobook_html = result.photobook_html if hasattr(result, "photobook_html") else None
+        photobook_pdf_path = result.photobook_pdf_path if hasattr(result, "photobook_pdf_path") else None
+
         output_paths = {}
         if blog_post and isinstance(blog_post, dict):
             output_paths = blog_post.get("file_paths", {})
@@ -283,16 +292,20 @@ async def _run_pipeline_in_background(
             "html": blog_post.get("html", "") if blog_post else "",
             "file_paths": output_paths,
             "success": True,
+            "photobook_pdf_path": photobook_pdf_path,
         })
 
         output_path = output_paths.get("markdown", output_dir)
 
-        # Extrahiere article_id und pdf_available aus dem Ergebnis
         article_id = None
         pdf_available = False
         if hasattr(result, "metadata"):
             article_id = result.metadata.get("article_id")
         if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
+            pdf_available = True
+
+        # Fotobuch: PDF verfügbar wenn Pfad gesetzt ist
+        if photobook_pdf_path:
             pdf_available = True
 
         event_manager.complete_run(
@@ -501,6 +514,33 @@ async def get_article_image(article_id: int, filename: str):
         raise HTTPException(status_code=404, detail="Image not found")
     finally:
         session.close()
+
+
+# ── Photobook PDF Download ─────────────────────────────
+
+@router.get("/photobook/{run_id}/pdf")
+async def download_photobook_pdf(run_id: str):
+    """Liefert das generierte Fotobuch-PDF eines Pipeline-Runs aus."""
+    result = event_manager.get_result(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Run nicht gefunden oder noch nicht abgeschlossen")
+
+    pdf_path = result.get("photobook_pdf_path")
+    if not pdf_path:
+        raise HTTPException(status_code=400, detail="Kein PDF für diesen Run verfügbar")
+
+    path = Path(pdf_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="PDF-Datei nicht gefunden")
+
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{path.name}"',
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 # ── SSE Streaming ──────────────────────────────────────

@@ -108,6 +108,28 @@ class TestPipelineRun:
         response = client.get("/api/pipeline/result/nonexistent-id")
         assert response.status_code == 404
 
+    def test_run_with_photobook_size_returns_run_id(self, client):
+        """Pipeline-Run mit photobook_size='normal' akzeptiert."""
+        response = client.post("/api/pipeline/run", json={
+            "model": "gemma4:26b-ctx128k",
+            "gpx_file": "tests/fixtures/nonexistent.gpx",
+            "image_files": [],
+            "photobook_size": "normal",
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert "run_id" in data
+
+    def test_run_with_invalid_photobook_size_fails(self, client):
+        """Ungültige photobook_size wird abgelehnt."""
+        response = client.post("/api/pipeline/run", json={
+            "model": "gemma4:26b-ctx128k",
+            "gpx_file": "tests/fixtures/nonexistent.gpx",
+            "image_files": [],
+            "photobook_size": "invalid_value",
+        })
+        assert response.status_code == 422
+
 
 class TestEventManager:
     def test_create_and_get_result(self):
@@ -478,3 +500,45 @@ class TestArticlePdf:
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
+
+
+class TestPhotobookPdf:
+    def test_missing_run_returns_404(self, client):
+        response = client.get("/api/photobook/nonexistent-run/pdf")
+        assert response.status_code == 404
+
+    def test_run_without_pdf_returns_400(self, monkeypatch):
+        """Run existiert, aber hat kein photobook_pdf_path."""
+        from app.api.events import PipelineEventManager
+        mgr = PipelineEventManager()
+        mgr.store_result("test-run-no-pdf", {"success": True})
+        monkeypatch.setattr("app.api.routes.event_manager", mgr)
+        from fastapi.testclient import TestClient
+        from app.api.server import create_app
+        app = create_app()
+        client = TestClient(app)
+        response = client.get("/api/photobook/test-run-no-pdf/pdf")
+        assert response.status_code == 400
+
+    def test_valid_pdf_served(self, monkeypatch, tmp_path):
+        """PDF-Datei wird korrekt ausgeliefert."""
+        pdf_file = tmp_path / "test.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 mock photobook")
+
+        from app.api.events import PipelineEventManager
+        mgr = PipelineEventManager()
+        mgr.store_result("test-run-pdf", {
+            "success": True,
+            "photobook_pdf_path": str(pdf_file),
+        })
+        monkeypatch.setattr("app.api.routes.event_manager", mgr)
+        from fastapi.testclient import TestClient
+        from app.api.server import create_app
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/api/photobook/test-run-pdf/pdf")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert "attachment" in response.headers["content-disposition"]
+        assert response.content == b"%PDF-1.4 mock photobook"
