@@ -1,0 +1,17 @@
+{
+  "id": "image_text_left",
+  "name": "Bild + Text links/rechts",
+  "description": "Bild links, Textblock rechts. Für kontextuelle Erklärungen oder Einleitungen zu Bildern.",
+  "category": "mixed",
+  "page_type": "spread",
+  "min_images": 1,
+  "max_images": 1,
+  "has_text": true,
+  "supports_captions": true,
+  "css_class": "layout-image-text-left",
+  "slots": [
+    {"id": "image", "type": "image", "priority": "primary", "css_area": "image", "optional": false},
+    {"id": "text", "type": "text", "priority": null, "css_area": "text", "optional": false},
+    {"id": "caption", "type": "caption", "priority": null, "css_area": "caption", "optional": true}
+  ]
+}

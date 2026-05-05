@@ -1,0 +1,16 @@
+{
+  "id": "panorama",
+  "name": "Panorama — Extragroß",
+  "description": "Ein Bild über die volle Breite einer Doppelseite. Für Panorama-Aufnahmen und dramatische Weitwinkel-Bilder.",
+  "category": "hero",
+  "page_type": "spread",
+  "min_images": 1,
+  "max_images": 1,
+  "has_text": false,
+  "supports_captions": true,
+  "css_class": "layout-panorama",
+  "slots": [
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
+    {"id": "caption", "type": "caption", "priority": null, "css_area": "caption", "optional": true}
+  ]
+}

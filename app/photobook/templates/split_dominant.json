@@ -1,0 +1,17 @@
+{
+  "id": "split_dominant",
+  "name": "Split — Dominant + Sekundär",
+  "description": "Großes Hauptbild (66%) + kleineres Sekundärbild (33%) auf einer Doppelseite. Für Hauptmotiv mit Kontextbild.",
+  "category": "split",
+  "page_type": "spread",
+  "min_images": 2,
+  "max_images": 2,
+  "has_text": false,
+  "supports_captions": true,
+  "css_class": "layout-split-dominant",
+  "slots": [
+    {"id": "primary", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
+    {"id": "secondary", "type": "image", "priority": "secondary", "css_area": "side", "optional": false},
+    {"id": "caption", "type": "caption", "priority": null, "css_area": "caption", "optional": true}
+  ]
+}
