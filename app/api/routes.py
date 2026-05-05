@@ -155,6 +155,7 @@ class RunPipelineRequest(BaseModel):
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
     pdf_export: bool = False
+    mode: Literal["blog", "photobook"] = "blog"
     photobook_size: Literal["short", "normal", "detailed"] | None = None
 
 
@@ -259,6 +260,7 @@ async def _run_pipeline_in_background(
             model=model,
             notes=combined_notes,
             output_config=OutputConfig(
+                mode=body.mode,
                 wildcard_max=body.wildcard_max,
                 article_length=body.article_length,
                 style_persona=body.style_persona,
@@ -280,7 +282,6 @@ async def _run_pipeline_in_background(
 
         # Extract output paths
         blog_post = result.blog_post if hasattr(result, "blog_post") else None
-        photobook_html = result.photobook_html if hasattr(result, "photobook_html") else None
         photobook_pdf_path = result.photobook_pdf_path if hasattr(result, "photobook_pdf_path") else None
 
         output_paths = {}
