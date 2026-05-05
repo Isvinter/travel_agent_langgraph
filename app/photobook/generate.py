@@ -83,10 +83,33 @@ def generate_photobook_pages(
     except Exception as e:
         print(f"⚠️ Pass 2 (Generierung) fehlgeschlagen: {e}")
 
-    # Fallback
+    # Fallback: nutze Template-Kategorien aus dem Plan (Pass 1)
+    CATEGORY_DEFAULTS = {
+        "hero": "hero_single",
+        "split": "split_equal",
+        "grid": "grid_2x2",
+        "strip": "strip_3",
+        "mixed": "image_text_left",
+        "collection": "collection_3",
+    }
+    all_templates = load_all_templates()
     fallback = []
     for plan_page in pages_plan:
+        category = plan_page.get("template_category", "grid")
+        template_id = CATEGORY_DEFAULTS.get(category, "grid_2x2")
+        tmpl = all_templates.get(template_id)
+        if tmpl is None:
+            tmpl = all_templates.get("grid_2x2")
+            template_id = "grid_2x2"
         indices = plan_page.get("image_indices", [])
-        slots = [{"slot_id": sid, "image_index": idx} for sid, idx in zip(["tl", "tr", "bl", "br"], indices)]
-        fallback.append(PageDescription(template_id="grid_2x2", page_type="single", slots=slots))
+        image_slots = [s.id for s in tmpl.slots if s.type == "image"]
+        slots = []
+        for sid, idx in zip(image_slots, indices):
+            slot = {"slot_id": sid, "image_index": idx}
+            slots.append(slot)
+        fallback.append(PageDescription(
+            template_id=template_id,
+            page_type=tmpl.page_type,
+            slots=slots,
+        ))
     return fallback
