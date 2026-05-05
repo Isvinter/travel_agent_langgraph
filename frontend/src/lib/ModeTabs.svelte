@@ -3,10 +3,9 @@
 <script lang="ts">
   import { pipelineMode } from "./stores/pipeline";
 
-  let current: "blog" | "photobook" = $state("blog");
+  let current = $derived($pipelineMode);
 
   function select(mode: "blog" | "photobook") {
-    current = mode;
     pipelineMode.set(mode);
   }
 

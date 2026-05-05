@@ -5,6 +5,10 @@
 
   let selected: string = $state("normal");
 
+  $effect(() => {
+    selected = $photobookSize;
+  });
+
   const options = [
     { value: "short", label: "Kurz", desc: "8-12 Seiten" },
     { value: "normal", label: "Mittel", desc: "14-18 Seiten" },
