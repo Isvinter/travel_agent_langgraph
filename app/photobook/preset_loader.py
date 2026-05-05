@@ -59,10 +59,13 @@ def get_preset_catalog_for_llm() -> str:
 
 def get_constraint_table_for_llm() -> str:
     """Erzeugt Text-Constraint-Tabelle für Pass-2-Prompt."""
-    constraints = {}
+    constraints: Dict[str, tuple[int, str]] = {}
     for preset in load_all_presets().values():
         for slot in preset.slots:
             if slot.type == "text" and slot.text_role:
+                # None-Werte überspringen (sollte nie vorkommen, aber defensiv)
+                if slot.char_limit is None or slot.font_size is None:
+                    continue
                 key = slot.text_role
                 if key not in constraints:
                     constraints[key] = (slot.char_limit, slot.font_size)
