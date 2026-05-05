@@ -259,10 +259,11 @@ body {
 .preset-collage-5 {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr 1fr;
   grid-template-areas:
     "big s1"
     "big s2"
+    "big s3"
     "wide wide";
   gap: 3mm;
 }
