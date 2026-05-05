@@ -12,6 +12,16 @@ from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_any_preset, get_presets_by_image_count
 
 
+def _text_placeholder(text_role: str) -> str:
+    """Liefert einen Platzhalter-Text für leere Text-Slots."""
+    placeholders = {
+        "title": "Fotobuch",
+        "caption": "Bildbeschreibung",
+        "intro": "Einleitungstext",
+    }
+    return placeholders.get(text_role, "Text")
+
+
 def validate_page(page: PageDescription, presets: dict = None) -> List[str]:
     """Prueft eine einzelne Seite auf Fehler. Gibt Liste von Fehlermeldungen zurueck."""
     errors = []
@@ -98,6 +108,14 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
                 if sd.char_limit and len(text) > sd.char_limit:
                     text = text[:sd.char_limit]
                 repaired_slots.append({"slot_id": sid, "text": text})
+
+    # Stelle sicher, dass ALLE Text-Slots befüllt sind (Platzhalter falls LLM sie leer lässt)
+    for sid, sd in slot_defs.items():
+        if sd.type == "text":
+            already_filled = any(s.get("slot_id") == sid and s.get("text", "").strip() for s in repaired_slots)
+            if not already_filled:
+                placeholder = _text_placeholder(sd.text_role or "caption")
+                repaired_slots.append({"slot_id": sid, "text": placeholder})
 
     return PageDescription(
         template_id=page.template_id,

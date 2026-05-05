@@ -12,13 +12,23 @@ from app.utils.image_utils import encode_image_base64
 
 
 def _build_generate_prompt(pages_plan, gpx_stats_d, notes):
-    presets = load_all_presets()
+    # Nur die tatsächlich im Plan verwendeten Presets laden
+    all_presets = load_all_presets()
+    used_preset_ids = set()
+    for pp in pages_plan:
+        pid = pp.get("preset_id", "")
+        if pid:
+            used_preset_ids.add(pid)
+
+    # Nur relevante Presets anzeigen
     preset_summary = []
-    for pid, p in presets.items():
-        slot_info = ", ".join(
-            f"{s.id}({s.type},{s.text_role or s.priority or '-'})" for s in p.slots
-        )
-        preset_summary.append(f"  {pid} [{p.image_count} Bilder, Text={'ja' if p.has_text else 'nein'}]: {slot_info}")
+    for pid in sorted(used_preset_ids):
+        p = all_presets.get(pid)
+        if p:
+            slot_info = ", ".join(
+                f"{s.id}({s.type},{s.text_role or s.priority or '-'})" for s in p.slots
+            )
+            preset_summary.append(f"  {pid} [{p.image_count} Bilder, Text={'ja' if p.has_text else 'nein'}]: {slot_info}")
     catalog = "\n".join(preset_summary)
 
     constraints = get_constraint_summary()
@@ -31,39 +41,34 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes):
         gpx_text = f"\nTOUR: {dist:.1f} km, {elev:.0f}m Hoehenmeter."
     notes_text = f"\nTOUR-NOTIZEN: {notes}" if notes else ""
 
+    # Bilde Text-Slot-Pflicht basierend auf den verwendeten Presets
+    text_required = any(all_presets.get(pid) and all_presets[pid].has_text for pid in used_preset_ids)
+
     return f"""Du befuellst die Slots der gewaehlten Presets mit Bildern und Text.
 
 SEITENPLAN (preset_id pro Seite):
 {plan_text}
 
-PRESET-SLOTS:
+VERWENDETE PRESETS (nur diese sind relevant):
 {catalog}
 {gpx_text}{notes_text}
 
 {constraints}
 
-WICHTIG — TEXT IST PFLICHT:
-- Schaue dir die Bilder genau an.
-- Hat ein Preset Text-Slots, MUSST du diese befuellen. Lass KEINEN Text-Slot leer.
-- title: stimmungsvoller Seitentitel (z.B. "Aufbruch im Morgengrauen", "Gipfelstuermer")
-- caption: sachliche Bildbeschreibung (z.B. "Steiler Aufstieg durch dichten Nadelwald")
-- intro: kurzer Einleitungstext mit Kontext (z.B. "Nach drei Stunden Aufstieg erreichten wir die Baumgrenze. Vor uns lag das Gipfelpanorama.")
+{"TEXT IST PFLICHT: Hat ein Preset Text-Slots, MUSST du diese befuellen. Lass KEINEN Text-Slot leer. Betrachte die Bilder und beschreibe, was du siehst." if text_required else ""}
 
 AUFGABE PRO SEITE:
 1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
-2. Text-Slots muessen befuellt werden — KEINE Ausnahme. Text bleibt innerhalb des Zeichenlimits.
-3. Betrachte die Bilder und beschreibe, was du siehst.
+2. Text-Rollen: title (stimmungsvoller Titel, 60 Z.), caption (Bildbeschreibung, 170 Z.), intro (Einleitung, 400 Z.).
+3. Generiere kurze, passende Texte — innerhalb der Zeichenlimits.
 
-BEISPIEL fuer cover_hero (1 Bild, title):
-[{{"preset_id": "cover_hero", "slots": [{{"slot_id": "main", "image_index": 0}}, {{"slot_id": "title", "text": "Gipfelstuermer"}}]}}]
+BEISPIELE:
+- cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "main", "image_index": 0}}, {{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}]}}]
+- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Weitblick ueber das Tal"}}]}}]
+- image_text_split: [{{"preset_id": "image_text_split", "slots": [{{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Nach drei Stunden erreichten wir die Baumgrenze."}}]}}]
+- double_equal (KEIN Text): [{{"preset_id": "double_equal", "slots": [{{"slot_id": "left", "image_index": 3}}, {{"slot_id": "right", "image_index": 4}}]}}]
 
-BEISPIEL fuer single_text_below (1 Bild, caption):
-[{{"preset_id": "single_text_below", "slots": [{{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Weitblick ueber das Tal bei klarer Herbstluft"}}]}}]
-
-BEISPIEL fuer image_text_split (1 Bild, intro):
-[{{"preset_id": "image_text_split", "slots": [{{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Der zweite Tag fuehrte uns durch dichte Waelder und ueber offene Almwiesen. Die Stimmung war geloest, das Wetter perfekt."}}]}}]
-
-ANTWORTE NUR mit JSON-Array (ALLE Text-Slots befuellen!):"""
+ANTWORTE NUR mit JSON-Array:"""
 
 
 def generate_photobook_pages(
