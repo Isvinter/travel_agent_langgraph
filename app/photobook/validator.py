@@ -1,7 +1,10 @@
 """Deterministischer Validator fuer LLM-Seitenbeschreibungen.
 
 Prueft die LLM-Ausgabe auf Konsistenz VOR dem Rendering.
-Fehlerhafte Seiten werden in ein grid_2x2 Fallback-Layout umgewandelt.
+Fehlerhafte Seiten werden mit minimalen Eingriffen repariert:
+  - Template erhalten, wenn es existiert (nur Slot-IDs korrigieren)
+  - Template aus gleicher Kategorie waehlen, wenn unbekannt
+  - grid_2x2 als letzte Instanz, wenn alles andere fehlschlaegt
 """
 
 from typing import List
@@ -57,24 +60,58 @@ def validate_page(page: PageDescription, templates: dict = None) -> List[str]:
 
 
 def enforce_fallback(page: PageDescription) -> PageDescription:
-    """Wandelt eine fehlerhafte Seite in ein grid_2x2 Fallback-Layout um.
+    """Repariert eine fehlerhafte Seite mit minimalen Eingriffen.
 
-    Verteilt die Bilder gleichmaessig auf die 4 Grid-Slots. Bei < 4 Bildern
-    bleiben die hinteren Slots leer (optional=True laut Template).
+    Priorität: Template erhalten > Slots korrigieren > Captions bewahren.
+    Nur wenn das Template nicht existiert, wird auf ein passendes Ersatz-Template
+    der gleichen Kategorie oder grid_2x2 als letzte Instanz zurückgegriffen.
     """
+    templates = load_all_templates()
     image_indices = [
         s["image_index"] for s in page.slots
         if s.get("image_index") is not None and s["image_index"] >= 0
     ]
-    slot_ids = ["tl", "tr", "bl", "br"]
-    fallback_slots = []
+
+    # Template existiert nicht → nächstes aus gleicher Kategorie wählen
+    if page.template_id not in templates:
+        category = "grid"
+        # Versuche Kategorie des ursprünglichen Templates zu ermitteln
+        for t in templates.values():
+            if t.id == page.template_id or t.category == page.template_id:
+                category = t.category
+                break
+        same_category = [t for t in templates.values() if t.category == category]
+        for t in sorted(same_category, key=lambda t: abs(t.min_images - len(image_indices))):
+            if t.min_images <= len(image_indices) <= t.max_images:
+                page.template_id = t.id
+                break
+        else:
+            page.template_id = "grid_2x2"
+
+    template = templates[page.template_id]
+    image_slot_ids = [s.id for s in template.slots if s.type == "image"]
+
+    # Slots reparieren: korrekte Slot-IDs zuweisen, Captions erhalten
+    repaired_slots = []
     for i, img_idx in enumerate(image_indices):
-        if i < len(slot_ids):
-            fallback_slots.append({"slot_id": slot_ids[i], "image_index": img_idx})
+        if i >= len(image_slot_ids):
+            break
+        slot_id = image_slot_ids[i]
+        # Caption aus passendem Original-Slot übernehmen
+        orig_caption = ""
+        for orig_slot in page.slots:
+            if orig_slot.get("image_index") == img_idx and orig_slot.get("caption"):
+                orig_caption = orig_slot["caption"]
+                break
+        slot_data = {"slot_id": slot_id, "image_index": img_idx}
+        if orig_caption:
+            slot_data["caption"] = orig_caption
+        repaired_slots.append(slot_data)
+
     return PageDescription(
-        template_id="grid_2x2",
-        page_type="single",
-        slots=fallback_slots,
+        template_id=page.template_id,
+        page_type=page.page_type,
+        slots=repaired_slots,
     )
 
 
