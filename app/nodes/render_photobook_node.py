@@ -2,6 +2,8 @@ from app.state import AppState
 from app.photobook.renderer import render_photobook
 from app.photobook.validator import validate_all_pages
 
+OUTPUT_DIR = "output"
+
 
 def render_photobook_node(state: AppState) -> AppState:
     print("🖨️ Rendere Fotobuch als HTML...")
