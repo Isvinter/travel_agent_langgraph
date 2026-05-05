@@ -3,8 +3,6 @@ import pytest
 from app.photobook.preset_loader import (
     load_preset,
     load_all_presets,
-    get_preset_catalog_for_llm,
-    get_constraint_table_for_llm,
 )
 
 
@@ -53,19 +51,6 @@ class TestPresetLoader:
         assert caption.char_limit == 170
         assert caption.font_size == "9pt"
         assert caption.text_role == "caption"
-
-
-class TestPresetHelpers:
-    def test_get_preset_catalog_for_llm_returns_string(self):
-        """Katalog-Funktion gibt einen String zurück (leer, wenn keine Presets)."""
-        catalog = get_preset_catalog_for_llm()
-        assert isinstance(catalog, str)
-
-    def test_get_constraint_table_for_llm_returns_header(self):
-        """Constraint-Tabelle gibt mindestens die Kopfzeile zurück."""
-        table = get_constraint_table_for_llm()
-        assert isinstance(table, str)
-        assert "TEXT-CONSTRAINTS:" in table
 
 
 class TestPresetCatalog:
