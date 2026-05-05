@@ -36,12 +36,26 @@ AVAILABLE_MODELS = [
 ]
 
 
+class PhotobookConfig(BaseModel):
+    """Konfiguration fuer die Fotobuch-Ausgabe."""
+    photo_count: int = Field(default=16, ge=5, le=24)
+
+
 class OutputConfig(BaseModel):
     """Konfiguration für die Blog-Ausgabe — vom Benutzer vor Pipeline-Start gesetzt."""
     wildcard_max: int = Field(default=12, ge=1, le=50)
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
     pdf_export: bool = False
+    mode: Literal["blog", "photobook"] = "blog"
+    photobook: PhotobookConfig = PhotobookConfig()
+
+
+class PageDescription(BaseModel):
+    """Seitenbeschreibung — Output des LLM (Pass 2), Input des Renderers."""
+    template_id: str
+    page_type: str  # "single" | "spread"
+    slots: List[Dict[str, Any]] = []
 
 
 class AppState(BaseModel):
@@ -60,4 +74,9 @@ class AppState(BaseModel):
     enrichment_context: Dict[str, Any] = {}
     model: str = "gemma4:26b-ctx128k"
     output_config: OutputConfig = OutputConfig()
+    photobook_images: List[ImageData] = []
+    photobook_plan: Optional[Dict[str, Any]] = None
+    photobook_pages: List[PageDescription] = []
+    photobook_html: Optional[str] = None
+    photobook_pdf_path: Optional[str] = None
 
