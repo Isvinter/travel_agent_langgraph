@@ -25,6 +25,21 @@ class TestRenderer:
         assert "slot-image" in html
         assert "Cover" in html
 
+    def test_caption_uses_correct_grid_area(self):
+        """Caption soll im dedizierten caption-grid-area landen, nicht im image-grid-area."""
+        pages = [
+            PageDescription(
+                template_id="hero_single",
+                page_type="single",
+                slots=[{"slot_id": "main", "image_index": 0, "caption": "Cover"}],
+            )
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        # Caption muss im grid-area: caption erscheinen, nicht grid-area: main
+        assert 'slot-caption' in html
+        # Der caption-Slot des hero_single templates hat css_area="caption"
+        assert 'grid-area: caption' in html
+
     def test_render_spread_has_correct_dimensions(self):
         pages = [
             PageDescription(
