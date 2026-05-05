@@ -5,7 +5,6 @@ Wird sowohl von der Blog- als auch der Photobuch-Pipeline verwendet.
 
 import io
 import os
-from typing import Optional
 
 
 def compress_image_to_jpeg(
@@ -13,7 +12,7 @@ def compress_image_to_jpeg(
     output_path: str,
     max_size_bytes: int = 1024 * 1024,  # 1 MB
     max_dim: int = 1200,
-) -> Optional[str]:
+) -> str | None:
     """Komprimiert ein Bild auf ≤ max_size_bytes, konvertiert nach JPEG.
 
     Resizet zuerst auf max_dim, reduziert dann JPEG-Qualität.
