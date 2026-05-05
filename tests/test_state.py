@@ -67,10 +67,10 @@ class TestOutputConfig:
 
 class TestPhotobookConfig:
     def test_defaults(self):
-        """PhotobookConfig standardmäßig mit photo_count=16."""
+        """PhotobookConfig standardmässig mit photo_count=20."""
         from app.state import PhotobookConfig
         config = PhotobookConfig()
-        assert config.photo_count == 16
+        assert config.photo_count == 20
 
     def test_min_boundary(self):
         """photo_count=5 erlaubt (Minimum)."""
@@ -79,10 +79,10 @@ class TestPhotobookConfig:
         assert config.photo_count == 5
 
     def test_max_boundary(self):
-        """photo_count=24 erlaubt (Maximum)."""
+        """photo_count=30 erlaubt (Maximum)."""
         from app.state import PhotobookConfig
-        config = PhotobookConfig(photo_count=24)
-        assert config.photo_count == 24
+        config = PhotobookConfig(photo_count=30)
+        assert config.photo_count == 30
 
     def test_below_min_raises(self):
         """photo_count=4 wirft ValidationError."""
@@ -91,10 +91,58 @@ class TestPhotobookConfig:
             PhotobookConfig(photo_count=4)
 
     def test_above_max_raises(self):
-        """photo_count=25 wirft ValidationError."""
+        """photo_count=31 wirft ValidationError."""
         from app.state import PhotobookConfig
         with pytest.raises(ValidationError):
-            PhotobookConfig(photo_count=25)
+            PhotobookConfig(photo_count=31)
+
+    def test_size_field_defaults_to_normal(self):
+        """size ist standardmässig 'normal'."""
+        from app.state import PhotobookConfig
+        config = PhotobookConfig()
+        assert config.size == "normal"
+
+    def test_page_range_default(self):
+        """page_range ist standardmässig '14-18'."""
+        from app.state import PhotobookConfig
+        config = PhotobookConfig()
+        assert config.page_range == "14-18"
+
+    def test_size_short(self):
+        """size='short' ist erlaubt."""
+        from app.state import PhotobookConfig
+        config = PhotobookConfig(size="short", page_range="8-12", photo_count=14)
+        assert config.size == "short"
+        assert config.page_range == "8-12"
+
+
+class TestApplyPhotobookSize:
+    def test_short_maps_correctly(self):
+        from app.state import apply_photobook_size
+        config = apply_photobook_size("short")
+        assert config.photo_count == 14
+        assert config.page_range == "8-12"
+        assert config.size == "short"
+
+    def test_normal_maps_correctly(self):
+        from app.state import apply_photobook_size
+        config = apply_photobook_size("normal")
+        assert config.photo_count == 20
+        assert config.page_range == "14-18"
+        assert config.size == "normal"
+
+    def test_detailed_maps_correctly(self):
+        from app.state import apply_photobook_size
+        config = apply_photobook_size("detailed")
+        assert config.photo_count == 26
+        assert config.page_range == "20-24"
+        assert config.size == "detailed"
+
+    def test_unknown_size_falls_back_to_normal(self):
+        from app.state import apply_photobook_size
+        config = apply_photobook_size("invalid")
+        assert config.photo_count == 20
+        assert config.size == "normal"
 
 
 class TestOutputConfigMode:
@@ -114,7 +162,7 @@ class TestOutputConfigMode:
         """photobook hat default PhotobookConfig."""
         from app.state import OutputConfig
         config = OutputConfig()
-        assert config.photobook.photo_count == 16
+        assert config.photobook.photo_count == 20
 
 
 class TestPageDescription:

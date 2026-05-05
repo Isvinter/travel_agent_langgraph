@@ -38,7 +38,27 @@ AVAILABLE_MODELS = [
 
 class PhotobookConfig(BaseModel):
     """Konfiguration fuer die Fotobuch-Ausgabe."""
-    photo_count: int = Field(default=16, ge=5, le=24)
+    photo_count: int = Field(default=20, ge=5, le=30)
+    page_range: str = "14-18"
+    size: Literal["short", "normal", "detailed"] = "normal"
+
+
+PHOTOBOOK_SIZE_MAP = {
+    "short":    {"photo_count": 14, "page_range": "8-12"},
+    "normal":   {"photo_count": 20, "page_range": "14-18"},
+    "detailed": {"photo_count": 26, "page_range": "20-24"},
+}
+
+
+def apply_photobook_size(size: str) -> PhotobookConfig:
+    """Erzeugt PhotobookConfig aus Grössenstufe (short/normal/detailed)."""
+    mapping = PHOTOBOOK_SIZE_MAP.get(size, PHOTOBOOK_SIZE_MAP["normal"])
+    resolved_size = size if size in PHOTOBOOK_SIZE_MAP else "normal"
+    return PhotobookConfig(
+        photo_count=mapping["photo_count"],
+        page_range=mapping["page_range"],
+        size=resolved_size,
+    )
 
 
 class OutputConfig(BaseModel):
