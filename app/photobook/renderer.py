@@ -4,6 +4,7 @@ Nimmt PageDescription-Objekte und erzeugt ein vollstaendiges HTML-Dokument
 mit CSS Grid Layouts, das via Headless Chrome als PDF gedruckt werden kann.
 """
 
+import html
 import os
 from typing import List
 from app.state import PageDescription, ImageData
@@ -16,8 +17,6 @@ def _read_styles() -> str:
     with open(_STYLES_PATH, "r", encoding="utf-8") as f:
         return f.read()
 
-
-PHOTOBOOK_STYLES = _read_styles()
 
 PHOTOBOOK_HEADER = """<!DOCTYPE html>
 <html lang="de">
@@ -80,20 +79,20 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
                         f'Bild {slot_data["image_index"]} nicht gefunden</div>'
                     )
                 # Caption kann auch am Image-Slot haengen
-                caption = slot_data.get("caption", "")
+                caption = html.escape(slot_data.get("caption", ""))
                 if caption:
                     html_parts.append(
                         f'<div class="slot-caption" {area_style}>{caption}</div>'
                     )
 
             elif slot_def.type == "text":
-                text = slot_data.get("text", "")
+                text = html.escape(slot_data.get("text", ""))
                 html_parts.append(
                     f'<div class="slot-text" {area_style}>{text}</div>'
                 )
 
             elif slot_def.type == "caption":
-                caption = slot_data.get("caption", "")
+                caption = html.escape(slot_data.get("caption", ""))
                 if caption:
                     html_parts.append(
                         f'<div class="slot-caption" {area_style}>{caption}</div>'

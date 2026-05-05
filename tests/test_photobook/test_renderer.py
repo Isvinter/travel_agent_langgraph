@@ -20,7 +20,7 @@ class TestRenderer:
             )
         ]
         html = render_photobook(pages, TEST_IMAGES)
-        assert "<!DOCTYPE html>" in html.lower() or "<html" in html.lower()
+        assert "<!DOCTYPE html>" in html
         assert "layout-hero-single" in html
         assert "slot-image" in html
         assert "Cover" in html
@@ -37,8 +37,8 @@ class TestRenderer:
             )
         ]
         html = render_photobook(pages, TEST_IMAGES)
+        assert "page-spread" in html
         assert "layout-split-equal" in html
-        assert "420mm" in html
 
     def test_render_multiple_pages(self):
         pages = [
