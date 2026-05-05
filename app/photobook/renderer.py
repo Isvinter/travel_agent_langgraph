@@ -1,14 +1,14 @@
 """HTML-Assembler fuer Fotobuch-Seiten.
 
 Nimmt PageDescription-Objekte und erzeugt ein vollstaendiges HTML-Dokument
-mit CSS Grid Layouts, das via Headless Chrome als PDF gedruckt werden kann.
+mit CSS Grid Layouts aus den Preset-Definitionen.
 """
 
 import html
 import os
 from typing import List
 from app.state import PageDescription, ImageData
-from app.photobook.template_loader import load_template
+from app.photobook.preset_loader import load_preset
 
 _STYLES_PATH = os.path.join(os.path.dirname(__file__), "styles.css")
 
@@ -18,14 +18,14 @@ def _read_styles() -> str:
         return f.read()
 
 
-PHOTOBOOK_HEADER = """<!DOCTYPE html>
+PHOTOBOOK_HEADER = f"""<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fotobuch</title>
 <style>
-""" + _read_styles() + """
+{_read_styles()}
 </style>
 </head>
 <body>
@@ -50,12 +50,11 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
     html_parts = [PHOTOBOOK_HEADER]
 
     for page in pages:
-        template = load_template(page.template_id)
-        css_class = template.css_class
-        page_css = f"page-{page.page_type}"
-        html_parts.append(f'<div class="photobook-page {css_class} {page_css}">')
+        preset = load_preset(page.template_id)
+        css_class = preset.css_class
+        html_parts.append(f'<div class="photobook-page {css_class} page-single">')
 
-        slot_defs = {s.id: s for s in template.slots}
+        slot_defs = {s.id: s for s in preset.slots}
 
         for slot_data in page.slots:
             slot_id = slot_data.get("slot_id", "")
@@ -78,31 +77,23 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
                         f'<div class="slot-image slot-placeholder" {area_style}>'
                         f'Bild {slot_data["image_index"]} nicht gefunden</div>'
                     )
-                # Caption im dedizierten Caption-Slot des Templates rendern
-                caption = html.escape(slot_data.get("caption", ""))
-                if caption:
-                    caption_slot_def = next((s for s in template.slots if s.type == "caption"), None)
-                    if caption_slot_def:
-                        caption_area = f'style="grid-area: {caption_slot_def.css_area}"'
-                    else:
-                        caption_area = area_style  # Fallback: Template hat keinen Caption-Slot
-                    html_parts.append(
-                        f'<div class="slot-caption" {caption_area}>{caption}</div>'
-                    )
 
             elif slot_def.type == "text":
                 text = html.escape(slot_data.get("text", ""))
-                css_class = "slot-title" if slot_id == "title" else "slot-text"
-                html_parts.append(
-                    f'<div class="{css_class}" {area_style}>{text}</div>'
-                )
+                # Font-Size aus der Slot-Definition direkt ins Inline-CSS
+                font_size = slot_def.font_size or "11pt"
+                style = f'style="grid-area: {slot_def.css_area}; font-size: {font_size}"'
 
-            elif slot_def.type == "caption":
-                caption = html.escape(slot_data.get("caption", ""))
-                if caption:
-                    html_parts.append(
-                        f'<div class="slot-caption" {area_style}>{caption}</div>'
-                    )
+                if slot_def.text_role == "title":
+                    css_class = "slot-title"
+                elif slot_def.text_role == "caption":
+                    css_class = "slot-caption"
+                else:
+                    css_class = "slot-text"
+
+                html_parts.append(
+                    f'<div class="{css_class}" {style}>{text}</div>'
+                )
 
         html_parts.append("</div>")
 
