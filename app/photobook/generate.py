@@ -7,6 +7,7 @@ import requests
 from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, PageDescription
 from app.photobook.template_loader import load_all_templates
+from app.utils.image_utils import encode_image_base64
 
 
 def _build_generate_prompt(pages_plan, gpx_stats_d, notes):
@@ -41,8 +42,12 @@ REGELN:
 - Template muss genug Slots haben
 - image_index MUSS aus den im Plan zugewiesenen Indizes stammen
 
+ZUSAETZLICHE AUFGABEN:
+5. Generiere einen kurzen, stimmungsvollen Seitentitel (2-5 Woerter, Deutsch) — Feld "title" pro Seite
+6. Generiere fuer jedes Bild eine aussagekraeftige Bildunterschrift (1 Satz, sachlich, Deutsch) — Feld "caption" im jeweiligen Slot
+
 ANTWORTE NUR mit JSON-Array:
-[{{"template_id": "hero_single", "page_type": "single", "slots": [{{"slot_id": "main", "image_index": 3, "caption": "Beschreibung"}}]}}]"""
+[{{"template_id": "hero_single", "page_type": "single", "title": "Gipfelstuermer", "slots": [{{"slot_id": "main", "image_index": 3, "caption": "Der steile Aufstieg zum Gipfelgrat bei klarer Sicht"}}]}}]"""
 
 
 def generate_photobook_pages(
@@ -57,10 +62,29 @@ def generate_photobook_pages(
     if not pages_plan:
         return []
     prompt = _build_generate_prompt(pages_plan, gpx_stats, notes)
+    
+    # Bilder als Base64 encodieren
+    encoded_images = []
+    for img in images:
+        b64 = encode_image_base64(img.path)
+        if b64:
+            encoded_images.append(b64)
+    
     try:
+        payload = {
+            "model": model,
+            "messages": [{
+                "role": "user",
+                "content": prompt,
+                "images": encoded_images,
+            }],
+            "stream": False,
+            "options": {"temperature": 0.3, "num_predict": 8192},
+            "keep_alive": "10m",
+        }
         resp = requests.post(
             f"{base_url.rstrip('/')}/api/chat",
-            json={"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "options": {"temperature": 0.3, "num_predict": 8192}, "keep_alive": "10m"},
+            json=payload,
             timeout=300,
         )
         if resp.status_code == 200:
@@ -77,7 +101,15 @@ def generate_photobook_pages(
                             valid_slots.append(slot)
                         else:
                             valid_slots.append({k: v for k, v in slot.items() if k != "image_index"})
-                    result.append(PageDescription(template_id=pd.get("template_id", "grid_2x2"), page_type=pd.get("page_type", "single"), slots=valid_slots))
+                    page = PageDescription(
+                        template_id=pd.get("template_id", "grid_2x2"),
+                        page_type=pd.get("page_type", "single"),
+                        slots=valid_slots,
+                    )
+                    # Titel als title-Slot anhängen (vom Renderer als Überschrift gerendert)
+                    if pd.get("title"):
+                        page.slots.append({"slot_id": "title", "text": pd["title"]})
+                    result.append(page)
                 if result:
                     return result
     except Exception as e:

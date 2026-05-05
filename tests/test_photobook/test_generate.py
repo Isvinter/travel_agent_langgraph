@@ -80,3 +80,22 @@ class TestGenerate:
         assert len(pages) == 2
         assert pages[0].template_id == "hero_single"
         assert pages[1].template_id == "split_equal"
+
+    def test_generate_includes_titles_and_captions(self):
+        """LLM-Response mit 'title' und 'caption' Feldern muss korrekt geparst werden."""
+        plan = {"pages": [{"position": 0, "template_category": "hero", "image_indices": [0]}]}
+        images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(1)]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "message": {"content": '[{"template_id": "hero_single", "page_type": "single", "title": "Aufbruch", "slots": [{"slot_id": "main", "image_index": 0, "caption": "Morgendlicher Start bei Sonnenaufgang"}]}]'}
+        }
+        with patch("app.photobook.generate.requests.post", return_value=mock_resp):
+            pages = generate_photobook_pages(plan, images, None, None, model="test")
+        assert len(pages) == 1
+        title_slot = next((s for s in pages[0].slots if s.get("slot_id") == "title"), None)
+        assert title_slot is not None
+        assert title_slot["text"] == "Aufbruch"
+        main_slot = next((s for s in pages[0].slots if s.get("slot_id") == "main"), None)
+        assert main_slot is not None
+        assert "Sonnenaufgang" in main_slot.get("caption", "")
