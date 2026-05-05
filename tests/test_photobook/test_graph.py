@@ -7,7 +7,7 @@ from app.nodes.plan_photobook_node import plan_photobook_node
 from app.nodes.generate_photobook_node import generate_photobook_node
 from app.nodes.render_photobook_node import render_photobook_node
 
-MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(12))})}}
+MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(16))})}}
 MOCK_PLAN = {"message": {"content": json.dumps({"pages": [{"position": 0, "page_type": "cover", "template_category": "hero", "image_indices": [0], "purpose": "Cover"}], "dramatic_arc": "test"})}}
 MOCK_GENERATE = {"message": {"content": json.dumps([{"template_id": "hero_single", "page_type": "single", "slots": [{"slot_id": "main", "image_index": 0, "caption": "Test"}]}])}}
 
@@ -23,9 +23,9 @@ class TestPhotobookNodes:
         mock_resp.status_code = 200
         mock_resp.json.return_value = MOCK_SELECTION
         mock_post.return_value = mock_resp
-        state = make_state()
+        state = make_state(n_images=30)
         result = select_photobook_images_node(state)
-        assert len(result.photobook_images) == 12
+        assert len(result.photobook_images) == 16
 
     @patch("app.photobook.plan.requests.post")
     def test_plan_node(self, mock_post):

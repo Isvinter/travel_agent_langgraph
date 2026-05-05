@@ -120,28 +120,28 @@ class TestApplyPhotobookSize:
     def test_short_maps_correctly(self):
         from app.state import apply_photobook_size
         config = apply_photobook_size("short")
-        assert config.photo_count == 14
+        assert config.photo_count == 12
         assert config.page_range == "8-12"
         assert config.size == "short"
 
     def test_normal_maps_correctly(self):
         from app.state import apply_photobook_size
         config = apply_photobook_size("normal")
-        assert config.photo_count == 20
+        assert config.photo_count == 16
         assert config.page_range == "14-18"
         assert config.size == "normal"
 
     def test_detailed_maps_correctly(self):
         from app.state import apply_photobook_size
         config = apply_photobook_size("detailed")
-        assert config.photo_count == 26
+        assert config.photo_count == 20
         assert config.page_range == "20-24"
         assert config.size == "detailed"
 
     def test_unknown_size_falls_back_to_normal(self):
         from app.state import apply_photobook_size
         config = apply_photobook_size("invalid")
-        assert config.photo_count == 20
+        assert config.photo_count == 16
         assert config.size == "normal"
 
 

@@ -44,9 +44,9 @@ class PhotobookConfig(BaseModel):
 
 
 PHOTOBOOK_SIZE_MAP = {
-    "short":    {"photo_count": 14, "page_range": "8-12"},
-    "normal":   {"photo_count": 20, "page_range": "14-18"},
-    "detailed": {"photo_count": 26, "page_range": "20-24"},
+    "short":    {"photo_count": 12, "page_range": "8-12"},
+    "normal":   {"photo_count": 16, "page_range": "14-18"},
+    "detailed": {"photo_count": 20, "page_range": "20-24"},
 }
 
 
