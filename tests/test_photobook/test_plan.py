@@ -1,4 +1,4 @@
-"""Tests fuer LLM Pass 1: Layout-Planung."""
+"""Tests fuer LLM Pass 1: Preset-Auswahl."""
 import json
 from unittest.mock import patch, MagicMock
 from app.state import ImageData
@@ -10,9 +10,9 @@ MOCK_PLAN_RESPONSE = {
     "message": {
         "content": json.dumps({
             "pages": [
-                {"position": 0, "page_type": "cover", "template_category": "hero", "image_indices": [3], "purpose": "Cover"},
-                {"position": 1, "page_type": "spread", "template_category": "split", "image_indices": [7, 12], "purpose": "Aufstieg"},
-                {"position": 2, "page_type": "single", "template_category": "grid", "image_indices": [0, 2, 5, 8], "purpose": "Sammlung"},
+                {"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"},
+                {"position": 1, "preset_id": "double_equal", "image_indices": [7, 12], "purpose": "Aufstieg"},
+                {"position": 2, "preset_id": "quad_grid", "image_indices": [0, 2, 5, 8], "purpose": "Sammlung"},
             ],
             "dramatic_arc": "intro -> buildup -> variation"
         })
@@ -40,7 +40,7 @@ class TestPlan:
         assert "dramatic_arc" in result
         page0 = result["pages"][0]
         assert page0["position"] == 0
-        assert page0["template_category"] == "hero"
+        assert page0["preset_id"] == "cover_hero"
         assert isinstance(page0["image_indices"], list)
 
     @patch("app.photobook.plan.requests.post")
@@ -58,4 +58,19 @@ class TestPlan:
         )
         assert "pages" in result
         assert len(result["pages"]) > 0
-        assert result["pages"][0]["page_type"] == "cover"
+        assert result["pages"][0]["preset_id"] == "cover_hero"
+
+    def test_fallback_plan_uses_presets(self):
+        """Fallback-Planung muss preset_id (nicht template_category) produzieren."""
+        result = plan_photobook_layout(
+            images=SAMPLE_IMAGES[:6],
+            gpx_stats={},
+            notes=None,
+            weather=None,
+            poi_list=[],
+            model="test-model",
+            base_url="http://invalid:99999",
+        )
+        for page in result["pages"]:
+            assert "preset_id" in page, f"Seite {page.get('position')} hat kein preset_id"
+            assert page["preset_id"] != "", f"Seite {page.get('position')} hat leeres preset_id"

@@ -1,6 +1,7 @@
-"""LLM Pass 1: Layout-Planung (Dramaturgie + Seiten-Sequenz).
+"""LLM Pass 1: Preset-Auswahl (pro Seite ein Preset aus 21 Optionen).
 
-Das LLM plant die Seitenabfolge auf Kategorie-Ebene.
+Das LLM wählt für jede Seite ein Preset basierend auf Bildanzahl und Text-Bedarf.
+Variety-Regeln im Prompt sorgen für Abwechslung.
 """
 
 import json
@@ -10,6 +11,7 @@ import requests
 from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, WeatherInfo
 from app.utils.image_utils import encode_image_base64
+from app.photobook.presets import get_preset_summary, get_any_preset
 
 
 def _build_plan_prompt(
@@ -32,45 +34,74 @@ def _build_plan_prompt(
         context_parts.append(f"NOTIZEN: {notes}")
     context = "\n".join(context_parts)
 
+    preset_catalog = get_preset_summary()
+
     return f"""Du bist Fotobuch-Art-Director fuer eine Wandertour.
 
 {context}
 
-TEMPLATE-KATEGORIEN:
-- hero: 1 grosses Bild (Cover, Kapitelanfang, Schluesselmomente)
-- split: 2 Bilder nebeneinander (Vergleiche, Vorher/Nachher)
-- grid: 3-4 Bilder im Raster (Sammlungen, Details)
-- strip: 3 Bilder horizontal (Sequenzen, Zeitablaeufe)
-- mixed: Bild + Textblock (Kontext, Einleitungen)
-- collection: 1 grosses + 2 kleine (thematische Gruppen)
+PRESETS (waehle eins pro Seite):
+{preset_catalog}
 
-GLOBALE LAYOUT-REGELN:
-1. Cover (Pos. 0) und letzte Seite sind hero-Templates
-2. Maximal 2x das gleiche Template hintereinander
-3. Alle 4-6 Seiten ein hero-Anker
-4. Wechsel zwischen dichten Seiten (grid) und ruhigen (single)
-5. Wichtigere Bilder bekommen groessere Slots
+VARIETY-REGELN (UNBEDINGT EINHALTEN):
+1. Maximal 2x das gleiche Preset im gesamten Buch
+2. Nicht 2x hintereinander das gleiche Preset
+3. Maximal 3 Seiten ohne Text hintereinander
+4. Nicht 3x hintereinander die gleiche Bildanzahl
+5. Dramatischer Bogen: Cover (cover_hero) -> ruhiger Start (1-Bild) -> Aufbau (2-3 Bilder) -> Hoehepunkt (4-Bild) -> Ausklang (1-Bild)
+6. Seite 0 MUSS cover_hero sein
 
 PLANE die Seitenabfolge. Gib jedem Bild einen Platz.
-Struktur: Cover -> Aufbau -> Highlights -> Variation -> Abschluss
 
 ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
-{{"pages": [{{"position": 0, "page_type": "cover", "template_category": "hero", "image_indices": [3], "purpose": "Beschreibung"}}], "dramatic_arc": "kurze Beschreibung"}}"""
+{{"pages": [{{"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"}}], "dramatic_arc": "kurze Beschreibung"}}"""
 
 
 def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Dict[str, Any]:
+    """Deterministische Fallback-Planung: einfache lineare Sequenz mit Presets."""
     indices = list(range(min(image_count, len(images))))
     pages = []
     if indices:
-        pages.append({"position": 0, "page_type": "cover", "template_category": "hero", "image_indices": [indices.pop(0)], "purpose": "Cover"})
+        pages.append({
+            "position": 0,
+            "preset_id": "cover_hero",
+            "image_indices": [indices.pop(0)],
+            "purpose": "Cover",
+        })
     pos = 1
     while indices:
-        if len(indices) >= 4:
-            pages.append({"position": pos, "page_type": "single", "template_category": "grid", "image_indices": [indices.pop(0) for _ in range(min(4, len(indices)))], "purpose": "Sammlung"})
-        elif len(indices) >= 2:
-            pages.append({"position": pos, "page_type": "spread", "template_category": "split", "image_indices": [indices.pop(0), indices.pop(0)], "purpose": "Vergleich"})
+        remaining = len(indices)
+        if remaining >= 4:
+            pid = get_any_preset(4)
+            pages.append({
+                "position": pos,
+                "preset_id": pid,
+                "image_indices": [indices.pop(0) for _ in range(min(4, remaining))],
+                "purpose": "Sammlung",
+            })
+        elif remaining >= 3:
+            pid = get_any_preset(3)
+            pages.append({
+                "position": pos,
+                "preset_id": pid,
+                "image_indices": [indices.pop(0) for _ in range(min(3, remaining))],
+                "purpose": "Sequenz",
+            })
+        elif remaining >= 2:
+            pid = get_any_preset(2)
+            pages.append({
+                "position": pos,
+                "preset_id": pid,
+                "image_indices": [indices.pop(0), indices.pop(0)],
+                "purpose": "Vergleich",
+            })
         else:
-            pages.append({"position": pos, "page_type": "single", "template_category": "hero", "image_indices": [indices.pop(0)], "purpose": "Einzelbild"})
+            pages.append({
+                "position": pos,
+                "preset_id": "single_full",
+                "image_indices": [indices.pop(0)],
+                "purpose": "Einzelbild",
+            })
         pos += 1
     return {"pages": pages, "dramatic_arc": "Fallback: lineare Sequenz"}
 
@@ -87,14 +118,14 @@ def plan_photobook_layout(
     if not images:
         return {"pages": [], "dramatic_arc": ""}
     prompt = _build_plan_prompt(len(images), gpx_stats, notes, weather, len(poi_list))
-    
+
     # Bilder als Base64 encodieren
     encoded_images = []
     for img in images:
         b64 = encode_image_base64(img.path)
         if b64:
             encoded_images.append(b64)
-    
+
     try:
         payload = {
             "model": model,
