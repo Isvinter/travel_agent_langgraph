@@ -62,3 +62,21 @@ class TestGenerate:
             plan=MOCK_PLAN, images=SAMPLE_IMAGES[:3], gpx_stats={}, notes="Test", model="test-model",
         )
         assert len(result) > 0
+
+    def test_fallback_uses_plan_categories(self):
+        """Fallback soll Template-Kategorien aus dem Plan respektieren, nicht alles grid_2x2."""
+        plan = {
+            "pages": [
+                {"position": 0, "template_category": "hero", "image_indices": [0]},
+                {"position": 1, "template_category": "split", "image_indices": [1, 2]},
+            ]
+        }
+        images = [
+            ImageData(path=f"/tmp/img_{i}.jpg") for i in range(3)
+        ]
+        # LLM simulieren der fehlschlägt → Fallback wird aktiviert
+        with patch("app.photobook.generate.requests.post", side_effect=Exception("LLM down")):
+            pages = generate_photobook_pages(plan, images, None, None, model="test")
+        assert len(pages) == 2
+        assert pages[0].template_id == "hero_single"
+        assert pages[1].template_id == "split_equal"
