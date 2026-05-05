@@ -45,6 +45,8 @@ export const wildcardCount = writable<number>(12);
 export const articleLength = writable<string>("normal");
 export const stylePersona = writable<string>("mountain_veteran");
 export const pdfExport = writable<boolean>(false);
+export const pipelineMode = writable<"blog" | "photobook">("blog");
+export const photobookSize = writable<"short" | "normal" | "detailed">("normal");
 
 let eventSource: EventSource | null = null;
 
