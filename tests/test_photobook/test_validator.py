@@ -54,3 +54,105 @@ class TestValidator:
         ])
         errors = validate_page(page)
         assert errors == []
+
+
+class TestEnforceFallback:
+    def test_converts_to_grid_2x2(self):
+        """enforce_fallback wandelt in grid_2x2 mit korrekten Slot-IDs um."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="nonexistent",
+            page_type="single",
+            slots=[
+                {"slot_id": "bad", "image_index": 5},
+                {"slot_id": "bad2", "image_index": 10},
+            ],
+        )
+        result = enforce_fallback(page)
+        assert result.template_id == "grid_2x2"
+        assert result.page_type == "single"
+        assert result.slots[0]["slot_id"] == "tl"
+        assert result.slots[0]["image_index"] == 5
+        assert result.slots[1]["slot_id"] == "tr"
+        assert result.slots[1]["image_index"] == 10
+
+    def test_truncates_at_4_images(self):
+        """enforce_fallback kappt bei maximal 4 Bildern."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="bad",
+            page_type="single",
+            slots=[
+                {"slot_id": "x", "image_index": i} for i in range(10)
+            ],
+        )
+        result = enforce_fallback(page)
+        assert len(result.slots) == 4
+
+    def test_handles_empty_slots(self):
+        """enforce_fallback vertraegt leere Slot-Liste."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(template_id="bad", page_type="single", slots=[])
+        result = enforce_fallback(page)
+        assert result.template_id == "grid_2x2"
+        assert result.slots == []
+
+    def test_handles_negative_indices(self):
+        """enforce_fallback filtert negative Indizes heraus."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="bad",
+            page_type="single",
+            slots=[
+                {"slot_id": "x", "image_index": -1},
+                {"slot_id": "y", "image_index": 3},
+            ],
+        )
+        result = enforce_fallback(page)
+        assert len(result.slots) == 1
+        assert result.slots[0]["image_index"] == 3
+
+
+class TestValidateAllPages:
+    def test_returns_valid_pages_and_warnings(self):
+        """validate_all_pages trennt gueltige und fehlerhafte Seiten."""
+        from app.photobook.validator import validate_all_pages
+        from app.state import PageDescription
+
+        pages = [
+            PageDescription(template_id="hero_single", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
+            PageDescription(template_id="nonexistent", page_type="single", slots=[]),
+            PageDescription(template_id="split_dominant", page_type="spread",
+                          slots=[
+                              {"slot_id": "primary", "image_index": 1},
+                              {"slot_id": "secondary", "image_index": 2},
+                          ]),
+        ]
+        validated, warnings = validate_all_pages(pages)
+        assert len(validated) == 3
+        assert len(warnings) == 1
+        assert "Seite 1" in warnings[0]
+        # Die fehlerhafte Seite wurde in grid_2x2 umgewandelt
+        assert validated[1].template_id == "grid_2x2"
+
+    def test_no_warnings_when_all_valid(self):
+        """validate_all_pages produziert keine Warnungen bei gueltigen Seiten."""
+        from app.photobook.validator import validate_all_pages
+        from app.state import PageDescription
+
+        pages = [
+            PageDescription(template_id="hero_single", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
+        ]
+        validated, warnings = validate_all_pages(pages)
+        assert len(warnings) == 0
+        assert validated[0].template_id == "hero_single"
