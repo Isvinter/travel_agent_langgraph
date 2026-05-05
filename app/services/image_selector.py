@@ -9,6 +9,7 @@ import math
 from typing import Any, Dict, List, Optional
 
 from app.config import OLLAMA_BASE_URL
+from app.utils.image_utils import encode_image_base64 as _encode_image
 
 
 BATCH_SIZE = 15
@@ -116,17 +117,6 @@ def _reduce_to_target(
         return [candidates[i] for i in indices if i < len(candidates)]
 
     return [candidates[i] for i in range(target_count)]
-
-
-def _encode_image(path: str) -> Optional[str]:
-    from PIL import Image
-    with Image.open(path) as img:
-        if max(img.size) > 600:
-            img.thumbnail((600, 600))
-        buf = __import__("io").BytesIO()
-        img.convert("RGB").save(buf, format="JPEG", quality=60)
-        import base64
-        return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 def _make_batch_prompt(images: List[str], target: int) -> str:
