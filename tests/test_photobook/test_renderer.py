@@ -107,3 +107,24 @@ class TestRenderer:
         html = render_photobook(pages, TEST_IMAGES)
         assert "slot-title" in html
         assert "Gipfelstürmer" in html
+
+
+class TestPresetRenderer:
+    def test_cover_hero_uses_preset_css_class(self):
+        """Renderer muss preset-cover-hero CSS-Klasse verwenden."""
+        from app.photobook.renderer import render_photobook
+        from app.state import PageDescription, ImageData
+        from app.photobook.preset_loader import load_preset
+
+        preset = load_preset("cover_hero")
+        page = PageDescription(
+            template_id="cover_hero",
+            page_type="single",
+            slots=[
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Mein Fotobuch"},
+            ],
+        )
+        images = [ImageData(path="/tmp/test.jpg")]
+        html = render_photobook([page], images)
+        assert "preset-cover-hero" in html
