@@ -159,3 +159,85 @@ class TestValidateAllPages:
         ]
         validated, warnings = validate_all_pages(pages)
         assert len(warnings) == 0
+
+    def test_missing_text_slots_filled_with_placeholders(self):
+        """Fehlende Text-Slots werden durch enforce_fallback mit Platzhaltern befüllt."""
+        from app.photobook.validator import validate_all_pages
+        from app.state import PageDescription
+
+        pages = [
+            PageDescription(template_id="cover_hero", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
+        ]
+        validated, _ = validate_all_pages(pages)
+        assert len(validated) == 1
+        title_slot = next((s for s in validated[0].slots if s.get("slot_id") == "title"), None)
+        assert title_slot is not None, "Title-Slot muss nach enforce_fallback vorhanden sein"
+        assert title_slot.get("text", "").strip() != "", "Title-Text darf nicht leer sein"
+
+    def test_text_preserved_when_already_present(self):
+        """Vorhandener LLM-Text bleibt durch enforce_fallback erhalten."""
+        from app.photobook.validator import validate_all_pages
+        from app.state import PageDescription
+
+        pages = [
+            PageDescription(template_id="cover_hero", page_type="single",
+                          slots=[
+                              {"slot_id": "main", "image_index": 0},
+                              {"slot_id": "title", "text": "Gipfelblick 2026"},
+                          ]),
+        ]
+        validated, _ = validate_all_pages(pages)
+        title_slot = next((s for s in validated[0].slots if s.get("slot_id") == "title"), None)
+        assert title_slot is not None
+        assert title_slot["text"] == "Gipfelblick 2026"
+
+    def test_replace_preset_fills_text_slots(self):
+        """_replace_preset befüllt Text-Slots im neuen Preset mit Platzhaltern."""
+        from app.photobook.validator import _replace_preset
+        from app.state import PageDescription
+
+        # simuliert: single_full (kein Text) wird durch single_text_below (mit Text) ersetzt
+        page = PageDescription(
+            template_id="single_full",
+            page_type="single",
+            slots=[{"slot_id": "main", "image_index": 0}],
+        )
+        result = _replace_preset(page, "single_text_below")
+        caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
+        assert caption_slot is not None, "Caption-Slot muss nach Ersetzung vorhanden sein"
+        assert caption_slot.get("text", "").strip() != "", "Caption-Text darf nicht leer sein"
+        # Bild muss erhalten bleiben
+        assert any(s.get("slot_id") == "main" for s in result.slots)
+
+    def test_validate_all_pages_fills_text_for_all_presets_with_text(self):
+        """Nach validate_all_pages haben alle text-fähigen Presets Text-Slots."""
+        from app.photobook.validator import validate_all_pages
+        from app.photobook.preset_loader import load_all_presets
+        from app.state import PageDescription
+
+        presets = load_all_presets()
+        pages = []
+        for pid, preset in presets.items():
+            slots = []
+            img_idx = 0
+            for s in preset.slots:
+                if s.type == "image":
+                    slots.append({"slot_id": s.id, "image_index": img_idx})
+                    img_idx += 1
+            pages.append(PageDescription(template_id=pid, page_type="single", slots=slots))
+
+        validated, _ = validate_all_pages(pages)
+
+        for page in validated:
+            preset = presets.get(page.template_id)
+            if preset and preset.has_text:
+                for sd in preset.slots:
+                    if sd.type == "text":
+                        slot = next((s for s in page.slots if s.get("slot_id") == sd.id), None)
+                        assert slot is not None, (
+                            f"Text-Slot '{sd.id}' fehlt in Preset '{page.template_id}'"
+                        )
+                        assert slot.get("text", "").strip() != "", (
+                            f"Text-Slot '{sd.id}' in Preset '{page.template_id}' ist leer"
+                        )

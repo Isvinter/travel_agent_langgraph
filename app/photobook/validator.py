@@ -241,6 +241,17 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
         if sid in {s.id for s in preset.slots if s.type == "text"} and slot.get("text"):
             new_slots.append({"slot_id": sid, "text": slot["text"]})
 
+    # Stelle sicher, dass ALLE Text-Slots im neuen Preset befüllt sind
+    for sd in preset.slots:
+        if sd.type == "text":
+            already_filled = any(
+                s.get("slot_id") == sd.id and s.get("text", "").strip()
+                for s in new_slots
+            )
+            if not already_filled:
+                placeholder = _text_placeholder(sd.text_role or "caption")
+                new_slots.append({"slot_id": sd.id, "text": placeholder})
+
     return PageDescription(
         template_id=new_preset_id,
         page_type="single",
@@ -276,9 +287,8 @@ def validate_all_pages(pages: List[PageDescription]) -> tuple[List[PageDescripti
         errors = validate_page(page, _presets)
         if errors:
             warnings.append(f"Seite {i}: {', '.join(errors)}")
-            validated.append(enforce_fallback(page))
-        else:
-            validated.append(page)
+        # enforce_fallback immer ausführen, damit alle Text-Slots befüllt sind
+        validated.append(enforce_fallback(page))
 
     validated = check_variety(validated)
 
