@@ -16,7 +16,7 @@
 </script>
 
 <div class="settings-tabs">
-  <label class="settings-label">Einstellungen</label>
+  <span class="settings-label">Einstellungen</span>
 
   <div class="tabs">
     <button
