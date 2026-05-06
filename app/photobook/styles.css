@@ -20,6 +20,10 @@ body {
   page-break-after: always;
 }
 
+.photobook-page:first-child {
+  page-break-before: avoid;
+}
+
 .photobook-page:last-child {
   page-break-after: avoid;
 }
@@ -42,22 +46,28 @@ body {
 
 .page-header {
   flex: 0 0 auto;
-  padding: 3mm 10mm;
+  padding: 2mm 8mm;
   background: #1e293b;
+  min-height: 8mm;
+  max-height: 16mm;
 }
 
 .page-title {
-  font-size: 12pt;
+  font-size: 11pt;
   font-weight: bold;
   color: #f1f5f9;
   font-family: Georgia, 'Times New Roman', serif;
-  line-height: 1.3;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .page-content {
   flex: 1;
-  padding: 10mm;
+  padding: 6mm;
   min-height: 0;
+  overflow: hidden;
 }
 
 .page-spread {
