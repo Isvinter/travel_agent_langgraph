@@ -9,12 +9,11 @@
 </script>
 
 <div class="notes">
-  <label for="notes-input">Tour-Notizen</label>
   <textarea
     id="notes-input"
     bind:value={notes}
     oninput={handleInput}
-    placeholder="Optionale Notizen zur Tour…"
+    placeholder="Optionale Notizen manuell hier hinzufügen"
     rows={5}
   ></textarea>
 </div>
@@ -23,13 +22,6 @@
   .notes {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-  }
-  label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
   textarea {
     resize: vertical;

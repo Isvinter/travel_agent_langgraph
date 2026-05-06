@@ -334,7 +334,7 @@
     cursor: pointer;
   }
   tr:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--panel-2);
   }
   .view-btn {
     padding: 0.3rem 0.6rem;
@@ -359,7 +359,7 @@
   .dialog-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;

@@ -4,8 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Travel Agent</title>
-    <script type="module" crossorigin src="/assets/index-DsV5VX5i.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CN_Uan9J.css">
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          }
+          document.documentElement.className = t;
+        } catch(e) {
+          document.documentElement.className = "dark";
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-CHJObsI6.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BDGXbQI_.css">
   </head>
   <body>
     <div id="app"></div>

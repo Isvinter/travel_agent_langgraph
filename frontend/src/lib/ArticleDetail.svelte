@@ -165,11 +165,11 @@
     background: var(--accent);
   }
   .pdf-btn {
-    background: #27ae60;
+    background: var(--success);
     color: white;
   }
   .pdf-btn:hover {
-    background: #219a52;
+    filter: brightness(0.9);
   }
   .delete-btn {
     background: var(--error);

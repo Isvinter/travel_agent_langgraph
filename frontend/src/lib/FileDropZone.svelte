@@ -162,7 +162,7 @@
   }
   .zone.active {
     border-color: var(--accent);
-    background: rgba(233, 69, 96, 0.08);
+    background: var(--accent-ghost);
   }
   .zone-text {
     font-size: 0.9rem;

@@ -12,30 +12,35 @@
     }
   });
 
-  function statusColor(status: string): string {
+  function badgeLabel(status: string): string {
     switch (status) {
       case "error":
-        return "var(--error)";
+        return "Fehler";
       case "done":
       case "success":
-        return "var(--success)";
+        return "OK";
       case "running":
-        return "var(--accent)";
+        return "Läuft";
       default:
-        return "var(--text-muted)";
+        return status || "Info";
     }
   }
 </script>
 
-<div class="output-window" bind:this={logContainer}>
+<div class="output-window panel" bind:this={logContainer}>
   {#if ll.length === 0}
-    <p class="placeholder">Die Pipeline-Ausgabe erscheint hier…</p>
+    <p class="placeholder">Die Pipeline-Ausgabe erscheint hier...</p>
   {:else}
     {#each ll as line}
-      <div class="log-line">
-        <span class="timestamp">{line.timestamp}</span>
-        <span class="stage" style="color: {statusColor(line.status)}">{line.stage}</span>
-        <span class="message">{line.message}</span>
+      <div class="log-row" class:active={line.status === "running"}>
+        <span class="log-time">{line.timestamp}</span>
+        <span class="log-step-message">
+          <span class="log-step">{line.stage}</span>
+          <span class="log-message">{line.message}</span>
+        </span>
+        <span class="badge" class:success={line.status === "done" || line.status === "success"} class:error={line.status === "error"} class:running={line.status === "running"}>
+          {badgeLabel(line.status)}
+        </span>
       </div>
     {/each}
   {/if}
@@ -44,12 +49,11 @@
 <style>
   .output-window {
     flex: 1;
-    background: #0d0d1a;
+    background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius);
     padding: 1rem;
     font-size: 0.8rem;
-    font-family: "JetBrains Mono", "Fira Code", monospace;
     overflow-y: auto;
     line-height: 1.6;
   }
@@ -57,22 +61,56 @@
     color: var(--text-muted);
     font-style: italic;
   }
-  .log-line {
-    display: flex;
-    gap: 0.75rem;
-    padding: 0.15rem 0;
+  .log-row {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
   }
-  .timestamp {
+  .log-row:hover {
+    background: var(--panel-2);
+  }
+  .log-row.active {
+    background: var(--row-active-bg);
+  }
+  .log-time {
     color: var(--text-muted);
-    min-width: 4.5rem;
-    flex-shrink: 0;
+    font-size: 12px;
   }
-  .stage {
-    font-weight: bold;
-    min-width: 11rem;
-    flex-shrink: 0;
+  .log-step-message {
+    min-width: 0;
   }
-  .message {
-    word-break: break-word;
+  .log-step {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .log-message {
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .log-step + .log-message {
+    margin-left: 0.5rem;
+  }
+
+  .badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--panel-2);
+    color: var(--text-muted);
+  }
+  .badge.success {
+    background: var(--badge-success-bg);
+    color: var(--badge-success-text);
+  }
+  .badge.error {
+    background: var(--badge-error-bg);
+    color: var(--badge-error-text);
+  }
+  .badge.running {
+    background: var(--badge-running-bg);
+    color: var(--badge-running-text);
   }
 </style>

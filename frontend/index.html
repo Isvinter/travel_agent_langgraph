@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Travel Agent</title>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          }
+          document.documentElement.className = t;
+        } catch(e) {
+          document.documentElement.className = "dark";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

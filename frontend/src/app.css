@@ -6,56 +6,144 @@
   padding: 0;
 }
 
-:root {
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --surface-alt: #0f3460;
-  --text: #e0e0e0;
-  --text-muted: #a0a0a0;
-  --accent: #e94560;
-  --accent-hover: #ff6b81;
-  --border: #2a2a4a;
-  --success: #2ecc71;
-  --error: #e74c3c;
-  --warning: #f39c12;
+/* ── Dark Mode ── */
+html.dark {
+  --bg: #0F1115;
+  --panel: #151922;
+  --panel-2: #1A1F2B;
+  --border: #232836;
+
+  --text-primary: #E6EAF2;
+  --text-secondary: #9AA3B2;
+  --text-muted: #6B7280;
+
+  --accent: #5B8CFF;
+  --accent-hover: #7AA2FF;
+
+  --success: #4ADE80;
+  --error: #F87171;
+  --warning: #FBBF24;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+
+  --badge-success-bg: rgba(74, 222, 128, 0.15);
+  --badge-success-text: var(--success);
+  --badge-error-bg: rgba(248, 113, 113, 0.15);
+  --badge-error-text: var(--error);
+  --badge-running-bg: rgba(91, 140, 255, 0.15);
+  --badge-running-text: var(--accent);
+  --row-active-bg: rgba(91, 140, 255, 0.1);
+  --accent-ghost: rgba(91, 140, 255, 0.08);
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
 }
 
+/* ── Light Mode ── */
+html.light {
+  --bg: #F7F8FA;
+  --panel: #FFFFFF;
+  --panel-2: #F1F3F6;
+  --border: #E6E8EC;
+
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+
+  --accent: #4F46E5;
+  --accent-hover: #6366F1;
+
+  --success: #22C55E;
+  --error: #EF4444;
+  --warning: #F59E0B;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+
+  --badge-success-bg: #DCFCE7;
+  --badge-success-text: #166534;
+  --badge-error-bg: #FEE2E2;
+  --badge-error-text: #991B1B;
+  --badge-running-bg: #DBEAFE;
+  --badge-running-text: var(--accent);
+  --row-active-bg: rgba(79, 70, 229, 0.08);
+  --accent-ghost: rgba(79, 70, 229, 0.06);
+  --overlay-bg: rgba(0, 0, 0, 0.4);
+
+  color-scheme: light;
+}
+
+/* ── Abwärtskompatible Aliase für bestehende Komponenten ── */
+html.dark,
+html.light {
+  --surface: var(--panel);
+  --surface-alt: var(--panel-2);
+  --text: var(--text-primary);
+}
+
+/* ── Smooth UI ── */
+* {
+  transition: all 0.15s ease;
+}
+
+/* ── Body ── */
 body {
-  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
-  color: var(--text);
+  color: var(--text-primary);
   min-height: 100vh;
   overflow: hidden;
 }
 
-#app {
-  display: flex;
-  height: 100vh;
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
+/* ── Button Basis ── */
 button {
   font-family: inherit;
   cursor: pointer;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 0.85rem;
+  font-weight: 500;
 }
 
+/* ── Inputs / Textarea / Select ── */
 input,
 textarea,
 select {
   font-family: inherit;
   font-size: 0.85rem;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--panel-2);
+  color: var(--text-primary);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0.5rem;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-  outline: none;
-  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* ── Light-Mode-Panel mit Schatten statt dicker Borders ── */
+.panel {
+  background: var(--panel);
+  border-radius: var(--radius);
+}
+html.light .panel {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
