@@ -27,7 +27,7 @@ class TestPhotobookNodes:
         mock_post.return_value = mock_resp
         state = make_state(n_images=30)
         result = select_photobook_images_node(state)
-        assert len(result.photobook_images) == 16
+        assert len(result.photobook_images) == 20  # photo_count default = 20
 
     @patch("app.photobook.plan.requests.post")
     def test_plan_node(self, mock_post):

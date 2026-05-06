@@ -154,26 +154,29 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("extract_metadata", "clustering_images")
     builder.add_edge("clustering_images", "generate_map_image")
     builder.add_edge("generate_map_image", "load_tour_notes")
-    builder.add_edge("load_tour_notes", "enrich_weather")
+
+    # Mode-abhaengiges Routing NACH load_tour_notes:
+    # Photobook überspringt die teuren Blog-Enrichment-Schritte
+    def _route_after_notes(state: AppState) -> str:
+        if state.output_config.mode == "photobook":
+            return "select_photobook_images"
+        return "enrich_weather"
+
+    builder.add_conditional_edges(
+        "load_tour_notes",
+        _route_after_notes,
+        {
+            "select_photobook_images": "select_photobook_images",
+            "enrich_weather": "enrich_weather",
+        },
+    )
+
+    # Blog-Pfad: Enrichment + Content-Review (nur für Blog-Mode)
     builder.add_edge("enrich_weather", "enrich_poi")
     builder.add_edge("enrich_poi", "select_images")
     builder.add_edge("select_images", "review_content")
     builder.add_edge("review_content", "generate_enriched_map")
-    # Mode-abhaengiges Routing nach generate_enriched_map
-    def _route_from_enriched_map(state: AppState) -> str:
-        mode = state.output_config.mode
-        if mode == "photobook":
-            return "select_photobook_images"
-        return "generate_blog_post"
-
-    builder.add_conditional_edges(
-        "generate_enriched_map",
-        _route_from_enriched_map,
-        {
-            "select_photobook_images": "select_photobook_images",
-            "generate_blog_post": "generate_blog_post",
-        },
-    )
+    builder.add_edge("generate_enriched_map", "generate_blog_post")
 
     # Photobook-Pfad
     builder.add_edge("select_photobook_images", "plan_photobook")

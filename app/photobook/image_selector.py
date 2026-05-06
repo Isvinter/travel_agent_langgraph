@@ -2,10 +2,9 @@
 
 Andere Kriterien als die Blog-Bildauswahl: Fokus auf Layout-Eignung,
 visuelle Varianz und narrative Verwendbarkeit.
-Verarbeitet Bilder in Batches wenn der Context zu gross wuerde.
+Verarbeitet Bilder in Batches (gleicher Ansatz wie Blog-Selector).
 """
 
-import json
 import math
 import re
 from typing import Any, Dict, List, Optional
@@ -15,60 +14,46 @@ from app.state import ImageData
 from app.utils.image_utils import encode_image_base64
 
 
-BATCH_SIZE = 10  # Bilder pro Batch (vermeidet Context-Überlauf)
+BATCH_SIZE = 15  # Gleiche Batch-Grösse wie Blog-Selector
 
 
-def _build_batch_prompt(
-    batch_size: int,
-    select_count: int,
-    batch_start: int,
-    gpx_stats_d: Optional[Dict[str, Any]],
-    notes: Optional[str],
-) -> str:
-    gpx_text = ""
-    if gpx_stats_d:
-        dist = gpx_stats_d.get("total_distance_m", 0) / 1000
-        elev = gpx_stats_d.get("elevation_gain_m", 0)
-        gpx_text = f"Tour-Daten: {dist:.1f} km Distanz, {elev:.0f}m Hoehenmeter. "
-    notes_text = f"Tour-Notizen: {notes}" if notes else ""
+def _parse_selection(text: str, max_index: int) -> List[int]:
+    """Extrahiert Indizes aus LLM-Antwort — tolerant wie Blog-Selector."""
+    numbers = re.findall(r'\d+', text)
+    return sorted({int(n) for n in numbers if int(n) <= max_index})
 
-    return f"""Du bist Bildredakteur fuer ein Fotobuch einer Wandertour.
 
-{gpx_text}{notes_text}
-
-Zeige {batch_size} Bilder (chronologisch, Index {batch_start}-{batch_start + batch_size - 1}).
-Waehle die {select_count} BESTEN Bilder daraus fuer ein A4-Fotobuch.
-
-KRITERIEN:
-1. Starke Bilder bevorzugen — klare Motive, gute Belichtung, scharfe Details
-2. Narrative Abdeckung — verschiedene Phasen der Tour abbilden
-3. Visuelle Varianz — Perspektiven, Motive, Farben mischen
-4. Layout-Eignung — nicht nur Landschaften, auch Details und Portraets
-
-ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
-{{"selected_indices": [{batch_start}, {batch_start + 2}, ...]}}"""
+def _build_batch_prompt(batch_size: int, select_count: int) -> str:
+    return (
+        f"Du erhältst {batch_size} Fotos aus einer Wanderung.\n"
+        f"Wähle die {select_count} besten Bilder für ein A4-Fotobuch.\n"
+        "Kriterien: starke Motive, gute Belichtung, landschaftliche Vielfalt, "
+        "verschiedene Perspektiven, Details und Porträts mischen.\n"
+        "Antworte NUR mit den 0-basierten Indexnummern, kommagetrennt, aufsteigend. "
+        "Keine Erklärung.\n\n"
+        + "\n".join(f"--- Bild {i} ---" for i in range(batch_size))
+    )
 
 
 def _select_batch(
     batch_images: List[ImageData],
     select_count: int,
-    batch_start: int,
-    gpx_stats: Optional[Dict[str, Any]],
-    notes: Optional[str],
     model: str,
     base_url: str,
 ) -> List[int]:
-    """Fragt das LLM nach den besten Bildern aus einem Batch."""
+    """Fragt das LLM nach den besten Bildern aus einem Batch.
+    Gleicher Ansatz wie Blog-Selector: permissives Parsing, Fallback auf evenly-spaced.
+    """
     encoded = []
     for img in batch_images:
         b64 = encode_image_base64(img.path)
         if b64:
             encoded.append(b64)
 
-    if not encoded:
-        return []
+    if len(encoded) <= select_count:
+        return list(range(len(encoded)))
 
-    prompt = _build_batch_prompt(len(encoded), select_count, batch_start, gpx_stats, notes)
+    prompt = _build_batch_prompt(len(encoded), select_count)
 
     try:
         resp = requests.post(
@@ -81,22 +66,22 @@ def _select_batch(
                     "images": encoded,
                 }],
                 "stream": False,
-                "options": {"temperature": 0.0, "num_predict": 512},
+                "options": {"temperature": 0.0, "top_p": 0.1, "num_predict": 128},
                 "keep_alive": "10m",
             },
             timeout=120,
         )
         if resp.status_code == 200:
             content = resp.json().get("message", {}).get("content", "")
-            json_match = re.search(r'\{[^}]+\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group())
-                indices = data.get("selected_indices", [])
-                return [i for i in indices if batch_start <= i < batch_start + len(batch_images)]
+            indices = _parse_selection(content, max_index=len(encoded) - 1)
+            if indices:
+                return indices[:select_count]
     except Exception as e:
         print(f"  ⚠️ Batch-Auswahl fehlgeschlagen: {e}")
 
-    return []
+    # Fallback: evenly-spaced
+    step = max(1, len(encoded) // select_count)
+    return list(range(0, len(encoded), step))[:select_count]
 
 
 def select_photobook_images(
@@ -107,7 +92,9 @@ def select_photobook_images(
     photo_count: int = 16,
     base_url: str = OLLAMA_BASE_URL,
 ) -> List[ImageData]:
-    """Waehlt Bilder fuer das Fotobuch via LLM in Batches aus."""
+    """Waehlt Bilder fuer das Fotobuch via LLM in Batches aus.
+    Zweistufig: 1) Pro-Batch-Vorauswahl, 2) Finale Reduktion.
+    """
     if not images:
         return []
 
@@ -115,63 +102,40 @@ def select_photobook_images(
     if target >= len(images):
         return list(images)
 
-    # Batching: teile Bilder in Gruppen zu je BATCH_SIZE
     num_batches = math.ceil(len(images) / BATCH_SIZE)
     per_batch = math.ceil(target / num_batches)
 
-    print(f"📸 Waehle {target} Bilder aus {len(images)} in {num_batches} Batches...")
+    print(f"📸 Wähle {target} Bilder aus {len(images)} in {num_batches} Batches...")
 
+    # Step 1: Per-Batch-Auswahl
     all_indices = []
     for batch_idx in range(num_batches):
         start = batch_idx * BATCH_SIZE
         end = min(start + BATCH_SIZE, len(images))
         batch = images[start:end]
-        remaining = target - len(all_indices)
-        if remaining <= 0:
+        select = min(per_batch, target - len(all_indices), len(batch))
+        if select <= 0:
             break
-        select = min(per_batch, remaining, len(batch))
 
-        print(f"  Batch {batch_idx + 1}/{num_batches}: Bilder {start}-{end - 1}, waehle {select}...")
-        indices = _select_batch(batch, select, start, gpx_stats, notes, model, base_url)
-        all_indices.extend(indices)
-        print(f"    → {len(indices)} ausgewaehlt: {indices}")
+        batch_indices = _select_batch(batch, select, model, base_url)
+        global_indices = [start + i for i in batch_indices if i < len(batch)]
+        all_indices.extend(global_indices)
 
     selected = [images[i] for i in all_indices if 0 <= i < len(images)]
-    selected = selected[:target]
+    selected = selected[:target * 2]  # Allow oversampling for final reduction
 
-    # Fallback 1: wenn kein Batch Bilder encodieren konnte, versuche Auswahl ohne Bilder
-    all_failed = all(not encode_image_base64(img.path) for img in images[:BATCH_SIZE])
-    if all_failed and len(selected) < max(5, target // 2):
-        print(f"⚠️ Bild-Encoding fehlgeschlagen, versuche Auswahl ohne Bilder...")
-        prompt = f"""Wähle die {target} besten Indizes aus 0-{len(images)-1} für ein Fotobuch.
-ANTWORTE NUR: {{"selected_indices": [0, 2, 5, ...]}}"""
-        try:
-            resp = requests.post(
-                f"{base_url.rstrip('/')}/api/chat",
-                json={
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": False,
-                    "options": {"temperature": 0.0, "num_predict": 512},
-                    "keep_alive": "10m",
-                },
-                timeout=120,
-            )
-            if resp.status_code == 200:
-                content = resp.json().get("message", {}).get("content", "")
-                json_match = re.search(r'\{[^}]+\}', content, re.DOTALL)
-                if json_match:
-                    data = json.loads(json_match.group())
-                    indices = data.get("selected_indices", [])
-                    selected = [images[i] for i in indices if 0 <= i < len(images)]
-                    selected = selected[:target]
-        except Exception:
-            pass
+    if len(selected) <= target:
+        if len(selected) < max(5, target // 2):
+            print(f"⚠️ Nur {len(selected)} via LLM, verwende chronologische Reihenfolge")
+            return list(images)[:target]
+        print(f"✅ {len(selected)} Bilder ausgewählt")
+        return selected[:target]
 
-    # Fallback 2: verwende die Bilder in chronologischer Reihenfolge
-    if len(selected) < max(5, target // 2):
-        print(f"⚠️ Nur {len(selected)} Bilder via LLM ausgewaehlt, verwende chronologische Reihenfolge")
-        return list(images)[:target]
+    # Step 2: Finale Reduktion auf target
+    final_indices = _select_batch(selected, target, model, base_url)
+    final = [selected[i] for i in final_indices if i < len(selected)]
+    if len(final) < max(5, target // 2):
+        final = selected[:target]
 
-    print(f"✅ {len(selected)} Bilder ausgewaehlt")
-    return selected
+    print(f"✅ {len(final)} Bilder ausgewählt")
+    return final[:target]
