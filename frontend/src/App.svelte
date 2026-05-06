@@ -14,12 +14,9 @@
   import ArticleDetail from "./lib/ArticleDetail.svelte";
 
   let rt = $derived($route);
-  let rightTab = $state<"pipeline" | "datenbank">(
-    rt.page === "pipeline" ? "pipeline" : "datenbank"
-  );
+  let rightTab = $derived(rt.page === "pipeline" ? "pipeline" : "datenbank");
 
   function switchRightTab(tab: "pipeline" | "datenbank") {
-    rightTab = tab;
     if (tab === "pipeline") {
       navigateTo({ page: "pipeline" });
     } else {
@@ -27,10 +24,8 @@
     }
   }
 
-  // Wenn Pipeline gestartet wird, automatisch zum Pipeline-Tab wechseln
   $effect(() => {
-    if ($runState === "running" && rightTab !== "pipeline") {
-      rightTab = "pipeline";
+    if ($runState === "running" && rt.page !== "pipeline") {
       navigateTo({ page: "pipeline" });
     }
   });
