@@ -1,0 +1,13 @@
+{
+  "id": "triple_stacked",
+  "name": "Drei übereinander",
+  "description": "Drei Bilder vertikal gestapelt, je 33% Höhe. Keine Text-Slots.",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "preset-triple-stacked",
+  "slots": [
+    {"id": "top", "type": "image", "priority": "primary", "css_area": "top", "optional": false},
+    {"id": "middle", "type": "image", "priority": "secondary", "css_area": "middle", "optional": false},
+    {"id": "bottom", "type": "image", "priority": "secondary", "css_area": "bottom", "optional": false}
+  ]
+}

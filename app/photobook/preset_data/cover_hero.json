@@ -1,12 +1,11 @@
 {
   "id": "cover_hero",
   "name": "Cover — Hero",
-  "description": "Großes Titelbild mit Buchtitel-Overlay am unteren Rand. Für die Titelseite des Fotobuchs.",
+  "description": "Vollbild-Titelseite. Der Titel kommt aus dem universellen page-header.",
   "image_count": 1,
-  "has_text": true,
+  "has_text": false,
   "css_class": "preset-cover-hero",
   "slots": [
-    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false},
-    {"id": "title", "type": "text", "css_area": "title", "char_limit": 60, "font_size": "14pt", "text_role": "title", "optional": true}
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false}
   ]
 }

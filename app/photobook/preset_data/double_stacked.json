@@ -1,0 +1,12 @@
+{
+  "id": "double_stacked",
+  "name": "Zwei übereinander",
+  "description": "Zwei Bilder vertikal gestapelt, je 50% Höhe. Keine Text-Slots.",
+  "image_count": 2,
+  "has_text": false,
+  "css_class": "preset-double-stacked",
+  "slots": [
+    {"id": "top", "type": "image", "priority": "primary", "css_area": "top", "optional": false},
+    {"id": "bottom", "type": "image", "priority": "secondary", "css_area": "bottom", "optional": false}
+  ]
+}
