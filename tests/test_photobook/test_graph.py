@@ -17,8 +17,10 @@ def make_state(n_images=20):
 
 
 class TestPhotobookNodes:
+    @patch("app.photobook.image_selector.encode_image_base64")
     @patch("app.photobook.image_selector.requests.post")
-    def test_select_images_node(self, mock_post):
+    def test_select_images_node(self, mock_post, mock_encode):
+        mock_encode.return_value = "bW9jay1iYXNlNjQ="  # dummy base64
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = MOCK_SELECTION

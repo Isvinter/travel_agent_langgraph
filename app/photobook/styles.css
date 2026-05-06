@@ -10,6 +10,14 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+@media screen {
+  body {
+    padding-bottom: 5mm;
+  }
 }
 
 .photobook-page {

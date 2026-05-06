@@ -23,8 +23,10 @@ def render_photobook_node(state: AppState) -> AppState:
         print(f"  Seite {i+1} ({p.template_id}): title={title_slot.get('text','')[:40] if title_slot else 'NONE'}, {len(caption_slots)} caption(s)")
 
     validated_pages, warnings = validate_all_pages(state.photobook_pages)
-    if warnings:
-        for w in warnings:
+    # Unterdrücke kosmetische "existiert nicht" Warnungen — enforce_fallback handled das
+    real_warnings = [w for w in warnings if "existiert nicht im Preset" not in w]
+    if real_warnings:
+        for w in real_warnings:
             print(f"⚠️ Validator: {w}")
 
     # --- Debug: zeige Seiten nach Validierung ---

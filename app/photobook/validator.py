@@ -39,7 +39,17 @@ def validate_page(page: PageDescription, presets: dict = None) -> List[str]:
     for slot in page.slots:
         slot_id = slot.get("slot_id", "")
         if slot_id not in slot_defs:
-            errors.append(f"Slot '{slot_id}' existiert nicht im Preset '{page.template_id}'.")
+            # "title" ist universell (page-header) und wird von enforce_fallback behandelt
+            if slot_id == "title":
+                continue
+            # Image-Slots die nicht existieren → echter Fehler
+            if slot.get("image_index") is not None:
+                errors.append(f"Slot '{slot_id}' existiert nicht im Preset '{page.template_id}'.")
+                continue
+            # Text-Slots an Presets ohne Text-Option → Fehler (kann nicht upgraden)
+            if slot.get("text") and not any(s.type == "text" for s in preset.slots):
+                errors.append(f"Slot '{slot_id}' existiert nicht im Preset '{page.template_id}' (und kein Text-Upgrade möglich).")
+            # Andere Text-Slots → enforce_fallback upgraded das Preset → keine Warnung
             continue
 
         slot_def = slot_defs[slot_id]
