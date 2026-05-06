@@ -101,7 +101,13 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
     # Text-Slots aus Original übernehmen, dabei Char-Limit kürzen
     for slot in page.slots:
         sid = slot.get("slot_id", "")
-        if sid in slot_defs:
+        # Titel-Slot wird universell beibehalten (page-header)
+        if sid == "title" and slot.get("text"):
+            text = slot["text"]
+            if len(text) > 60:
+                text = text[:60]
+            repaired_slots.append({"slot_id": sid, "text": text})
+        elif sid in slot_defs:
             sd = slot_defs[sid]
             if sd.type == "text" and slot.get("text"):
                 text = slot["text"]
@@ -116,6 +122,11 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
             if not already_filled:
                 placeholder = _text_placeholder(sd.text_role or "caption")
                 repaired_slots.append({"slot_id": sid, "text": placeholder})
+
+    # Universeller Title-Slot fuer den page-header
+    has_title = any(s.get("slot_id") == "title" and s.get("text", "").strip() for s in repaired_slots)
+    if not has_title:
+        repaired_slots.append({"slot_id": "title", "text": "Fotobuch"})
 
     return PageDescription(
         template_id=page.template_id,
@@ -201,6 +212,8 @@ def check_variety(pages: List[PageDescription]) -> List[PageDescription]:
         for i, page in enumerate(result):
             if unique >= 5:
                 break
+            if i == 0:
+                continue  # Cover-Seite nie ersetzen
             preset = presets.get(page.template_id)
             if preset:
                 alternatives = [
@@ -238,7 +251,13 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
 
     for slot in old_slots:
         sid = slot.get("slot_id", "")
-        if sid in {s.id for s in preset.slots if s.type == "text"} and slot.get("text"):
+        # Titel-Slot universell beibehalten
+        if sid == "title" and slot.get("text"):
+            text = slot["text"]
+            if len(text) > 60:
+                text = text[:60]
+            new_slots.append({"slot_id": sid, "text": text})
+        elif sid in {s.id for s in preset.slots if s.type == "text"} and slot.get("text"):
             new_slots.append({"slot_id": sid, "text": slot["text"]})
 
     # Stelle sicher, dass ALLE Text-Slots im neuen Preset befüllt sind
@@ -251,6 +270,11 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
             if not already_filled:
                 placeholder = _text_placeholder(sd.text_role or "caption")
                 new_slots.append({"slot_id": sd.id, "text": placeholder})
+
+    # Universeller Title-Slot fuer den page-header
+    has_title = any(s.get("slot_id") == "title" and s.get("text", "").strip() for s in new_slots)
+    if not has_title:
+        new_slots.append({"slot_id": "title", "text": "Fotobuch"})
 
     return PageDescription(
         template_id=new_preset_id,

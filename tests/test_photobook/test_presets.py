@@ -35,7 +35,7 @@ class TestPresetLoader:
         """Cover-Preset muss existieren (worst-case Fallback im Validator)."""
         preset = load_preset("cover_hero")
         assert preset.image_count == 1
-        assert preset.has_text is True
+        assert preset.has_text is False  # Titel kommt aus page-header
 
     def test_preset_loader_returns_expected_structure(self):
         """Ein konkretes Preset hat die richtigen Werte."""
@@ -54,29 +54,29 @@ class TestPresetLoader:
 
 
 class TestPresetCatalog:
-    def test_catalog_has_21_entries(self):
+    def test_catalog_has_18_entries(self):
         from app.photobook.presets import PRESET_CATALOG
-        assert len(PRESET_CATALOG) == 21
+        assert len(PRESET_CATALOG) == 18
 
     def test_get_presets_by_image_count(self):
         from app.photobook.presets import get_presets_by_image_count
         p1 = get_presets_by_image_count(1)
-        # cover_hero, single_full, single_text_below, single_text_right, panorama, image_text_split
+        # cover_hero, single_full, single_text_below, single_text_left, panorama, image_text_split
         assert len(p1) == 6
         p3 = get_presets_by_image_count(3)
-        assert len(p3) == 5
+        assert len(p3) == 4
 
     def test_get_presets_by_count_and_text(self):
         from app.photobook.presets import get_presets_by_image_count
         p3_no_text = get_presets_by_image_count(3, has_text=False)
-        assert len(p3_no_text) == 2  # triple_strip, triple_big_top
+        assert len(p3_no_text) == 2  # triple_stacked, triple_big_top
         p3_text = get_presets_by_image_count(3, has_text=True)
-        assert len(p3_text) == 3
+        assert len(p3_text) == 2
 
     def test_get_any_preset_returns_valid(self):
         from app.photobook.presets import get_any_preset
         assert get_any_preset(1) == "cover_hero"
-        assert get_any_preset(3) == "triple_strip"
+        assert get_any_preset(3) == "triple_stacked"
         assert get_any_preset(99) == "quad_grid"
 
     def test_constraint_summary_contains_limits(self):

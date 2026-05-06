@@ -40,19 +40,23 @@ PHOTOBOOK_FOOTER = """
 def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> str:
     """Erzeugt ein vollstaendiges HTML-Dokument aus Seitenbeschreibungen.
 
-    Args:
-        pages: Liste von PageDescription (vom LLM)
-        images: Liste aller ImageData-Objekte
-
-    Returns:
-        Vollstaendiges HTML-Dokument als String
+    Jede Seite hat einen page-header (Titel) und page-content (Preset-Layout).
     """
     html_parts = [PHOTOBOOK_HEADER]
 
-    for page in pages:
+    for page_idx, page in enumerate(pages):
         preset = load_preset(page.template_id)
         css_class = preset.css_class
-        html_parts.append(f'<div class="photobook-page {css_class} page-single">')
+
+        # Seitentitel aus den Slots extrahieren
+        page_title = _extract_title(page, page_idx)
+
+        html_parts.append('<div class="photobook-page page-single">')
+        html_parts.append('<div class="page-header">')
+        html_parts.append(f'<div class="page-title">{html.escape(page_title)}</div>')
+        html_parts.append('</div>')
+
+        html_parts.append(f'<div class="page-content {css_class}">')
 
         slot_defs = {s.id: s for s in preset.slots}
 
@@ -60,6 +64,10 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
             slot_id = slot_data.get("slot_id", "")
             slot_def = slot_defs.get(slot_id)
             if not slot_def:
+                continue
+
+            # Titel wird schon im page-header gerendert, nicht nochmal im content
+            if slot_def.text_role == "title":
                 continue
 
             area_style = f'style="grid-area: {slot_def.css_area}"'
@@ -80,25 +88,33 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
 
             elif slot_def.type == "text":
                 text = html.escape(slot_data.get("text", ""))
-                # Font-Size aus der Slot-Definition direkt ins Inline-CSS
                 font_size = slot_def.font_size or "11pt"
                 style = f'style="grid-area: {slot_def.css_area}; font-size: {font_size}"'
 
                 if slot_def.text_role == "title":
-                    css_class = "slot-title"
+                    css_cls = "slot-title"
                 elif slot_def.text_role == "caption":
-                    css_class = "slot-caption"
+                    css_cls = "slot-caption"
                 else:
-                    css_class = "slot-text"
+                    css_cls = "slot-text"
 
                 html_parts.append(
-                    f'<div class="{css_class}" {style}>{text}</div>'
+                    f'<div class="{css_cls}" {style}>{text}</div>'
                 )
 
-        html_parts.append("</div>")
+        html_parts.append("</div>")  # page-content
+        html_parts.append("</div>")  # photobook-page
 
     html_parts.append(PHOTOBOOK_FOOTER)
     return "\n".join(html_parts)
+
+
+def _extract_title(page: PageDescription, page_idx: int) -> str:
+    """Extrahiert den Seitentitel aus den Slots oder generiert Fallback."""
+    for slot in page.slots:
+        if slot.get("slot_id") == "title" and slot.get("text", "").strip():
+            return slot["text"]
+    return f"Seite {page_idx + 1}"
 
 
 def _normalize_path(path: str) -> str:

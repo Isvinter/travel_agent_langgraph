@@ -3,32 +3,29 @@
 # Jeder Eintrag: (preset_id, image_count, has_text)
 PRESET_CATALOG = [
     # Cover
-    ("cover_hero", 1, True),
+    ("cover_hero", 1, False),
     # 1-Bild
     ("single_full", 1, False),
     ("single_text_below", 1, True),
-    ("single_text_right", 1, True),
+    ("single_text_left", 1, True),
+    ("panorama", 1, True),
+    ("image_text_split", 1, True),
     # 2-Bild
-    ("double_equal", 2, False),
-    ("double_dominant", 2, False),
-    ("double_text_below", 2, True),
+    ("double_stacked", 2, False),
+    ("double_stacked_text", 2, True),
     ("double_text_right", 2, True),
+    ("map_focus", 2, True),
     # 3-Bild
-    ("triple_strip", 3, False),
+    ("triple_stacked", 3, False),
+    ("triple_stacked_text", 3, True),
     ("triple_big_top", 3, False),
-    ("triple_text_below", 3, True),
     ("triple_big_text_below", 3, True),
-    ("triple_text_right", 3, True),
     # 4-Bild
     ("quad_grid", 4, False),
-    ("quad_grid_text_below", 4, True),
-    ("quad_strip_text_below", 4, True),
+    ("quad_grid_text", 4, True),
     ("quad_large_plus_3", 4, True),
-    # Extra
-    ("panorama", 1, True),
+    # 5-Bild
     ("collage_5", 5, False),
-    ("image_text_split", 1, True),
-    ("map_focus", 2, True),
 ]
 
 

@@ -11,7 +11,7 @@ class TestVariety:
     def test_cover_hero_forced_on_first_page(self):
         pages = [
             make_page("single_full"),
-            make_page("double_equal"),
+            make_page("double_stacked"),
         ]
         result = check_variety(pages)
         assert result[0].template_id == "cover_hero"
@@ -19,18 +19,18 @@ class TestVariety:
     def test_no_back_to_back_same_preset(self):
         pages = [
             make_page("cover_hero"),
-            make_page("double_equal"),
-            make_page("double_equal"),
+            make_page("double_stacked"),
+            make_page("double_stacked"),
         ]
         result = check_variety(pages)
-        assert result[2].template_id != "double_equal"
+        assert result[2].template_id != "double_stacked"
 
     def test_max_3_no_text_pages_in_a_row(self):
         pages = [
             make_page("cover_hero"),
             make_page("single_full"),
-            make_page("double_equal"),
-            make_page("triple_strip"),
+            make_page("double_stacked"),
+            make_page("triple_stacked"),
             make_page("quad_grid"),
         ]
         result = check_variety(pages)

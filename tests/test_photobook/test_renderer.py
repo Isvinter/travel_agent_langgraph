@@ -46,20 +46,80 @@ class TestRenderer:
         # Der caption-Slot des panorama presets hat css_area="caption"
         assert 'grid-area: caption' in html
 
-    def test_render_spread_has_correct_dimensions(self):
+    def test_render_includes_page_header(self):
+        """Jede Seite hat einen page-header mit Titel."""
         pages = [
-            PageDescription(
-                template_id="double_equal",
-                page_type="spread",
-                slots=[
-                    {"slot_id": "left", "image_index": 0},
-                    {"slot_id": "right", "image_index": 1},
-                ],
-            )
+            PageDescription(template_id="cover_hero", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
         ]
         html = render_photobook(pages, TEST_IMAGES)
-        assert "photobook-page" in html
-        assert "preset-double-equal" in html
+        assert "page-header" in html
+        assert "page-title" in html
+        assert "page-content" in html
+
+    def test_render_title_in_header_not_in_content(self):
+        """Title-Slot wird im page-header gerendert, nicht im page-content."""
+        pages = [
+            PageDescription(template_id="cover_hero", page_type="single",
+                          slots=[
+                              {"slot_id": "main", "image_index": 0},
+                              {"slot_id": "title", "text": "Mein Titel"},
+                          ]),
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert '<div class="page-title">Mein Titel</div>' in html
+
+    def test_render_fallback_title(self):
+        """Ohne title-Slot wird 'Seite N' als Fallback verwendet."""
+        pages = [
+            PageDescription(template_id="single_full", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert '<div class="page-title">Seite 1</div>' in html
+
+    def test_render_double_stacked(self):
+        """double_stacked: 2 Bilder vertikal, keine Text-Slots."""
+        pages = [
+            PageDescription(template_id="double_stacked", page_type="single",
+                          slots=[
+                              {"slot_id": "top", "image_index": 0},
+                              {"slot_id": "bottom", "image_index": 1},
+                          ]),
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert "preset-double-stacked" in html
+        assert html.count("slot-image") >= 2
+
+    def test_render_double_stacked_text(self):
+        """double_stacked_text: 2 Bilder + caption."""
+        pages = [
+            PageDescription(template_id="double_stacked_text", page_type="single",
+                          slots=[
+                              {"slot_id": "top", "image_index": 0},
+                              {"slot_id": "bottom", "image_index": 1},
+                              {"slot_id": "caption", "text": "Waldpfad"},
+                          ]),
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert "preset-double-stacked-text" in html
+        assert "Waldpfad" in html
+
+    def test_render_quad_grid_text(self):
+        """quad_grid_text: 2x2 Raster + caption."""
+        pages = [
+            PageDescription(template_id="quad_grid_text", page_type="single",
+                          slots=[
+                              {"slot_id": "tl", "image_index": 0},
+                              {"slot_id": "tr", "image_index": 1},
+                              {"slot_id": "bl", "image_index": 2},
+                              {"slot_id": "br", "image_index": 3},
+                              {"slot_id": "caption", "text": "Rundumblick"},
+                          ]),
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert "preset-quad-grid-text" in html
+        assert "Rundumblick" in html
 
     def test_render_multiple_pages(self):
         pages = [

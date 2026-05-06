@@ -61,12 +61,13 @@ AUFGABE PRO SEITE:
 1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
 2. Text-Rollen: title (stimmungsvoller Titel, 60 Z.), caption (Bildbeschreibung, 170 Z.), intro (Einleitung, 400 Z.).
 3. Generiere kurze, passende Texte — innerhalb der Zeichenlimits.
+4. JEDE Seite MUSS einen title-Slot haben: {{"slot_id": "title", "text": "Einzeiliger Seitentitel"}}
 
 BEISPIELE:
-- cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "main", "image_index": 0}}, {{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}]}}]
-- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Weitblick ueber das Tal"}}]}}]
-- image_text_split: [{{"preset_id": "image_text_split", "slots": [{{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Nach drei Stunden erreichten wir die Baumgrenze."}}]}}]
-- double_equal (KEIN Text): [{{"preset_id": "double_equal", "slots": [{{"slot_id": "left", "image_index": 3}}, {{"slot_id": "right", "image_index": 4}}]}}]
+- cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}, {{"slot_id": "main", "image_index": 0}}]}}]
+- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "title", "text": "Alpenwiese"}}, {{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Weitblick ueber das Tal"}}]}}]
+- double_stacked (KEIN Text): [{{"preset_id": "double_stacked", "slots": [{{"slot_id": "title", "text": "Aufstieg"}}, {{"slot_id": "top", "image_index": 3}}, {{"slot_id": "bottom", "image_index": 4}}]}}]
+- image_text_split: [{{"preset_id": "image_text_split", "slots": [{{"slot_id": "title", "text": "Kapitel 1"}}, {{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Nach drei Stunden erreichten wir die Baumgrenze."}}]}}]
 
 ANTWORTE NUR mit JSON-Array:"""
 
@@ -156,6 +157,8 @@ def generate_photobook_pages(
         slots = []
         for sid, idx in zip(image_slots, indices):
             slots.append({"slot_id": sid, "image_index": idx})
+        # Universeller Title-Slot fuer den Fallback
+        slots.append({"slot_id": "title", "text": "Fotobuch"})
         fallback.append(PageDescription(
             template_id=preset_id,
             page_type="single",

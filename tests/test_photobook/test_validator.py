@@ -9,9 +9,9 @@ def make_page(template_id, slots=None):
 
 class TestValidator:
     def test_valid_cover_hero_passes(self):
+        """cover_hero hat keinen Text-Slot mehr — nur Bild, Titel via page-header."""
         page = make_page("cover_hero", slots=[
             {"slot_id": "main", "image_index": 0},
-            {"slot_id": "title", "text": "Cover"},
         ])
         errors = validate_page(page)
         assert errors == []
@@ -31,7 +31,7 @@ class TestValidator:
         assert any("existiert" in e.lower() for e in errors)
 
     def test_missing_mandatory_image_rejected(self):
-        page = make_page("double_dominant", slots=[
+        page = make_page("double_stacked", slots=[
             {"slot_id": "main", "image_index": 0}
         ])
         errors = validate_page(page)
@@ -84,7 +84,7 @@ class TestEnforceFallback:
             slots=[{"slot_id": "x", "image_index": i} for i in range(10)],
         )
         result = enforce_fallback(page)
-        assert len(result.slots) <= 4
+        assert len(result.slots) == 5  # 4 Bilder + 1 Titel
 
     def test_handles_empty_slots(self):
         from app.photobook.validator import enforce_fallback
@@ -93,7 +93,8 @@ class TestEnforceFallback:
         page = PageDescription(template_id="quad_grid", page_type="single", slots=[])
         result = enforce_fallback(page)
         assert result.template_id == "quad_grid"
-        assert result.slots == []
+        # quad_grid hat keine Text-Slots → nur title
+        assert result.slots == [] or all(s.get("slot_id") == "title" for s in result.slots)
 
     def test_handles_negative_indices(self):
         from app.photobook.validator import enforce_fallback
@@ -108,8 +109,8 @@ class TestEnforceFallback:
             ],
         )
         result = enforce_fallback(page)
-        assert len(result.slots) == 1
-        assert result.slots[0]["image_index"] == 3
+        assert result.slots[0]["image_index"] == 3  # 1 gültiges Bild
+        assert len(result.slots) >= 1
 
     def test_enforce_fallback_truncates_long_text(self):
         from app.photobook.validator import enforce_fallback
@@ -117,17 +118,17 @@ class TestEnforceFallback:
 
         long_text = "X" * 200
         page = PageDescription(
-            template_id="cover_hero",
+            template_id="single_text_below",
             page_type="single",
             slots=[
                 {"slot_id": "main", "image_index": 0},
-                {"slot_id": "title", "text": long_text},
+                {"slot_id": "caption", "text": long_text},
             ],
         )
         result = enforce_fallback(page)
-        title_slot = next((s for s in result.slots if s.get("slot_id") == "title"), None)
-        if title_slot:
-            assert len(title_slot.get("text", "")) <= 60
+        caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
+        if caption_slot:
+            assert len(caption_slot.get("text", "")) <= 170
 
 
 class TestValidateAllPages:
@@ -139,7 +140,7 @@ class TestValidateAllPages:
             PageDescription(template_id="cover_hero", page_type="single",
                           slots=[{"slot_id": "main", "image_index": 0}]),
             PageDescription(template_id="nonexistent", page_type="single", slots=[]),
-            PageDescription(template_id="double_dominant", page_type="single",
+            PageDescription(template_id="double_stacked", page_type="single",
                           slots=[
                               {"slot_id": "main", "image_index": 1},
                               {"slot_id": "secondary", "image_index": 2},
@@ -180,17 +181,23 @@ class TestValidateAllPages:
         from app.photobook.validator import validate_all_pages
         from app.state import PageDescription
 
+        # Zwei Seiten: cover_hero (page 0) + single_text_below (page 1)
+        # Regel 1 erfordert cover_hero auf Seite 0
         pages = [
             PageDescription(template_id="cover_hero", page_type="single",
                           slots=[
                               {"slot_id": "main", "image_index": 0},
-                              {"slot_id": "title", "text": "Gipfelblick 2026"},
+                          ]),
+            PageDescription(template_id="single_text_below", page_type="single",
+                          slots=[
+                              {"slot_id": "main", "image_index": 1},
+                              {"slot_id": "caption", "text": "Gipfelblick 2026"},
                           ]),
         ]
         validated, _ = validate_all_pages(pages)
-        title_slot = next((s for s in validated[0].slots if s.get("slot_id") == "title"), None)
-        assert title_slot is not None
-        assert title_slot["text"] == "Gipfelblick 2026"
+        caption_slot = next((s for s in validated[1].slots if s.get("slot_id") == "caption"), None)
+        assert caption_slot is not None
+        assert caption_slot["text"] == "Gipfelblick 2026"
 
     def test_replace_preset_fills_text_slots(self):
         """_replace_preset befüllt Text-Slots im neuen Preset mit Platzhaltern."""

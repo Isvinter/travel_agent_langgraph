@@ -8,15 +8,15 @@ MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(ra
 MOCK_PLAN = {"message": {"content": json.dumps({
     "pages": [
         {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
-        {"position": 1, "preset_id": "double_equal", "image_indices": [1, 2], "purpose": "Split"},
+        {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2], "purpose": "Split"},
         {"position": 2, "preset_id": "quad_grid", "image_indices": [3, 4, 5, 6], "purpose": "Grid"},
     ],
     "dramatic_arc": "test"
 })}}
 MOCK_GENERATE = {"message": {"content": json.dumps([
     {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]},
-    {"preset_id": "double_equal", "slots": [
-        {"slot_id": "left", "image_index": 1}, {"slot_id": "right", "image_index": 2},
+    {"preset_id": "double_stacked", "slots": [
+        {"slot_id": "top", "image_index": 1}, {"slot_id": "bottom", "image_index": 2},
     ]},
     {"preset_id": "quad_grid", "slots": [
         {"slot_id": "tl", "image_index": 3}, {"slot_id": "tr", "image_index": 4},
@@ -102,9 +102,9 @@ class TestPresetPipeline:
             "message": {"content": json.dumps({
                 "pages": [
                     {"position": 0, "preset_id": "cover_hero", "image_indices": [0]},
-                    {"position": 1, "preset_id": "double_equal", "image_indices": [1, 2]},
-                    {"position": 2, "preset_id": "triple_strip", "image_indices": [3, 4, 5]},
-                    {"position": 3, "preset_id": "single_full", "image_indices": [6]},
+                    {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2]},
+                    {"position": 2, "preset_id": "triple_stacked", "image_indices": [3, 4, 5]},
+                    {"position": 3, "preset_id": "single_text_left", "image_indices": [6]},
                     {"position": 4, "preset_id": "single_text_below", "image_indices": [7]},
                 ],
                 "dramatic_arc": "cover → buildup → highlight → closing"
@@ -120,17 +120,18 @@ class TestPresetPipeline:
                     {"slot_id": "main", "image_index": 0},
                     {"slot_id": "title", "text": "Bergtour 2026"},
                 ]},
-                {"preset_id": "double_equal", "slots": [
-                    {"slot_id": "left", "image_index": 1},
-                    {"slot_id": "right", "image_index": 2},
+                {"preset_id": "double_stacked", "slots": [
+                    {"slot_id": "top", "image_index": 1},
+                    {"slot_id": "bottom", "image_index": 2},
                 ]},
-                {"preset_id": "triple_strip", "slots": [
-                    {"slot_id": "left", "image_index": 3},
-                    {"slot_id": "center", "image_index": 4},
-                    {"slot_id": "right", "image_index": 5},
+                {"preset_id": "triple_stacked", "slots": [
+                    {"slot_id": "top", "image_index": 3},
+                    {"slot_id": "middle", "image_index": 4},
+                    {"slot_id": "bottom", "image_index": 5},
                 ]},
-                {"preset_id": "single_full", "slots": [
+                {"preset_id": "single_text_left", "slots": [
                     {"slot_id": "main", "image_index": 6},
+                    {"slot_id": "text", "text": "Rast am See"},
                 ]},
                 {"preset_id": "single_text_below", "slots": [
                     {"slot_id": "main", "image_index": 7},

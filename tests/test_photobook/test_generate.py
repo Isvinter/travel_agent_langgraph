@@ -7,7 +7,7 @@ from app.photobook.generate import generate_photobook_pages
 MOCK_PLAN = {
     "pages": [
         {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
-        {"position": 1, "preset_id": "double_equal", "image_indices": [1, 2], "purpose": "Aufstieg"},
+        {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2], "purpose": "Aufstieg"},
     ]
 }
 
@@ -18,9 +18,9 @@ MOCK_GENERATE_RESPONSE = {
                 {"slot_id": "main", "image_index": 0},
                 {"slot_id": "title", "text": "Gipfelblick"},
             ]},
-            {"preset_id": "double_equal", "slots": [
-                {"slot_id": "left", "image_index": 1},
-                {"slot_id": "right", "image_index": 2},
+            {"preset_id": "double_stacked", "slots": [
+                {"slot_id": "top", "image_index": 1},
+                {"slot_id": "bottom", "image_index": 2},
             ]},
         ])
     }
@@ -42,7 +42,7 @@ class TestGenerate:
         assert len(result) == 2
         assert isinstance(result[0], PageDescription)
         assert result[0].template_id == "cover_hero"
-        assert result[1].template_id == "double_equal"
+        assert result[1].template_id == "double_stacked"
 
     def test_fallback_on_empty_plan(self):
         result = generate_photobook_pages(
@@ -71,7 +71,7 @@ class TestGenerate:
         plan = {
             "pages": [
                 {"position": 0, "preset_id": "cover_hero", "image_indices": [0]},
-                {"position": 1, "preset_id": "double_equal", "image_indices": [1, 2]},
+                {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2]},
             ]
         }
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(3)]
@@ -79,7 +79,7 @@ class TestGenerate:
             pages = generate_photobook_pages(plan, images, None, None, model="test")
         assert len(pages) == 2
         assert pages[0].template_id == "cover_hero"
-        assert pages[1].template_id == "double_equal"
+        assert pages[1].template_id == "double_stacked"
 
     def test_generate_includes_titles_and_captions(self):
         """LLM-Response mit 'title' und 'text' Feldern muss korrekt geparst werden."""

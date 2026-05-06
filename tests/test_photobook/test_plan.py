@@ -11,7 +11,7 @@ MOCK_PLAN_RESPONSE = {
         "content": json.dumps({
             "pages": [
                 {"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"},
-                {"position": 1, "preset_id": "double_equal", "image_indices": [7, 12], "purpose": "Aufstieg"},
+                {"position": 1, "preset_id": "double_stacked", "image_indices": [7, 12], "purpose": "Aufstieg"},
                 {"position": 2, "preset_id": "quad_grid", "image_indices": [0, 2, 5, 8], "purpose": "Sammlung"},
             ],
             "dramatic_arc": "intro -> buildup -> variation"

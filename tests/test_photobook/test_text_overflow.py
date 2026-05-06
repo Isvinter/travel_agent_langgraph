@@ -6,24 +6,24 @@ from app.state import PageDescription
 class TestTextOverflow:
     def test_text_within_limit_passes(self):
         page = PageDescription(
-            template_id="cover_hero",
+            template_id="single_text_below",
             page_type="single",
             slots=[
                 {"slot_id": "main", "image_index": 0},
-                {"slot_id": "title", "text": "Kurzer Titel"},
+                {"slot_id": "caption", "text": "Kurzer Titel"},
             ],
         )
         errors = validate_page(page)
         assert errors == []
 
     def test_text_exceeding_limit_reported(self):
-        long_text = "X" * 100
+        long_text = "X" * 200
         page = PageDescription(
-            template_id="cover_hero",
+            template_id="single_text_below",
             page_type="single",
             slots=[
                 {"slot_id": "main", "image_index": 0},
-                {"slot_id": "title", "text": long_text},
+                {"slot_id": "caption", "text": long_text},
             ],
         )
         errors = validate_page(page)

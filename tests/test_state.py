@@ -178,7 +178,7 @@ class TestPageDescription:
         """PageDescription mit gefüllten Slots."""
         from app.state import PageDescription
         pd = PageDescription(
-            template_id="double_dominant",
+            template_id="double_stacked",
             page_type="spread",
             slots=[{"slot_id": "main", "image_index": 0}],
         )
