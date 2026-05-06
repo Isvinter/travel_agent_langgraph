@@ -85,7 +85,7 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 | Database | `app/db/` | SQLAlchemy ORM models, connection, repository pattern |
 | API | `app/api/` | FastAPI server, routes, SSE events |
 | Utils | `app/utils/` | EXIF helpers, image compression/base64 encoding |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (14 components, 2 stores) |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (13 components, 2 stores) |
 
 ## Tech Stack
 
@@ -257,13 +257,13 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   │   ├── FileDropZone.svelte     # GPX + image drag-and-drop upload
 │   │   │   ├── LengthSelector.svelte   # Blog length preset picker
 │   │   │   ├── ModelSelector.svelte    # Ollama model picker
-│   │   │   ├── ModeTabs.svelte         # Blog / Photobook mode switch
+│   │   │   ├── SettingsTabs.svelte      # Blog / Photobook settings tabs
 │   │   │   ├── NotesInput.svelte       # Optional tour notes textarea
 │   │   │   ├── OutputDirInput.svelte   # Output directory config
 │   │   │   ├── OutputWindow.svelte     # Live SSE progress + result display
 │   │   │   ├── PdfExportCheckbox.svelte # PDF export toggle
 │   │   │   ├── PhotobookSizeSelector.svelte # Photobook size picker
-│   │   │   ├── RunButton.svelte        # Pipeline start button
+│   │   │   ├── RunButton.svelte        # Pipeline start button (auto-detects mode)
 │   │   │   ├── StyleSelector.svelte    # Persona picker
 │   │   │   └── WildcardCount.svelte    # Max image config
 │   │   ├── App.svelte          # Root component
@@ -367,7 +367,7 @@ Configured in `app/state.py`:
 - `qwen3.6:27b-ctx128k`
 - `qwen3.6:35b-ctx128k`
 
-Custom models can be entered interactively in the CLI pipeline.
+Custom models can be entered interactively in the CLI pipeline (not in the web UI).
 
 ## License
 
