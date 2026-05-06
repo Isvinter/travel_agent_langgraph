@@ -116,7 +116,20 @@ def generate_photobook_pages(
                 pages_data = json.loads(array_match.group())
                 # Debug: zeige wie viele Text-Slots das LLM gefuellt hat
                 text_slots = sum(1 for pd in pages_data for s in pd.get("slots", []) if "text" in s)
-                print(f"  → LLM hat {text_slots} Text-Slots gefüllt (von {len(pages_data)} Seiten)")
+                total_pages = len(pages_data)
+                print(f"  → LLM hat {text_slots} Text-Slots gefüllt (von {total_pages} Seiten)")
+                # Debug: zeige die ersten paar Text-Inhalte
+                text_samples = [
+                    (pd.get("preset_id","?"), s.get("slot_id","?"), s.get("text","")[:40])
+                    for pd in pages_data
+                    for s in pd.get("slots", [])
+                    if "text" in s and s.get("text", "").strip()
+                ]
+                if text_samples:
+                    for pid, sid, t in text_samples[:5]:
+                        print(f"    {pid}/{sid}: \"{t}...\"")
+                elif total_pages > 0:
+                    print(f"    ⚠️ LLM hat KEINE Text-Inhalte generiert!")
                 result = []
                 for pd in pages_data:
                     valid_slots = []

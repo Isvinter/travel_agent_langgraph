@@ -10,12 +10,14 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0;
+  padding-bottom: 5mm;
 }
 
 .photobook-page {
   background: #fff;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  flex-shrink: 0;
 }
 
 /* --- Universelle Seiten-Struktur --- */
@@ -326,7 +328,7 @@ body {
 /* --- Print --- */
 
 @media print {
-  body { background: #fff; }
+  body { background: #fff; padding-bottom: 0; }
   .photobook-page {
     box-shadow: none;
     page-break-after: always;

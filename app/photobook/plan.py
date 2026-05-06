@@ -44,7 +44,7 @@ PRESETS (waehle eins pro Seite):
 {preset_catalog}
 
 VARIETY-REGELN (UNBEDINGT EINHALTEN):
-1. Maximal 2x das gleiche Preset im gesamten Buch
+1. Maximal 2x das gleiche Preset im gesamten Buch (cover_hero NUR auf Seite 0, niemals woanders)
 2. Nicht 2x hintereinander das gleiche Preset
 3. Maximal 3 Seiten ohne Text hintereinander
 4. Nicht 3x hintereinander die gleiche Bildanzahl

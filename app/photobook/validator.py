@@ -120,8 +120,12 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
                 text = text[:sd.char_limit]
             repaired_slots.append({"slot_id": sid, "text": text})
         elif slot.get("text"):
-            # Fallback: versuche Text via text_role zuzuordnen
+            # Fallback: versuche Text zuzuordnen
             matched_sid = text_role_map.get(sid)
+            # Wenn slot_id nicht direkt im text_role_map ist, und es gibt
+            # nur einen Text-Slot im Preset, weise den Text diesem zu
+            if not matched_sid and len(text_role_map) == 1:
+                matched_sid = list(text_role_map.values())[0]
             if matched_sid:
                 sd = slot_defs[matched_sid]
                 text = slot["text"]
@@ -170,12 +174,13 @@ def check_variety(pages: List[PageDescription]) -> List[PageDescription]:
     if result[0].template_id != "cover_hero":
         result[0] = _replace_preset(result[0], "cover_hero")
 
-    # Regel 2 + 3: Kein Preset >2× insgesamt, kein Back-to-Back
+    # Regel 2 + 3: Kein Preset >2× insgesamt, cover_hero nur 1×, kein Back-to-Back
     preset_counts = {}
     for i, page in enumerate(result):
         pid = page.template_id
         count = preset_counts.get(pid, 0) + 1
-        if count > 2:
+        max_allowed = 1 if pid == "cover_hero" else 2
+        if count > max_allowed:
             replacement = _find_alternative_preset(pid, preset_counts)
             result[i] = _replace_preset(page, replacement)
             pid = replacement
