@@ -44,7 +44,7 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes):
     # Bilde Text-Slot-Pflicht basierend auf den verwendeten Presets
     text_required = any(all_presets.get(pid) and all_presets[pid].has_text for pid in used_preset_ids)
 
-    return f"""Du befuellst die Slots der gewaehlten Presets mit Bildern und Text.
+    return f"""Du befuellst die Slots der gewaehlten Presets mit Bildern und ausfuehrlichem Text.
 
 SEITENPLAN (preset_id pro Seite):
 {plan_text}
@@ -55,19 +55,20 @@ VERWENDETE PRESETS (nur diese sind relevant):
 
 {constraints}
 
-{"TEXT IST PFLICHT: Hat ein Preset Text-Slots, MUSST du diese befuellen. Lass KEINEN Text-Slot leer. Betrachte die Bilder und beschreibe, was du siehst." if text_required else ""}
+{"TEXT IST PFLICHT: Hat ein Preset Text-Slots, MUSST du diese befuellen. Lass KEINEN Text-Slot leer. Betrachte die Bilder und beschreibe ausfuehrlich, was du siehst — Landschaft, Stimmung, Farben, Details, Wetter." if text_required else ""}
 
 AUFGABE PRO SEITE:
 1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
-2. Text-Rollen: title (stimmungsvoller Titel, 60 Z.), caption (Bildbeschreibung, 170 Z.), intro (Einleitung, 400 Z.).
-3. Generiere kurze, passende Texte — innerhalb der Zeichenlimits.
+2. Text-Rollen: title (stimmungsvoller Titel, 60 Z.), caption (ausfuehrliche Bildbeschreibung, max. 500 Z.), intro (detaillierte Einleitung, max. 1200 Z.).
+3. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter, was auf den Bildern zu sehen ist. Nutze die Zeichenlimits WIRKLICH aus.
 4. JEDE Seite MUSS einen title-Slot haben: {{"slot_id": "title", "text": "Einzeiliger Seitentitel"}}
+5. Bei Presets mit MEHREREN Bildern (quad_grid, double_stacked, triple_stacked): beschreibe den Gesamteindruck der Bildgruppe, nicht nur ein einzelnes Bild.
 
 BEISPIELE:
 - cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}, {{"slot_id": "main", "image_index": 0}}]}}]
-- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "title", "text": "Alpenwiese"}}, {{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Weitblick ueber das Tal"}}]}}]
+- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "title", "text": "Alpenwiese"}}, {{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Ein atemberaubender Weitblick ueber das Tal. Die Morgensonne taucht die gegenüberliegenden Berggipfel in warmes, goldenes Licht. In der Ferne sind vereinzelte Wanderer auf dem schmalen Gratweg zu erkennen, während unter uns die Nebelschwaden langsam aus dem Tal aufsteigen."}}]}}]
 - double_stacked (KEIN Text): [{{"preset_id": "double_stacked", "slots": [{{"slot_id": "title", "text": "Aufstieg"}}, {{"slot_id": "top", "image_index": 3}}, {{"slot_id": "bottom", "image_index": 4}}]}}]
-- image_text_split: [{{"preset_id": "image_text_split", "slots": [{{"slot_id": "title", "text": "Kapitel 1"}}, {{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Nach drei Stunden erreichten wir die Baumgrenze."}}]}}]
+- image_text_split: [{{"preset_id": "image_text_split", "slots": [{{"slot_id": "title", "text": "Kapitel 1"}}, {{"slot_id": "image", "image_index": 2}}, {{"slot_id": "text", "text": "Nach drei Stunden stetigen Aufstiegs durch dichten Fichtenwald erreichten wir endlich die Baumgrenze. Vor uns erstreckte sich ein weites Hochplateau, übersät mit bunten Alpenblumen. Der Wind frischte auf und trug den Duft von wildem Thymian heran. Wir legten eine wohlverdiente Rast ein und genossen den ersten unverstellten Blick auf die gegenüberliegende Gipfelkette, deren schroffe Zacken sich scharf gegen den tiefblauen Himmel abzeichneten."}}]}}]
 
 ANTWORTE NUR mit JSON-Array:"""
 
@@ -101,7 +102,7 @@ def generate_photobook_pages(
                 "images": encoded_images,
             }],
             "stream": False,
-            "options": {"temperature": 0.3, "num_predict": 8192},
+            "options": {"temperature": 0.3, "num_predict": 16384},
             "keep_alive": "10m",
         }
         resp = requests.post(

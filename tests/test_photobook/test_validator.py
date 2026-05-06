@@ -128,7 +128,7 @@ class TestEnforceFallback:
         result = enforce_fallback(page)
         caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
         if caption_slot:
-            assert len(caption_slot.get("text", "")) <= 170
+            assert len(caption_slot.get("text", "")) <= 500
 
 
 class TestValidateAllPages:

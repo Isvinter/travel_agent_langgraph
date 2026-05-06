@@ -10,6 +10,6 @@
     {"id": "small1", "type": "image", "priority": "secondary", "css_area": "small1", "optional": false},
     {"id": "small2", "type": "image", "priority": "secondary", "css_area": "small2", "optional": false},
     {"id": "small3", "type": "image", "priority": "secondary", "css_area": "small3", "optional": false},
-    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 170, "font_size": "10pt", "text_role": "caption", "optional": true}
+    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 500, "font_size": "10pt", "text_role": "caption", "optional": true}
   ]
 }

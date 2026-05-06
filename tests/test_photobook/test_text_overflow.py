@@ -17,7 +17,7 @@ class TestTextOverflow:
         assert errors == []
 
     def test_text_exceeding_limit_reported(self):
-        long_text = "X" * 200
+        long_text = "X" * 600
         page = PageDescription(
             template_id="single_text_below",
             page_type="single",
@@ -31,7 +31,7 @@ class TestTextOverflow:
         assert any("Zeichen" in e for e in errors)
 
     def test_enforce_fallback_truncates_text(self):
-        long_text = "A" * 200
+        long_text = "A" * 600
         page = PageDescription(
             template_id="single_text_below",
             page_type="single",
@@ -43,4 +43,4 @@ class TestTextOverflow:
         result = enforce_fallback(page)
         caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
         assert caption_slot is not None
-        assert len(caption_slot["text"]) <= 170
+        assert len(caption_slot["text"]) <= 500

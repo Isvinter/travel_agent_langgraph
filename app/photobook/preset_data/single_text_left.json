@@ -6,7 +6,7 @@
   "has_text": true,
   "css_class": "preset-single-text-left",
   "slots": [
-    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 170, "font_size": "10pt", "text_role": "caption", "optional": true},
+    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 500, "font_size": "10pt", "text_role": "caption", "optional": true},
     {"id": "main", "type": "image", "priority": "primary", "css_area": "main", "optional": false}
   ]
 }

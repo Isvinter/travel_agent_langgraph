@@ -7,6 +7,6 @@
   "css_class": "preset-image-text-split",
   "slots": [
     {"id": "image", "type": "image", "priority": "primary", "css_area": "image", "optional": false},
-    {"id": "text", "type": "text", "css_area": "text", "char_limit": 400, "font_size": "11pt", "text_role": "intro", "optional": false}
+    {"id": "text", "type": "text", "css_area": "text", "char_limit": 1200, "font_size": "11pt", "text_role": "intro", "optional": false}
   ]
 }
