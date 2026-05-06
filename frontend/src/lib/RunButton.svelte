@@ -83,13 +83,11 @@
 
   let rs = $derived($runState);
   let buttonLabel = $derived(
-    rs === "running" || loading
-      ? "Läuft…"
-      : rs === "done"
-        ? "✓ Abgeschlossen"
-        : rs === "failed"
-          ? "✗ Fehlgeschlagen — Erneut"
-          : "▶ Pipeline starten"
+    rs === "done"
+      ? "✓ Abgeschlossen"
+      : rs === "failed"
+        ? "✗ Fehlgeschlagen — Erneut"
+        : "▶ Pipeline starten"
   );
 </script>
 
