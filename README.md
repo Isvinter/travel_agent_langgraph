@@ -1,46 +1,79 @@
 # Travel Agent LangGraph
 
-Automatically turn GPX hiking tracks and tour photos into richly illustrated, long-form blog posts — powered by a [LangGraph](https://langchain-oss.github.io/langgraph/) pipeline and local multimodal LLMs via [Ollama](https://ollama.com).
+Automatically turn GPX hiking tracks and tour photos into richly illustrated blog posts **and A4 photo books** — powered by a [LangGraph](https://langchain-oss.github.io/langgraph/) pipeline and local multimodal LLMs via [Ollama](https://ollama.com).
 
 ## Features
 
+### Blog Pipeline
 - **GPX Analytics** — parses track files, computes distance, elevation, speed stats, and detects rest pauses
 - **Image ingestion** — loads photos from a directory, extracts EXIF GPS coordinates and timestamps
 - **Location clustering** — groups geotagged photos taken at the same spot (density-based, 20 m radius)
 - **Map generation** — renders an interactive Folium map and captures it as a PNG via headless Chrome
 - **Elevation profile** — Matplotlib chart of elevation vs. distance
-- **Historical weather** — fetches past weather data via Open-Meteo Archive API (no API key required), estimates 0°C freezing level from elevation data
-- **POI discovery** — queries Overpass API for ~60 outdoor-relevant POI categories (peaks, waterfalls, huts, ruins, castles, shelters, etc.) near pause locations, with multi-instance fallback, exponential backoff retry, and file-based JSON cache; enriches with Wikipedia extracts (no API key required)
-- **AI content review** — LLM quality gate that curates enrichment data: filters irrelevant POIs, discards non-applicable weather fields, rates image suitability, scores overall coherence
-- **AI image selection** — multimodal LLM selects the best photos for the blog (batched, iterative)
-- **AI blog generation** — multimodal LLM writes a narrative travel blog post enriched with weather, POIs, images, map, and elevation profile
-- **AI blog design** — template-based CSS styling wraps generated HTML into a polished, responsive layout
-- **Outputs** — styled HTML + Markdown files with compressed JPEG images, map, and elevation profile in a timestamped `output/` directory
-- **PDF export** — generate downloadable PDFs from article HTML via headless Chrome CDP, available as a pipeline checkbox ("Als PDF exportieren") and from the article detail view
-- **Database persistence** — SQLAlchemy-powered storage for generated articles with filterable queries (tour date, duration, generation time). Image paths stored, not BLOBs. Defaults to SQLite, PostgreSQL-ready via `DATABASE_URL` env var
-- **Article browser** — filterable article table with checkboxes, single/batch delete with confirmation dialog, inline HTML rendering with images served via API
-- **Web UI** — Svelte 5 frontend with drag-and-drop file uploads (GPX, images, .txt notes), live SSE progress streaming, model selection, output config (wildcard count, article length, style persona, PDF export toggle)
-- **REST API** — FastAPI backend with pipeline run/stream, article CRUD + batch delete, PDF export, image serving, file upload endpoints
+- **Historical weather** — fetches past weather data via Open-Meteo Archive API (no API key required)
+- **POI discovery** — queries Overpass API for outdoor-relevant POI categories near pause locations
+- **AI content review** — LLM quality gate curates enrichment data (POIs, weather, images, coherence)
+- **AI image selection** — multimodal LLM selects best photos for the blog (batched, iterative)
+- **AI blog generation** — multimodal LLM writes narrative travel blog enriched with weather, POIs, images, map
+- **AI blog design** — template-based CSS styling wraps HTML into polished responsive layout
+- **PDF export** — downloadable PDFs via headless Chrome CDP
+- **Database persistence** — SQLAlchemy with filterable article queries, PostgreSQL-ready
+- **Article browser** — filterable table, batch delete, inline HTML rendering with images
+- **Web UI** — Svelte 5 frontend with drag-and-drop, live SSE progress streaming
+
+### Photobook Pipeline (NEW)
+- **Dedicated image selection** — multimodal LLM selects best photos for print layout (batched, tolerate parsing)
+- **AI layout planning** — LLM chooses from 18 A4 presets (1–5 images/page) with variety rules
+- **AI text generation** — LLM writes page titles and detailed captions (up to 500 chars) describing what's visible in each image group, with landscape/stimmung/colors/weather awareness
+- **Deterministic validation** — enforces variety rules (no duplicate cover, max 3 textless pages, diverse image counts), upgrades textless presets when LLM generates captions, truncates overflow
+- **CSS Grid rendering** — each preset renders as a precise 210×297mm page with A4 print CSS
+- **PDF export** — headless Chrome CDP with print media emulation
+- **HTML debug output** — intermediate HTML saved alongside PDF for inspection
+- **Pipeline separation** — photobook mode branches early, skipping expensive blog enrichment nodes
 
 ## Architecture
 
+The pipeline uses a single LangGraph `StateGraph` with two mode-dependent execution paths:
+
 ```
-process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes → enrich_weather → enrich_poi → select_images → review_content → generate_blog_post → design_blogpost → persist_article → generate_pdf
+process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes
+                                                                                                │
+                                                                             ┌──────────────────┘
+                                                                             ↓
+                                                              mode=photobook │ mode=blog
+                                                                             ↓
+                                                    select_photobook_images   enrich_weather
+                                                              │               ↓
+                                                       plan_photobook      enrich_poi
+                                                              │               ↓
+                                                     generate_photobook    select_images
+                                                              │               ↓
+                                                      render_photobook    review_content
+                                                              │               ↓
+                                                   generate_photobook_pdf  generate_enriched_map
+                                                                             │
+                                                                     generate_blog_post
+                                                                             │
+                                                                     design_blogpost → persist_article → (PDF) → END
 ```
 
-All steps are LangGraph nodes that read and write a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` that delegate to pure functions in `app/services/`.
+**Photobook mode** branches at `load_tour_notes`, skipping 6 blog-only enrichment nodes.
+
+All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` delegating to services.
 
 | Layer | Module | Purpose |
 |-------|--------|---------|
-| State | `app/state.py` | `AppState` (images, clusters, GPX stats, weather, POIs, enrichment context, notes, blog_post) + `ImageData`, `DailyWeather`, `WeatherInfo`, `OutputConfig` |
-| Graph | `app/graph.py` | LangGraph `StateGraph` definition — nodes, edges, entry/finish points |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) — 14 nodes total |
-| Services | `app/services/*.py` | Business logic: GPX parsing, image loading, EXIF extraction, clustering, map generation, elevation profiles, weather enrichment (Open-Meteo), POI enrichment (Overpass + Wikipedia), content review (LLM quality gate), blog generation, blog design (template-based HTML/CSS), image selection, article persistence, PDF generation (headless Chrome CDP) |
-| Database | `app/db/` | SQLAlchemy ORM models (`Article`, `ArticleImage`), repository pattern (CRUD + batch delete), connection management, auto-indexes. Default SQLite, PostgreSQL-ready |
-| Pipeline | `app/pipeline/process_images.py` | Higher-level image processing orchestration |
-| API | `app/api/` | FastAPI server, routes (CRUD, batch delete, image serving), SSE event manager |
-| Utils | `app/utils/` | Low-level EXIF helpers |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (12 components)
+| State | `app/state.py` | `AppState`, `ImageData`, `PageDescription`, `PhotobookConfig`, `OutputConfig` |
+| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 20 nodes |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`) |
+| Services | `app/services/*.py` | Blog business logic (GPX, images, clustering, maps, weather, POIs, review, blog, design, PDF) |
+| Photobook | `app/photobook/*.py` | Photobook module: plan, generate, render, validate, PDF, image selection, 18 presets |
+| Presets | `app/photobook/preset_data/` | 18 JSON preset definitions with CSS grid areas and text constraints |
+| CSS | `app/photobook/styles.css` | A4-optimized print CSS with 18 preset grid layouts |
+| Database | `app/db/` | SQLAlchemy ORM models, repository pattern |
+| API | `app/api/` | FastAPI server, routes, SSE events |
+| Utils | `app/utils/` | EXIF helpers, image compression/base64 encoding |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA |
 
 ## Tech Stack
 
@@ -137,46 +170,28 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 ├── app/
 │   ├── api/            # FastAPI server, routes, SSE events
 │   ├── db/             # SQLAlchemy models, connection, repository
-│   ├── nodes/          # LangGraph pipeline nodes (thin wrappers, 14 nodes)
-│   ├── services/       # Business logic (15 services: GPX, images, clustering, maps, weather, POIs, review, blog, persistence, PDF, etc.)
-│   ├── pipeline/       # Higher-level image processing orchestration
-│   ├── utils/          # EXIF helpers
-│   ├── graph.py        # StateGraph builder + build_graph() + run_pipeline()
-│   └── state.py        # AppState, ImageData, DailyWeather, WeatherInfo Pydantic models
-├── frontend/           # Svelte 5 + Vite + TypeScript SPA (11 components)
-│   ├── src/
-│   │   ├── App.svelte
-│   │   └── lib/
-│   │       ├── stores/          # pipeline.ts, router.ts
-│   │       ├── ArticleList.svelte
-│   │       ├── ArticleDetail.svelte
-│   │       ├── FileDropZone.svelte
-│   │       ├── ModelSelector.svelte
-│   │       ├── NotesInput.svelte
-│   │       ├── OutputDirInput.svelte
-│   │       ├── OutputWindow.svelte
-│   │       ├── RunButton.svelte
-│   │       ├── WildcardCount.svelte
-│   │       ├── LengthSelector.svelte
-│   │       ├── StyleSelector.svelte
-│   │       └── PdfExportCheckbox.svelte
-│   └── dist/           # Production build (served by FastAPI)
-├── tests/              # pytest suite (unit, integration, e2e)
-│   ├── test_api/       # API-specific tests
-│   ├── test_graph/     # Graph/integration tests
-│   ├── test_nodes/     # Per-node unit tests
-│   ├── test_services/  # Per-service unit tests
-│   └── fixtures/       # Test data (GPX, images, notes)
-├── docs/               # Design specs and implementation plans
-├── data/               # Runtime input data (gitignored)
-│   ├── gpx/
-│   ├── images/
-│   ├── notes/
-│   └── uploads/
-├── output/             # Generated blog posts (gitignored, timestamped subdirs)
-├── main.py             # CLI entry point (reference only — hardcoded GPX path)
-├── pyproject.toml      # Dependencies and project config
-└── uv.lock             # Lock file
+│   ├── nodes/          # LangGraph pipeline nodes (20 nodes for blog + photobook)
+│   ├── services/       # Blog business logic (GPX, images, clustering, weather, etc.)
+│   ├── photobook/      # Photobook module
+│   │   ├── preset_data/    # 18 JSON preset definitions
+│   │   ├── styles.css      # A4 print CSS with 18 grid layouts
+│   │   ├── plan.py         # LLM Pass 1: layout planning
+│   │   ├── generate.py     # LLM Pass 2: slot assignment + text
+│   │   ├── renderer.py     # HTML assembler from PageDescription
+│   │   ├── validator.py    # Deterministic variety + text enforcement
+│   │   ├── generate_pdf.py # Headless Chrome PDF via CDP
+│   │   ├── image_selector.py  # Multimodal batch image selection
+│   │   └── presets.py      # Preset catalog + text constraints
+│   ├── utils/          # EXIF helpers, image compression/base64
+│   ├── graph.py        # StateGraph builder with mode-dependent branching
+│   ├── state.py        # AppState, PageDescription, PhotobookConfig
+│   └── config.py       # OLLAMA_BASE_URL, OUTPUT_DIR, PHOTOBOOK_SIZE_MAP
+├── frontend/           # Svelte 5 + Vite + TypeScript SPA
+├── tests/              # pytest suite
+│   └── test_photobook/ # Photobook-specific tests (73 tests)
+├── output/             # Generated output (gitignored, timestamped subdirs)
+├── pyproject.toml
+└── uv.lock
 ```
 
 ## Running Tests
