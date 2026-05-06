@@ -47,9 +47,9 @@ class TestRenderer:
         assert 'grid-area: caption' in html
 
     def test_render_includes_page_header(self):
-        """Jede Seite hat einen page-header mit Titel."""
+        """Nicht-Cover-Seiten haben einen page-header mit Titel."""
         pages = [
-            PageDescription(template_id="cover_hero", page_type="single",
+            PageDescription(template_id="single_full", page_type="single",
                           slots=[{"slot_id": "main", "image_index": 0}]),
         ]
         html = render_photobook(pages, TEST_IMAGES)
@@ -57,10 +57,22 @@ class TestRenderer:
         assert "page-title" in html
         assert "page-content" in html
 
-    def test_render_title_in_header_not_in_content(self):
-        """Title-Slot wird im page-header gerendert, nicht im page-content."""
+    def test_render_cover_page_has_overlay(self):
+        """Cover-Seite hat kein page-header sondern ein cover-overlay."""
         pages = [
             PageDescription(template_id="cover_hero", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
+        ]
+        html = render_photobook(pages, TEST_IMAGES)
+        assert "cover-page" in html
+        assert "cover-overlay" in html
+        assert "cover-image" in html
+        assert '<div class="page-header">' not in html  # Cover hat kein page-header
+
+    def test_render_title_in_header_not_in_content(self):
+        """Title-Slot wird im page-header einer normalen Seite gerendert."""
+        pages = [
+            PageDescription(template_id="single_full", page_type="single",
                           slots=[
                               {"slot_id": "main", "image_index": 0},
                               {"slot_id": "title", "text": "Mein Titel"},

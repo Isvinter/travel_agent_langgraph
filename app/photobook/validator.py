@@ -99,6 +99,12 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
         repaired_slots.append(slot_data)
 
     # Text-Slots aus Original übernehmen, dabei Char-Limit kürzen
+    # Baue text_role → slot_id Mapping für Fallback-Matching
+    text_role_map = {}
+    for sid, sd in slot_defs.items():
+        if sd.type == "text":
+            text_role_map[sd.text_role or sid] = sid
+
     for slot in page.slots:
         sid = slot.get("slot_id", "")
         # Titel-Slot wird universell beibehalten (page-header)
@@ -107,13 +113,21 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
             if len(text) > 60:
                 text = text[:60]
             repaired_slots.append({"slot_id": sid, "text": text})
-        elif sid in slot_defs:
+        elif sid in slot_defs and slot_defs[sid].type == "text" and slot.get("text"):
             sd = slot_defs[sid]
-            if sd.type == "text" and slot.get("text"):
+            text = slot["text"]
+            if sd.char_limit and len(text) > sd.char_limit:
+                text = text[:sd.char_limit]
+            repaired_slots.append({"slot_id": sid, "text": text})
+        elif slot.get("text"):
+            # Fallback: versuche Text via text_role zuzuordnen
+            matched_sid = text_role_map.get(sid)
+            if matched_sid:
+                sd = slot_defs[matched_sid]
                 text = slot["text"]
                 if sd.char_limit and len(text) > sd.char_limit:
                     text = text[:sd.char_limit]
-                repaired_slots.append({"slot_id": sid, "text": text})
+                repaired_slots.append({"slot_id": matched_sid, "text": text})
 
     # Stelle sicher, dass ALLE Text-Slots befüllt sind (Platzhalter falls LLM sie leer lässt)
     for sid, sd in slot_defs.items():

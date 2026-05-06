@@ -47,10 +47,14 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
     for page_idx, page in enumerate(pages):
         preset = load_preset(page.template_id)
         css_class = preset.css_class
-
-        # Seitentitel aus den Slots extrahieren
         page_title = _extract_title(page, page_idx)
 
+        # Cover-Seite: Vollbild mit Titel-Overlay, kein page-header
+        if page.template_id == "cover_hero":
+            html_parts.append(_render_cover_page(page, page_title, images))
+            continue
+
+        # Normale Seite: page-header + page-content
         html_parts.append('<div class="photobook-page page-single">')
         html_parts.append('<div class="page-header">')
         html_parts.append(f'<div class="page-title">{html.escape(page_title)}</div>')
@@ -66,7 +70,6 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
             if not slot_def:
                 continue
 
-            # Titel wird schon im page-header gerendert, nicht nochmal im content
             if slot_def.text_role == "title":
                 continue
 
@@ -107,6 +110,34 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
 
     html_parts.append(PHOTOBOOK_FOOTER)
     return "\n".join(html_parts)
+
+
+def _render_cover_page(page: PageDescription, title: str, images: List[ImageData]) -> str:
+    """Rendert die Cover-Seite als Vollbild mit Titel-Overlay."""
+    preset = load_preset(page.template_id)
+    parts = ['<div class="photobook-page page-single cover-page">']
+
+    # Cover-Bild
+    for slot_data in page.slots:
+        slot_id = slot_data.get("slot_id", "")
+        if slot_id == "title":
+            continue
+        idx = slot_data.get("image_index", -1)
+        if 0 <= idx < len(images):
+            img_path = _normalize_path(images[idx].path)
+            parts.append(
+                f'<img class="cover-image" '
+                f'src="{img_path}" alt="Cover">'
+            )
+
+    # Titel-Overlay
+    parts.append('<div class="cover-overlay">')
+    parts.append(f'<div class="cover-book-title">Fotobuch</div>')
+    parts.append(f'<div class="cover-title">{html.escape(title)}</div>')
+    parts.append('</div>')
+
+    parts.append('</div>')
+    return "\n".join(parts)
 
 
 def _extract_title(page: PageDescription, page_idx: int) -> str:
