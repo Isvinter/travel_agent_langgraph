@@ -10,7 +10,6 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0;
-  padding-bottom: 5mm;
 }
 
 .photobook-page {
@@ -18,6 +17,17 @@ body {
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   flex-shrink: 0;
+  page-break-after: always;
+}
+
+.photobook-page:last-child {
+  page-break-after: avoid;
+}
+
+@media screen {
+  body {
+    padding-bottom: 5mm;
+  }
 }
 
 /* --- Universelle Seiten-Struktur --- */
@@ -77,18 +87,18 @@ body {
 .slot-text {
   font-size: 11pt;
   line-height: 1.6;
-  color: #444;
+  color: #333;
   padding: 4mm;
-  display: flex;
-  align-items: flex-start;
+  display: block;
 }
 
 .slot-caption {
-  font-size: 9pt;
-  color: #777;
+  font-size: 10pt;
+  color: #555;
   font-style: italic;
   line-height: 1.4;
-  padding: 3mm 0 0 0;
+  padding: 2mm 0 0 0;
+  display: block;
 }
 
 .slot-title {
@@ -96,8 +106,7 @@ body {
   font-weight: bold;
   color: #222;
   padding: 4mm;
-  display: flex;
-  align-items: center;
+  display: block;
 }
 
 /* --- Cover (1) --- */
@@ -105,12 +114,13 @@ body {
 .cover-page {
   position: relative;
   padding: 0;
+  background-color: #1a1a2e;
 }
 
 .cover-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
@@ -331,7 +341,5 @@ body {
   body { background: #fff; padding-bottom: 0; }
   .photobook-page {
     box-shadow: none;
-    page-break-after: always;
   }
-  .photobook-page:last-child { page-break-after: avoid; }
 }

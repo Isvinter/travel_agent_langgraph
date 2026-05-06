@@ -49,7 +49,7 @@ class TestPresetLoader:
         assert len(text_slots) >= 1
         caption = text_slots[0]
         assert caption.char_limit == 170
-        assert caption.font_size == "9pt"
+        assert caption.font_size == "10pt"
         assert caption.text_role == "caption"
 
 
@@ -86,5 +86,5 @@ class TestPresetCatalog:
         assert "170" in summary
         assert "400" in summary
         assert "14pt" in summary
-        assert "9pt" in summary
+        assert "10pt" in summary
         assert "11pt" in summary

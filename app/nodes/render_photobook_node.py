@@ -13,10 +13,30 @@ def render_photobook_node(state: AppState) -> AppState:
     if not state.photobook_pages:
         print("⚠️ Keine Seiten zum Rendern vorhanden.")
         return state
+
+    # --- Debug: zeige Seiten vor Validierung ---
+    print(f"  Seiten vor Validierung: {len(state.photobook_pages)}")
+    for i, p in enumerate(state.photobook_pages):
+        text_slots = [s for s in p.slots if "text" in s]
+        title_slot = next((s for s in p.slots if s.get("slot_id") == "title"), None)
+        caption_slots = [s for s in p.slots if s.get("slot_id") != "title" and "text" in s]
+        print(f"  Seite {i+1} ({p.template_id}): title={title_slot.get('text','')[:40] if title_slot else 'NONE'}, {len(caption_slots)} caption(s)")
+
     validated_pages, warnings = validate_all_pages(state.photobook_pages)
     if warnings:
         for w in warnings:
             print(f"⚠️ Validator: {w}")
+
+    # --- Debug: zeige Seiten nach Validierung ---
+    print(f"  Seiten nach Validierung: {len(validated_pages)}")
+    for i, p in enumerate(validated_pages):
+        text_slots = [s for s in p.slots if "text" in s]
+        title_slot = next((s for s in p.slots if s.get("slot_id") == "title"), None)
+        caption_slots = [s for s in p.slots if s.get("slot_id") != "title" and "text" in s]
+        print(f"  Seite {i+1} ({p.template_id}): title={title_slot.get('text','')[:40] if title_slot else 'NONE'}, {len(caption_slots)} caption(s)")
+        for cs in caption_slots:
+            print(f"    {cs.get('slot_id')}: '{cs.get('text','')[:60]}'")
+
     state.photobook_pages = validated_pages
 
     # --- Bilder komprimieren ---
@@ -58,7 +78,16 @@ def render_photobook_node(state: AppState) -> AppState:
     try:
         html = render_photobook(validated_pages, compressed_images)
         state.photobook_html = html
+
+        # HTML-Datei speichern (zur Inspektion und Debugging)
+        html_dir = Path(OUTPUT_DIR) / f"photobook_{timestamp}"
+        html_dir.mkdir(parents=True, exist_ok=True)
+        html_path = html_dir / f"{timestamp}_photobook.html"
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        state.photobook_html_path = str(html_path)
         print(f"✅ Fotobuch-HTML gerendert ({len(html)} Zeichen).")
+        print(f"📄 HTML gespeichert: {html_path}")
     except Exception as e:
         print(f"❌ Fehler beim Rendern: {e}")
     return state

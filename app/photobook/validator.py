@@ -73,7 +73,8 @@ def validate_page(page: PageDescription, presets: dict = None) -> List[str]:
 def enforce_fallback(page: PageDescription) -> PageDescription:
     """Repariert eine fehlerhafte Seite mit minimalen Eingriffen.
 
-    Priorität: Preset erhalten → Text kürzen → Preset wechseln.
+    Priorität: Preset erhalten → Text kürzen → Preset wechseln (wenn LLM Text
+    generiert hat, den das Preset nicht unterstützt).
     """
     presets = load_all_presets()
     image_indices = [
@@ -86,6 +87,35 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
         page.template_id = get_any_preset(len(image_indices))
 
     preset = presets[page.template_id]
+
+    # Erkenne LLM-generierte Texte, die das Preset nicht unterstützt
+    # (z.B. LLM schreibt "caption" für quad_grid, das keine Text-Slots hat)
+    llm_text_roles = set()
+    for slot in page.slots:
+        sid = slot.get("slot_id", "")
+        text = slot.get("text", "").strip()
+        if sid == "title" or not text:
+            continue
+        # Prüfe, ob dieser Text-Slot ins Preset passt
+        if sid in {s.id for s in preset.slots if s.type == "text"}:
+            continue  # Passt ins Preset
+        # Text-Slot passt nicht → merke text_role für Upgrade
+        text_role = None
+        for s in preset.slots:
+            if s.type == "text" and s.id == sid:
+                text_role = s.text_role
+                break
+        llm_text_roles.add(sid)
+
+    # Wenn LLM Text generiert hat, den das Preset nicht unterstützt,
+    # wechsle zu einem text-fähigen Preset gleicher Bildanzahl.
+    # cover_hero wird NIE upgegraded — es hat nur das Cover-Overlay.
+    if llm_text_roles and not preset.has_text and page.template_id != "cover_hero":
+        text_presets = get_presets_by_image_count(preset.image_count, has_text=True)
+        if text_presets:
+            page.template_id = text_presets[0]
+            preset = presets[page.template_id]
+
     slot_defs = {s.id: s for s in preset.slots}
     image_slot_ids = [s.id for s in preset.slots if s.type == "image"]
 
@@ -182,15 +212,17 @@ def check_variety(pages: List[PageDescription]) -> List[PageDescription]:
         max_allowed = 1 if pid == "cover_hero" else 2
         if count > max_allowed:
             replacement = _find_alternative_preset(pid, preset_counts)
-            result[i] = _replace_preset(page, replacement)
+            result[i] = _replace_preset(result[i], replacement)
             pid = replacement
             count = 1
         preset_counts[pid] = count
 
-        # Back-to-Back-Check
+        # Back-to-Back-Check (verwendet bereits ersetzte Seite result[i])
         if i > 0 and pid == result[i - 1].template_id:
             replacement = _find_alternative_preset(pid, preset_counts)
-            result[i] = _replace_preset(page, replacement)
+            result[i] = _replace_preset(result[i], replacement)
+            # Alten Eintrag entfernen, neuen hochzählen
+            preset_counts[pid] = preset_counts.get(pid, 1) - 1
             preset_counts[replacement] = preset_counts.get(replacement, 0) + 1
 
     # Regel 4: Max. 3 No-Text-Seiten hintereinander
@@ -216,8 +248,17 @@ def check_variety(pages: List[PageDescription]) -> List[PageDescription]:
             if preset.image_count == last_count:
                 same_count_streak += 1
                 if same_count_streak > 2:
-                    new_count = preset.image_count + 1 if preset.image_count < 4 else 1
-                    replacement = get_any_preset(new_count)
+                    # Neues Preset mit anderer Bildanzahl waehlen, aber NIE cover_hero
+                    if preset.image_count >= 4:
+                        new_count = 1
+                    else:
+                        new_count = preset.image_count + 1
+                    # Filtere cover_hero aus, da es nur 1x auf Seite 0 sein darf
+                    alternatives = get_presets_by_image_count(new_count)
+                    non_cover = [pid for pid in alternatives if pid != "cover_hero"]
+                    # Bevorzuge text-faehige Presets
+                    text_alternatives = [pid for pid in non_cover if presets[pid].has_text]
+                    replacement = (text_alternatives or non_cover)[0]
                     result[i] = _replace_preset(page, replacement)
                     same_count_streak = 0
             else:
@@ -303,13 +344,39 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
 
 
 def _find_alternative_preset(current_id: str, used_counts: dict) -> str:
-    """Findet alternatives Preset gleicher Bildanzahl, das noch nicht >2× verwendet wurde."""
+    """Findet alternatives Preset gleicher Bildanzahl, das noch nicht >2× verwendet wurde.
+    
+    cover_hero darf NIE als Alternative für andere Presets dienen, da es nur 1×
+    auf Seite 0 existieren darf. Beim Ersetzen von cover_hero werden text-fähige
+    Alternativen bevorzugt, damit die Seite nicht wie eine zweite Titelseite aussieht.
+    """
     presets = load_all_presets()
     current = presets.get(current_id)
     if not current:
         return get_any_preset(1)
 
     candidates = get_presets_by_image_count(current.image_count)
+    # cover_hero nie als Alternative zurückgeben (darf nur auf Seite 0, 1×)
+    candidates = [pid for pid in candidates if pid != "cover_hero"]
+    if not candidates:
+        return get_any_preset(current.image_count)
+
+    if current_id == "cover_hero":
+        # Beim Ersetzen von cover_hero: bevorzuge text-fähige Presets
+        for pid in candidates:
+            if presets[pid].has_text and used_counts.get(pid, 0) < 2:
+                return pid
+        for pid in candidates:
+            if presets[pid].has_text:
+                return pid
+
+    # Standard: bevorzuge text-fähige Presets, dann count < 2
+    for pid in candidates:
+        if pid != current_id and presets[pid].has_text and used_counts.get(pid, 0) < 2:
+            return pid
+    for pid in candidates:
+        if pid != current_id and presets[pid].has_text:
+            return pid
     for pid in candidates:
         if pid != current_id and used_counts.get(pid, 0) < 2:
             return pid

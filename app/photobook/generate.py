@@ -111,45 +111,82 @@ def generate_photobook_pages(
         )
         if resp.status_code == 200:
             content = resp.json().get("message", {}).get("content", "")
+            # Debug: zeige LLM-Antwort (Anfang)
+            print(f"  → LLM Antwort: {len(content)} Zeichen")
+            if content:
+                print(f"    Anfang: {content[:200]}...")
             array_match = re.search(r'\[.*\]', content, re.DOTALL)
-            if array_match:
-                pages_data = json.loads(array_match.group())
-                # Debug: zeige wie viele Text-Slots das LLM gefuellt hat
-                text_slots = sum(1 for pd in pages_data for s in pd.get("slots", []) if "text" in s)
-                total_pages = len(pages_data)
-                print(f"  → LLM hat {text_slots} Text-Slots gefüllt (von {total_pages} Seiten)")
-                # Debug: zeige die ersten paar Text-Inhalte
-                text_samples = [
-                    (pd.get("preset_id","?"), s.get("slot_id","?"), s.get("text","")[:40])
-                    for pd in pages_data
-                    for s in pd.get("slots", [])
-                    if "text" in s and s.get("text", "").strip()
-                ]
-                if text_samples:
-                    for pid, sid, t in text_samples[:5]:
-                        print(f"    {pid}/{sid}: \"{t}...\"")
-                elif total_pages > 0:
-                    print(f"    ⚠️ LLM hat KEINE Text-Inhalte generiert!")
-                result = []
-                for pd in pages_data:
-                    valid_slots = []
-                    for slot in pd.get("slots", []):
-                        idx = slot.get("image_index", -1)
-                        if 0 <= idx < len(images):
-                            valid_slots.append(slot)
-                        else:
-                            # Entferne image_index wenn ungültig, behalte text
-                            cleansed = {k: v for k, v in slot.items() if k != "image_index"}
-                            if cleansed.get("text") or cleansed.get("slot_id"):
-                                valid_slots.append(cleansed)
-                    page = PageDescription(
-                        template_id=pd.get("preset_id", "quad_grid"),
-                        page_type="single",
-                        slots=valid_slots,
-                    )
-                    result.append(page)
-                if result:
-                    return result
+            if not array_match:
+                print(f"    ⚠️ Kein JSON-Array in LLM-Antwort gefunden!")
+            else:
+                raw_json = array_match.group()
+                try:
+                    pages_data = json.loads(raw_json)
+                except json.JSONDecodeError as je:
+                    print(f"  ⚠️ JSON-Parse-Fehler: {je}. Versuche Recovery...")
+                    # Versuche, das JSON zu reparieren: schneide beim Fehler ab
+                    # und versuche, mit dem bis dahin gültigen Teil zu arbeiten
+                    error_pos = je.pos
+                    # Finde das letzte vollständige Page-Objekt vor dem Fehler
+                    truncated = raw_json[:error_pos]
+                    # Suche rückwärts nach einem abschließenden }]
+                    last_close = truncated.rfind('}]')
+                    if last_close > 0:
+                        partial = truncated[:last_close + 2] + ']'
+                        try:
+                            pages_data = json.loads(partial)
+                            print(f"  → Recovery: {len(pages_data)} von {len(raw_json)} Zeichen verwendet")
+                        except json.JSONDecodeError:
+                            # Nochmal mit nur einem schließenden }
+                            last_obj = truncated.rfind('},')
+                            if last_obj > 0:
+                                partial = truncated[:last_obj + 1] + ']'
+                                try:
+                                    pages_data = json.loads(partial)
+                                    print(f"  → Recovery (2): {len(pages_data)} von {len(raw_json)} Zeichen verwendet")
+                                except json.JSONDecodeError:
+                                    print(f"  → Recovery fehlgeschlagen, verwende Fallback")
+                                    pages_data = None
+                    else:
+                        print(f"  → Recovery fehlgeschlagen, verwende Fallback")
+                        pages_data = None
+                
+                if pages_data:
+                    # Debug: zeige wie viele Text-Slots das LLM gefuellt hat
+                    text_slots = sum(1 for pd in pages_data for s in pd.get("slots", []) if "text" in s)
+                    total_pages = len(pages_data)
+                    print(f"  → LLM hat {text_slots} Text-Slots gefüllt (von {total_pages} Seiten)")
+                    text_samples = [
+                        (pd.get("preset_id","?"), s.get("slot_id","?"), s.get("text","")[:40])
+                        for pd in pages_data
+                        for s in pd.get("slots", [])
+                        if "text" in s and s.get("text", "").strip()
+                    ]
+                    if text_samples:
+                        for pid, sid, t in text_samples[:5]:
+                            print(f"    {pid}/{sid}: \"{t}...\"")
+                    elif total_pages > 0:
+                        print(f"    ⚠️ LLM hat KEINE Text-Inhalte generiert!")
+                    result = []
+                    for pd in pages_data:
+                        valid_slots = []
+                        for slot in pd.get("slots", []):
+                            idx = slot.get("image_index", -1)
+                            if 0 <= idx < len(images):
+                                valid_slots.append(slot)
+                            else:
+                                # Entferne image_index wenn ungültig, behalte text
+                                cleansed = {k: v for k, v in slot.items() if k != "image_index"}
+                                if cleansed.get("text") or cleansed.get("slot_id"):
+                                    valid_slots.append(cleansed)
+                        page = PageDescription(
+                            template_id=pd.get("preset_id", "quad_grid"),
+                            page_type="single",
+                            slots=valid_slots,
+                        )
+                        result.append(page)
+                    if result:
+                        return result
     except Exception as e:
         print(f"⚠️ Pass 2 (Generierung) fehlgeschlagen: {e}")
 
@@ -170,8 +207,32 @@ def generate_photobook_pages(
         slots = []
         for sid, idx in zip(image_slots, indices):
             slots.append({"slot_id": sid, "image_index": idx})
-        # Universeller Title-Slot fuer den Fallback
-        slots.append({"slot_id": "title", "text": "Fotobuch"})
+
+        # Besserer Fallback-Titel: nutze "purpose" aus dem Plan falls vorhanden
+        purpose = plan_page.get("purpose", "")
+        position = plan_page.get("position", len(fallback))
+        if purpose and purpose.lower() not in ("cover", "einzelbild", "sammlung", "sequenz", "vergleich"):
+            title = purpose[:60]
+        elif position == 0:
+            title = "Fotobuch"
+        else:
+            title = f"Seite {position + 1}"
+        slots.append({"slot_id": "title", "text": title})
+
+        # Befülle Text-Slots des Presets mit kontextuellen Platzhaltern
+        for s in preset.slots:
+            if s.type == "text":
+                text_role = s.text_role or "caption"
+                if text_role == "title":
+                    continue  # Titel bereits gesetzt
+                elif text_role in ("caption", "intro"):
+                    # Nutze vorhandene Bild-Indizes für Kontext
+                    img_indices_str = ", ".join(str(i) for i in indices[:2])
+                    slot_text = f"Foto {img_indices_str} — Eindrücke der Tour"
+                    if s.char_limit and len(slot_text) > s.char_limit:
+                        slot_text = slot_text[:s.char_limit]
+                    slots.append({"slot_id": s.id, "text": slot_text})
+
         fallback.append(PageDescription(
             template_id=preset_id,
             page_type="single",

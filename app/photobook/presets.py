@@ -58,7 +58,7 @@ def get_any_preset(count: int) -> str:
 # Constraint-Tabelle für Pass-2-Prompt
 TEXT_CONSTRAINTS = {
     "title":   {"char_limit": 60,  "font_size": "14pt", "description": "Seitentitel (bold)"},
-    "caption": {"char_limit": 170, "font_size": "9pt",  "description": "Bildunterschrift (italic)"},
+    "caption": {"char_limit": 170, "font_size": "10pt", "description": "Bildunterschrift (italic)"},
     "intro":   {"char_limit": 400, "font_size": "11pt", "description": "Einleitungstext"},
 }
 
