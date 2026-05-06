@@ -14,17 +14,13 @@
     stylePersona,
     pdfExport,
     photobookSize,
+    pipelineMode,
   } from "./stores/pipeline";
-
-  interface Props {
-    mode: "blog" | "photobook";
-  }
-
-  let { mode }: Props = $props();
 
   let loading: boolean = $state(false);
 
   async function handleRun() {
+    const mode = get(pipelineMode);
     const model = get(selectedModel);
     const { gpxFile, imageFiles, txtFile } = get(pipelineFiles);
     const dir = get(outputDir);
@@ -93,7 +89,7 @@
         ? "✓ Abgeschlossen"
         : rs === "failed"
           ? "✗ Fehlgeschlagen — Erneut"
-          : `▶ ${mode === "blog" ? "Blog" : "Fotobuch"} generieren`
+          : "▶ Pipeline starten"
   );
 </script>
 
