@@ -143,38 +143,19 @@ def _photobook_to_detail(p: Photobook) -> dict:
 
 
 def _rewrite_photobook_html(html_content: str | None, photobook_id: int) -> str | None:
-    """Passt HTML-Inhalt für das Frontend an. Gleiche Logik wie _rewrite_html_content."""
+    """Bereitet Fotobuch-HTML für die Anzeige im iframe vor.
+
+    - Style-Tags bleiben erhalten (Fotobuch-Layout braucht das CSS)
+    - Vollständiges HTML-Dokument wird beibehalten (für iframe srcdoc)
+    - file:/// Bildpfade werden auf API-URLs umgeschrieben
+    """
     if not html_content:
         return html_content
 
     html_content = re.sub(
-        r"<style[^>]*>.*?</style\s*>",
-        "",
+        r'file:///[^"]*?/images/([^"]+)',
+        f'/api/photobooks/{photobook_id}/images/\\1',
         html_content,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
-
-    body_match = re.search(
-        r"<body[^>]*>(.*?)</body\s*>",
-        html_content,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
-    if body_match:
-        html_content = body_match.group(1).strip()
-    else:
-        html_content = re.sub(r"<!DOCTYPE[^>]*>", "", html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r"<html[^>]*>", "", html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r"</html\s*>", "", html_content, flags=re.IGNORECASE)
-        html_content = re.sub(
-            r"<head[^>]*>.*?</head\s*>",
-            "",
-            html_content,
-            flags=re.DOTALL | re.IGNORECASE,
-        )
-
-    html_content = html_content.replace(
-        "./images/",
-        f"/api/photobooks/{photobook_id}/images/",
     )
 
     return html_content
