@@ -265,6 +265,9 @@
     align-items: center;
     margin-bottom: 1rem;
   }
+  .header h2 {
+    font-size: 0.875rem;
+  }
   .batch-delete-btn {
     padding: 0.4rem 0.75rem;
     font-size: 0.8rem;

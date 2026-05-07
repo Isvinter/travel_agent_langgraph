@@ -213,7 +213,7 @@
     border: none;
     border-radius: 0;
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
   }
@@ -251,7 +251,7 @@
     border: none;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
   }
