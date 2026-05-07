@@ -216,31 +216,28 @@
     background: var(--panel-2);
     color: var(--text-primary);
   }
-  .segmented-control {
+  .sub-tabs {
     display: flex;
-    gap: 0;
+    gap: 0.25rem;
     margin-bottom: 0.75rem;
     flex-shrink: 0;
-    background: var(--panel);
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    overflow: hidden;
   }
-  .segment {
+  .sub-tab {
     padding: 0.35rem 0.75rem;
-    background: transparent;
+    background: var(--panel);
     color: var(--text-secondary);
     font-size: 0.75rem;
     font-weight: 500;
-    border: none;
-    border-radius: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     cursor: pointer;
   }
-  .segment.active {
+  .sub-tab.active {
     background: var(--accent);
     color: white;
+    border-color: var(--accent);
   }
-  .segment:hover:not(.active) {
+  .sub-tab:hover:not(.active) {
     background: var(--panel-2);
     color: var(--text-primary);
   }
