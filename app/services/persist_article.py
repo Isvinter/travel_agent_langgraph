@@ -12,6 +12,7 @@ def _sanitize_html(html: str) -> str:
     """Entfernt potenziell gefährliche Inhalte aus LLM-generiertem HTML.
 
     - <script>-Tags und deren Inhalt
+    - <style>-Tags (würden sonst global im SPA-Frontend leaken)
     - Event-Handler-Attribute (onerror, onclick, ...)
     - javascript:-URIs in href/src
     """
@@ -20,6 +21,8 @@ def _sanitize_html(html: str) -> str:
     # <script>...</script> komplett entfernen (inkl. Inhalt)
     html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
+    # <style>-Tags entfernen (würden im SPA global leaken)
+    html = re.sub(r'<style[^>]*>.*?</style\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
     # Event-Handler-Attribute entfernen
     html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
     html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)

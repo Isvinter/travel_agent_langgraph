@@ -39,19 +39,48 @@ def _article_to_summary(a: Article) -> dict:
 
 def _rewrite_html_content(html_content: str | None, article_id: int) -> str | None:
     """Passt HTML-Inhalt für das Frontend an:
+    - Entfernt <style>-Tags (würden global im SPA leaken)
+    - Entfernt strukturelle HTML-Tags (<html>, <head>, <body>)
+    - Extrahiert nur den Body-Inhalt
     - Ersetzt relative ./images/ Pfade mit API-URLs
-    - Erhöht max-width im eingebetteten CSS für breitere Darstellung
     """
     if not html_content:
         return html_content
+
+    # <style>-Block entfernen — würde sonst global im SPA leaken
+    html_content = re.sub(
+        r"<style[^>]*>.*?</style\s*>",
+        "",
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    # Body-Inhalt extrahieren
+    body_match = re.search(
+        r"<body[^>]*>(.*?)</body\s*>",
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    if body_match:
+        html_content = body_match.group(1).strip()
+    else:
+        # Fallback: strukturelle Tags einzeln entfernen
+        html_content = re.sub(r"<!DOCTYPE[^>]*>", "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r"<html[^>]*>", "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r"</html\s*>", "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(
+            r"<head[^>]*>.*?</head\s*>",
+            "",
+            html_content,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+
+    # Bildpfade umschreiben
     html_content = html_content.replace(
         "./images/",
         f"/api/articles/{article_id}/images/",
     )
-    html_content = html_content.replace(
-        "max-width: 780px",
-        "max-width: 1400px",
-    )
+
     return html_content
 
 
