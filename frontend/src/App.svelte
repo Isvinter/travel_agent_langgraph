@@ -190,59 +190,80 @@
     padding: 24px;
     overflow: hidden;
   }
-  .right-tabs {
+  .top-tab-bar {
+    position: relative;
     display: flex;
-    gap: 0.25rem;
-    margin-bottom: 0.75rem;
+    gap: 1.5rem;
+    align-items: flex-end;
+    margin-bottom: 1.25rem;
     flex-shrink: 0;
-    align-items: center;
   }
-  .right-tab {
-    padding: 0.5rem 1rem;
-    background: var(--panel);
+  .top-tab-bar-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border);
+  }
+  .top-tab {
+    position: relative;
+    padding: 0 0 10px 0;
+    background: none;
+    border: none;
+    border-radius: 0;
     color: var(--text-secondary);
     font-size: 0.8rem;
     font-weight: 500;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
     cursor: pointer;
   }
-  .right-tab.active {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
+  .top-tab.active {
+    color: var(--text-primary);
+    font-weight: 600;
   }
-  .right-tab:hover:not(.active) {
-    background: var(--panel-2);
+  .top-tab.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px 1px 0 0;
+  }
+  .top-tab:hover:not(.active) {
     color: var(--text-primary);
   }
-  .sub-tabs {
-    display: flex;
-    gap: 0.25rem;
-    margin-bottom: 0.75rem;
+  .top-tab-bar-spacer {
+    flex: 1;
+  }
+  .segmented-control {
+    display: inline-flex;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 3px;
+    margin-bottom: 0.5rem;
     flex-shrink: 0;
   }
-  .sub-tab {
-    padding: 0.35rem 0.75rem;
-    background: var(--panel);
+  .segment {
+    padding: 5px 16px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: 0.75rem;
     font-weight: 500;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
     cursor: pointer;
   }
-  .sub-tab.active {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
+  .segment.active {
+    background: var(--panel);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
-  .sub-tab:hover:not(.active) {
-    background: var(--panel-2);
+  .segment:hover:not(.active) {
     color: var(--text-primary);
   }
   .theme-toggle {
-    margin-left: auto;
     padding: 0.5rem;
     background: var(--panel);
     border: 1px solid var(--border);
