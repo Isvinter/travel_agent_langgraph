@@ -32,6 +32,28 @@
   let dialogItemId: number | null = $state(null);
   let deleting: boolean = $state(false);
 
+  let sortColumn: string | null = $state(null);
+  let sortDirection: "asc" | "desc" = $state("asc");
+
+  function sortItems<T extends Record<string, any>>(items: T[], column: string, direction: "asc" | "desc"): T[] {
+    return [...items].sort((a, b) => {
+      const va = a[column];
+      const vb = b[column];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      const multiplier = direction === "desc" ? -1 : 1;
+      if (typeof va === "string" && typeof vb === "string") {
+        return multiplier * va.localeCompare(vb);
+      }
+      return multiplier * ((va as number) - (vb as number));
+    });
+  }
+
+  let displayedPhotobooks = $derived(
+    sortColumn ? sortItems(photobooks, sortColumn, sortDirection) : photobooks
+  );
+
   function toggleSelect(id: number) {
     const next = new Set(selectedIds);
     if (next.has(id)) {
@@ -47,6 +69,15 @@
       selectedIds = new Set();
     } else {
       selectedIds = new Set(photobooks.map(a => a.id));
+    }
+  }
+
+  function handleSort(column: string) {
+    if (sortColumn === column) {
+      sortDirection = sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      sortColumn = column;
+      sortDirection = "desc";
     }
   }
 
@@ -194,19 +225,33 @@
                   onchange={toggleSelectAll}
                 />
               </th>
-              <th>Titel</th>
-              <th>Tour-Datum</th>
-              <th>Dauer</th>
-              <th>Distanz</th>
-              <th>Höhenmeter</th>
-              <th>Bilder</th>
-              <th>Grösse</th>
+              <th class="sortable" onclick={() => handleSort("title")}>
+                Titel {sortColumn === "title" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th class="sortable" onclick={() => handleSort("tour_date")}>
+                Tour-Datum {sortColumn === "tour_date" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th class="sortable" onclick={() => handleSort("tour_duration_hours")}>
+                Dauer {sortColumn === "tour_duration_hours" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th class="sortable" onclick={() => handleSort("total_distance_km")}>
+                Distanz {sortColumn === "total_distance_km" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th class="sortable" onclick={() => handleSort("elevation_gain_m")}>
+                Höhenmeter {sortColumn === "elevation_gain_m" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th class="sortable" onclick={() => handleSort("image_count")}>
+                Bilder {sortColumn === "image_count" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th class="sortable" onclick={() => handleSort("photobook_size")}>
+                Grösse {sortColumn === "photobook_size" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+              </th>
               <th></th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {#each photobooks as p}
+            {#each displayedPhotobooks as p}
               <tr>
                 <td class="td-check">
                   <input
@@ -335,6 +380,13 @@
     top: 0;
     background: var(--panel);
     z-index: 1;
+  }
+  th.sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+  th.sortable:hover {
+    color: var(--text-primary);
   }
   .th-check {
     width: 2rem;
