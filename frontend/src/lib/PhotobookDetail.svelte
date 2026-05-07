@@ -153,7 +153,8 @@
   .photobook-detail {
     padding: 1rem;
     height: 100%;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     max-width: 1400px;
   }
   .toolbar {
