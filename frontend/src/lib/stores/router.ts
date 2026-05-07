@@ -3,7 +3,9 @@ import { writable, derived } from "svelte/store";
 export type Route =
   | { page: "pipeline" }
   | { page: "articles" }
-  | { page: "article"; id: number };
+  | { page: "article"; id: number }
+  | { page: "photobooks" }
+  | { page: "photobook"; id: number };
 
 function parseHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, "") || "/";
@@ -19,6 +21,15 @@ function parseHash(hash: string): Route {
 
   if (path === "articles") {
     return { page: "articles" };
+  }
+
+  const photobooksMatch = path.match(/^photobooks\/(\d+)$/);
+  if (photobooksMatch) {
+    return { page: "photobook", id: parseInt(photobooksMatch[1], 10) };
+  }
+
+  if (path === "photobooks") {
+    return { page: "photobooks" };
   }
 
   return { page: "pipeline" };
@@ -41,6 +52,12 @@ export function navigateTo(route: Route) {
       break;
     case "article":
       hash = `#/articles/${route.id}`;
+      break;
+    case "photobooks":
+      hash = "#/photobooks";
+      break;
+    case "photobook":
+      hash = `#/photobooks/${route.id}`;
       break;
   }
   window.location.hash = hash;
