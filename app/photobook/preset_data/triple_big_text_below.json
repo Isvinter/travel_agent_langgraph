@@ -1,7 +1,7 @@
 {
   "id": "triple_big_text_below",
   "name": "Groß+Zwei+Unterschrift",
-  "description": "Ein großes Bild oben (50%), zwei kleinere darunter (20%), Bildunterschrift unten (30%).",
+  "description": "Ein großes Bild oben (50%), zwei kleinere darunter (30%), Bildunterschrift unten (20%).",
   "image_count": 3,
   "has_text": true,
   "css_class": "preset-triple-big-text-below",

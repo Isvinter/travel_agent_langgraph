@@ -12,6 +12,17 @@ from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_any_preset, get_presets_by_image_count
 
 
+def _truncate_text(text: str, limit: int) -> str:
+    """Kürzt Text auf limit Zeichen, aber an der letzten Wortgrenze."""
+    if len(text) <= limit:
+        return text
+    truncated = text[:limit]
+    last_space = truncated.rfind(" ")
+    if last_space > 0:
+        return truncated[:last_space]
+    return truncated
+
+
 def _text_placeholder(text_role: str) -> str:
     """Liefert einen Platzhalter-Text für leere Text-Slots."""
     placeholders = {
@@ -149,15 +160,12 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
         sid = slot.get("slot_id", "")
         # Titel-Slot wird universell beibehalten (page-header)
         if sid == "title" and slot.get("text"):
-            text = slot["text"]
-            if len(text) > 60:
-                text = text[:60]
-            repaired_slots.append({"slot_id": sid, "text": text})
+            repaired_slots.append({"slot_id": sid, "text": _truncate_text(slot["text"], 60)})
         elif sid in slot_defs and slot_defs[sid].type == "text" and slot.get("text"):
             sd = slot_defs[sid]
             text = slot["text"]
             if sd.char_limit and len(text) > sd.char_limit:
-                text = text[:sd.char_limit]
+                text = _truncate_text(text, sd.char_limit)
             repaired_slots.append({"slot_id": sid, "text": text})
         elif slot.get("text"):
             # Fallback: versuche Text zuzuordnen
@@ -170,7 +178,7 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
                 sd = slot_defs[matched_sid]
                 text = slot["text"]
                 if sd.char_limit and len(text) > sd.char_limit:
-                    text = text[:sd.char_limit]
+                    text = _truncate_text(text, sd.char_limit)
                 repaired_slots.append({"slot_id": matched_sid, "text": text})
 
     # Stelle sicher, dass ALLE Text-Slots befüllt sind (Platzhalter falls LLM sie leer lässt)
@@ -323,10 +331,7 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
         sid = slot.get("slot_id", "")
         # Titel-Slot universell beibehalten
         if sid == "title" and slot.get("text"):
-            text = slot["text"]
-            if len(text) > 60:
-                text = text[:60]
-            new_slots.append({"slot_id": sid, "text": text})
+            new_slots.append({"slot_id": sid, "text": _truncate_text(slot["text"], 60)})
         elif sid in {s.id for s in preset.slots if s.type == "text"} and slot.get("text"):
             new_slots.append({"slot_id": sid, "text": slot["text"]})
 

@@ -1,7 +1,7 @@
 {
   "id": "triple_stacked_text",
   "name": "Drei übereinander + Text rechts",
-  "description": "Drei Bilder vertikal links (75%) mit Textblock rechts (25%).",
+  "description": "Drei Bilder vertikal links (60%) mit Textblock rechts (40%).",
   "image_count": 3,
   "has_text": true,
   "css_class": "preset-triple-stacked-text",

@@ -1,7 +1,7 @@
 {
   "id": "double_stacked_text",
   "name": "Zwei übereinander + Text",
-  "description": "Zwei Bilder vertikal gestapelt (70%) mit Bildunterschrift darunter (30%).",
+  "description": "Zwei Bilder vertikal gestapelt (80%) mit Bildunterschrift darunter (20%).",
   "image_count": 2,
   "has_text": true,
   "css_class": "preset-double-stacked-text",
