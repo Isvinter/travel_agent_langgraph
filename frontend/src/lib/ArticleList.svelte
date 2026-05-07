@@ -177,8 +177,9 @@
   {:else if articles.length === 0}
     <p class="status">Keine Artikel gefunden.</p>
   {:else}
-    <div class="table-container">
-      <table>
+    <div class="table-scroll-wrapper">
+      <div class="table-container">
+        <table>
         <thead>
           <tr>
             <th class="th-check">
@@ -225,7 +226,8 @@
         </tbody>
       </table>
     </div>
-  {/if}
+  </div>
+{/if}
 </div>
 
 {#if dialogOpen}
@@ -249,8 +251,9 @@
 <style>
   .article-list {
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
     height: 100%;
-    overflow-y: auto;
   }
   .header {
     display: flex;
@@ -321,6 +324,10 @@
     padding: 0.5rem 0.5rem;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 1;
   }
   .th-check {
     width: 2rem;
@@ -403,5 +410,11 @@
   .confirm-btn:disabled, .cancel-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .table-scroll-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 </style>
