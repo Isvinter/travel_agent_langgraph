@@ -7,6 +7,8 @@ def cluster_images(images: List[ImageData], radius_m=20):
 
     for img in images:
         lat, lon = img.latitude, img.longitude
+        if lat is None or lon is None:
+            continue
         added = False
 
         for cluster in clusters:

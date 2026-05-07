@@ -11,10 +11,15 @@ def select_photobook_images_node(state: AppState) -> AppState:
         gpx_dict = state.gpx_stats.model_dump() if state.gpx_stats else {}
     except Exception:
         gpx_dict = {}
-    selected = select_photobook_images(
-        images=state.images, gpx_stats=gpx_dict, notes=state.notes,
-        model=state.model, photo_count=state.output_config.photobook.photo_count,
-    )
-    state.photobook_images = selected
-    print(f"✅ {len(selected)} Bilder fuer das Fotobuch ausgewaehlt.")
+    try:
+        selected = select_photobook_images(
+            images=state.images, gpx_stats=gpx_dict, notes=state.notes,
+            model=state.model, photo_count=state.output_config.photobook.photo_count,
+        )
+        state.photobook_images = selected
+        print(f"✅ {len(selected)} Bilder fuer das Fotobuch ausgewaehlt.")
+    except Exception as e:
+        print(f"❌ Fotobuch-Bildauswahl fehlgeschlagen: {e} — verwende alle Bilder")
+        max_count = state.output_config.photobook.photo_count
+        state.photobook_images = state.images[:max_count]
     return state

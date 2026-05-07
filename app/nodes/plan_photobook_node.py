@@ -11,10 +11,14 @@ def plan_photobook_node(state: AppState) -> AppState:
         gpx_dict = state.gpx_stats.model_dump() if state.gpx_stats else {}
     except Exception:
         gpx_dict = {}
-    plan = plan_photobook_layout(
-        images=state.photobook_images, gpx_stats=gpx_dict, notes=state.notes,
-        weather=state.weather, poi_list=state.poi_list, model=state.model,
-    )
-    state.photobook_plan = plan
-    print(f"✅ Layout-Planung abgeschlossen: {len(plan.get('pages', []))} Seiten geplant.")
+    try:
+        plan = plan_photobook_layout(
+            images=state.photobook_images, gpx_stats=gpx_dict, notes=state.notes,
+            weather=state.weather, poi_list=state.poi_list, model=state.model,
+        )
+        state.photobook_plan = plan
+        print(f"✅ Layout-Planung abgeschlossen: {len(plan.get('pages', []))} Seiten geplant.")
+    except Exception as e:
+        print(f"❌ Fotobuch-Planung fehlgeschlagen: {e}")
+        state.photobook_plan = {"pages": []}
     return state

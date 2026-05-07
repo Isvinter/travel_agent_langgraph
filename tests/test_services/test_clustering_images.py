@@ -40,10 +40,13 @@ class TestClusterImages:
         assert c["center_lon"] == pytest.approx(8.501)
 
     @pytest.mark.unit
-    def test_images_with_none_coordinates_raises(self):
+    def test_images_with_none_coordinates_skipped(self):
         images = [
             ImageData(path="a.jpg", latitude=47.0, longitude=8.0),
             ImageData(path="b.jpg", latitude=None, longitude=None),
         ]
-        with pytest.raises(TypeError):
-            cluster_images(images, radius_m=20)
+        clusters = cluster_images(images, radius_m=20)
+        # Bilder ohne GPS werden übersprungen, nur eins im Cluster
+        assert len(clusters) == 1
+        assert len(clusters[0]["images"]) == 1
+        assert clusters[0]["images"][0].path == "a.jpg"

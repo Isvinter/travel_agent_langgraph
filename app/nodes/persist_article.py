@@ -11,14 +11,18 @@ def persist_article_node(state: AppState) -> AppState:
         print("⚠️ No blog post to persist.")
         return state
 
-    article_id = persist_article(
-        blog_post=state.blog_post,
-        gpx_stats=state.gpx_stats,
-        images=state.images,
-        gpx_file=state.gpx_file,
-        model=state.model,
-        notes=state.notes,
-    )
+    try:
+        article_id = persist_article(
+            blog_post=state.blog_post,
+            gpx_stats=state.gpx_stats,
+            images=state.images,
+            gpx_file=state.gpx_file,
+            model=state.model,
+            notes=state.notes,
+        )
+    except Exception as e:
+        print(f"❌ Article persistence failed: {e}")
+        article_id = None
 
     if article_id:
         print(f"✅ Article persisted with ID: {article_id}")

@@ -148,7 +148,7 @@
         class="photobook-iframe"
         srcdoc={photobook.html_content}
         title="Fotobuch"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox=""
         scrolling="no"
         style="height: {iframeHeight(photobook.page_count)}; overflow: hidden;"
       ></iframe>

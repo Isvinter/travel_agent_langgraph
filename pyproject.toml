@@ -28,6 +28,7 @@ travel-agent-api = "app.api.server:main"
 dev = [
     "piexif>=1.0",
     "pytest>=8.0",
+    "pytest-asyncio>=1.3.0",
     "pytest-mock>=3.14",
 ]
 
@@ -36,4 +37,5 @@ markers = [
     "unit: Fast tests with no external dependencies",
     "integration: Tests using real filesystem and fixtures, mocked network/browser",
     "e2e: Full pipeline tests requiring Ollama and Chrome",
+    "asyncio: Async tests (uses pytest-asyncio)",
 ]

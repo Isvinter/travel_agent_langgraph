@@ -11,14 +11,18 @@ def review_content_node(state: AppState) -> AppState:
     """
     print("🔍 Running content quality review...")
 
-    ctx = review_enrichment(
-        weather=state.weather,
-        poi_list=state.poi_list,
-        selected_images=state.selected_images,
-        gpx_stats=state.gpx_stats,
-        notes=state.notes,
-        model=state.model,
-    )
+    try:
+        ctx = review_enrichment(
+            weather=state.weather,
+            poi_list=state.poi_list,
+            selected_images=state.selected_images,
+            gpx_stats=state.gpx_stats,
+            notes=state.notes,
+            model=state.model,
+        )
+    except Exception as e:
+        print(f"❌ Content review failed: {e} — skipping review")
+        ctx = {"filtered_images": state.selected_images, "coherence_score": 0}
 
     # Auf wildcard_max kappen — die ≥33% Discard-Quote ist automatisch
     # erfüllt, da select_images ceil(N*1.5) liefert und hier auf N gekappt wird.

@@ -17,13 +17,17 @@ def generate_map_image_node(state: AppState) -> AppState:
     html_path = os.path.join(output_dir, "map.html")
     png_path = os.path.join(output_dir, "map.png")
 
-    # 1. HTML generieren
-    generate_map_html(state.gpx_stats.points, html_path)
+    try:
+        # 1. HTML generieren
+        generate_map_html(state.gpx_stats.points, html_path)
 
-    # 2. PNG erzeugen
-    html_to_png(html_path, png_path)
+        # 2. PNG erzeugen
+        html_to_png(html_path, png_path)
 
-    # 3. im State speichern
-    state.metadata["map_image_path"] = png_path
+        # 3. im State speichern
+        state.metadata["map_image_path"] = png_path
+        print(f"🗺️  Map generated: {png_path}")
+    except Exception as e:
+        print(f"❌ Map generation failed: {e} — continuing without map")
 
     return state

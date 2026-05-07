@@ -19,7 +19,11 @@ def load_images_node(state: AppState) -> AppState:
     if state.images:
         print(f"DEBUG: Using {len(state.images)} images provided via API upload")
     else:
-        state.images = load_images_from_directory(str(images_dir))
+        try:
+            state.images = load_images_from_directory(str(images_dir))
+        except Exception as e:
+            print(f"❌ Image loading failed: {e} — continuing without images")
+            state.images = []
     
     print(f"DEBUG: Loaded {len(state.images)} images")
     if state.images:

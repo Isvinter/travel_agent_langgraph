@@ -15,7 +15,11 @@ def load_tour_notes_node(state: AppState) -> AppState:
         return state
 
     notes_dir = str(Path(__file__).resolve().parent.parent.parent / "data" / "notes")
-    state.notes = load_tour_notes(notes_dir) or None
+    try:
+        state.notes = load_tour_notes(notes_dir) or None
+    except Exception as e:
+        print(f"❌ Loading tour notes failed: {e} — continuing without notes")
+        state.notes = None
     if state.notes:
         print(f"📝 Loaded notes ({len(state.notes)} chars)")
     else:

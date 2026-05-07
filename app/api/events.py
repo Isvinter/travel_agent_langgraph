@@ -1,7 +1,10 @@
 """SSE event emitter for pipeline progress tracking."""
 import asyncio
 import json
+import time
 from typing import Optional
+
+RUN_TTL_SECONDS = 600  # Runs älter als 10 Minuten werden automatisch bereinigt
 
 
 class PipelineEventManager:
@@ -10,6 +13,7 @@ class PipelineEventManager:
     def __init__(self):
         self._runs: dict[str, asyncio.Queue] = {}
         self._results: dict[str, dict] = {}
+        self._timestamps: dict[str, float] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def set_loop(self, loop: asyncio.AbstractEventLoop):
@@ -19,6 +23,8 @@ class PipelineEventManager:
     def create_run(self, run_id: str):
         """Initialise a queue and result slot for a new pipeline run."""
         self._runs[run_id] = asyncio.Queue()
+        self._timestamps[run_id] = time.time()
+        self._schedule_cleanup(run_id)
 
     def emit(self, run_id: str, stage: str, status: str, message: str):
         """Emit a progress event. Thread-safe — callable from executor threads."""
@@ -72,8 +78,25 @@ class PipelineEventManager:
                 else:
                     yield {"event": "progress", "data": json.dumps(event)}
         finally:
-            self._runs.pop(run_id, None)
-            self._results.pop(run_id, None)
+            self._cleanup_run(run_id)
+
+    def _cleanup_run(self, run_id: str):
+        """Entfernt alle Daten für einen Run."""
+        self._runs.pop(run_id, None)
+        self._results.pop(run_id, None)
+        self._timestamps.pop(run_id, None)
+
+    def _schedule_cleanup(self, run_id: str):
+        """Plant die automatische Bereinigung eines Runs nach TTL-Ablauf."""
+        if self._loop is None:
+            return
+
+        async def _cleanup_after_ttl():
+            await asyncio.sleep(RUN_TTL_SECONDS)
+            if run_id in self._runs:
+                self._cleanup_run(run_id)
+
+        self._loop.create_task(_cleanup_after_ttl())
 
 
 # Singleton instance

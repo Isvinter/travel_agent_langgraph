@@ -39,8 +39,28 @@ def _article_to_summary(a: Article) -> dict:
     }
 
 
+def _sanitize_exposed_html(html: str) -> str:
+    """Defense-in-depth Sanitisierung für HTML, das per @html an das
+    Frontend ausgeliefert wird. Entfernt:
+    - <script>-Tags und deren Inhalt
+    - Event-Handler-Attribute (onerror, onclick, ...)
+    - javascript:-URIs in href/src
+    """
+    if not html:
+        return html
+    html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
+    html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
+    html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'(href|src)\s*=\s*"[^"]*javascript:[^"]*"', r'\1="#"', html, flags=re.IGNORECASE)
+    html = re.sub(r"(href|src)\s*=\s*'[^']*javascript:[^']*'", r"\1='#'", html, flags=re.IGNORECASE)
+    return html
+
+
 def _rewrite_html_content(html_content: str | None, article_id: int) -> str | None:
     """Passt HTML-Inhalt für das Frontend an:
+    - Entfernt gefährliche Elemente (Scripts, Event-Handler, javascript:-URIs)
     - Entfernt <style>-Tags (würden global im SPA leaken)
     - Entfernt strukturelle HTML-Tags (<html>, <head>, <body>)
     - Extrahiert nur den Body-Inhalt
@@ -48,6 +68,9 @@ def _rewrite_html_content(html_content: str | None, article_id: int) -> str | No
     """
     if not html_content:
         return html_content
+
+    # Sicherheitssanitisierung (defense-in-depth)
+    html_content = _sanitize_exposed_html(html_content)
 
     # <style>-Block entfernen — würde sonst global im SPA leaken
     html_content = re.sub(
@@ -145,12 +168,15 @@ def _photobook_to_detail(p: Photobook) -> dict:
 def _rewrite_photobook_html(html_content: str | None, photobook_id: int) -> str | None:
     """Bereitet Fotobuch-HTML für die Anzeige im iframe vor.
 
-    - Style-Tags bleiben erhalten (Fotobuch-Layout braucht das CSS)
+    - Sicherheitssanitisierung (scripts, event handler; style-tags bleiben erhalten)
     - Vollständiges HTML-Dokument wird beibehalten (für iframe srcdoc)
     - file:/// Bildpfade werden auf API-URLs umgeschrieben
     """
     if not html_content:
         return html_content
+
+    # Sicherheitssanitisierung (defense-in-depth, style-tags bleiben erhalten)
+    html_content = _sanitize_exposed_html(html_content)
 
     html_content = re.sub(
         r'file:///[^"]*?/images/([^"]+)',
@@ -598,16 +624,14 @@ async def get_article_image(article_id: int, filename: str):
             output_dir = os.path.dirname(article.markdown_path)
 
         if output_dir:
-            image_path = os.path.join(output_dir, "images", filename)
-            if os.path.isfile(image_path):
+            image_path = _safe_join(Path(output_dir), "images", filename)
+            if image_path.is_file():
                 return FileResponse(image_path)
 
         raise HTTPException(status_code=404, detail="Image not found")
     finally:
         session.close()
 
-
-# ── Photobooks ────────────────────────────────────────
 
 @router.get("/photobooks")
 async def get_photobooks(
@@ -767,8 +791,8 @@ async def get_photobook_image(photobook_id: int, filename: str):
             output_dir = os.path.dirname(record.html_path)
 
         if output_dir:
-            image_path = os.path.join(output_dir, "images", filename)
-            if os.path.isfile(image_path):
+            image_path = _safe_join(Path(output_dir), "images", filename)
+            if image_path.is_file():
                 return FileResponse(image_path)
 
         raise HTTPException(status_code=404, detail="Image not found")

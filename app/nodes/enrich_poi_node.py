@@ -15,7 +15,11 @@ def enrich_poi_node(state: AppState) -> AppState:
         print("⚠️ No pause data available — skipping POI enrichment")
         return state
 
-    state.poi_list = fetch_pois(pauses=state.gpx_pauses)
+    try:
+        state.poi_list = fetch_pois(pauses=state.gpx_pauses)
+    except Exception as e:
+        print(f"❌ POI enrichment failed: {e} — continuing without POI data")
+        state.poi_list = []
 
     if state.poi_list:
         print(f"✅ Found {len(state.poi_list)} POIs along the route")

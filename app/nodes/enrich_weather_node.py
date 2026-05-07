@@ -14,10 +14,14 @@ def enrich_weather_node(state: AppState) -> AppState:
         print("⚠️ No GPX stats available — skipping weather enrichment")
         return state
 
-    state.weather = fetch_historical_weather(
-        track_points=state.gpx_stats.points,
-        pauses=state.gpx_pauses,
-    )
+    try:
+        state.weather = fetch_historical_weather(
+            track_points=state.gpx_stats.points,
+            pauses=state.gpx_pauses,
+        )
+    except Exception as e:
+        print(f"❌ Weather enrichment failed: {e} — continuing without weather data")
+        state.weather = None
 
     if state.weather:
         print(f"✅ Weather data fetched: {len(state.weather.daily)} days from {state.weather.source}")

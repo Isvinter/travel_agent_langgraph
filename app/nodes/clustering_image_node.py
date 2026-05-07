@@ -7,7 +7,11 @@ def clustering_image_node(state: AppState) -> AppState:
         return state
 
     # Cluster the images and store the results in the state
-    state.image_clusters = cluster_images(state.images)
+    try:
+        state.image_clusters = cluster_images(state.images)
+    except Exception as e:
+        print(f"❌ Image clustering failed: {e} — continuing without clusters")
+        state.image_clusters = []
 
     print(f"DEBUG: Clustered {len(state.images)} images into {len(state.image_clusters)} clusters.")
     

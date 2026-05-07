@@ -16,16 +16,20 @@ def generate_enriched_map_node(state: AppState) -> AppState:
     html_path = os.path.join(output_dir, "enriched_map.html")
     png_path = os.path.join(output_dir, "enriched_map.png")
 
-    generate_enriched_map_html(
-        points=state.gpx_stats.points,
-        pauses=state.gpx_pauses,
-        images=state.selected_images,
-        output_html=html_path,
-    )
+    try:
+        generate_enriched_map_html(
+            points=state.gpx_stats.points,
+            pauses=state.gpx_pauses,
+            images=state.selected_images,
+            output_html=html_path,
+        )
 
-    html_to_png(html_path, png_path)
+        html_to_png(html_path, png_path)
 
-    state.metadata["enriched_map_image_path"] = png_path
+        state.metadata["enriched_map_image_path"] = png_path
 
-    print(f"🗺️  Enriched map generated: {png_path}")
+        print(f"🗺️  Enriched map generated: {png_path}")
+    except Exception as e:
+        print(f"❌ Enriched map generation failed: {e} — continuing without enriched map")
+
     return state

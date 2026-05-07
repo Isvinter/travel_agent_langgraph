@@ -21,5 +21,6 @@ class TestProcessGpxNode:
 
     def test_handles_nonexistent_file(self):
         state = AppState(gpx_file="/nonexistent/tour.gpx")
-        with pytest.raises(FileNotFoundError):
-            process_gpx_node(state)
+        result = process_gpx_node(state)
+        assert result.gpx_stats is None
+        assert result.metadata == {}

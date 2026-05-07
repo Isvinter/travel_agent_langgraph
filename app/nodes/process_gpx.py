@@ -17,7 +17,11 @@ def process_gpx_node(state: AppState) -> AppState:
         return state
 
     print("DEBUG: Starting GPX analysis...")
-    stats, pauses = analyze_track(gpx_file)
+    try:
+        stats, pauses = analyze_track(gpx_file)
+    except Exception as e:
+        print(f"❌ GPX analysis failed: {e} — aborting GPX processing")
+        return state
 
     print(f"DEBUG: Analysis complete - distance: {stats.total_distance_m}m")
 

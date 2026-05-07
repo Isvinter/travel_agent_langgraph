@@ -279,7 +279,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── tests/                    # pytest suite (~350 tests)
+├── tests/                    # pytest suite (~430 tests)
 │   ├── fixtures/                 # Test data (GPX, images, notes)
 │   ├── conftest.py               # Shared fixtures
 │   ├── test_api/                 # API integration + enrichment e2e
@@ -288,6 +288,10 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── test_graph/               # Graph integration + pipeline e2e
 │   ├── test_photobook/           # Photobook-specific tests
 │   ├── test_utils/               # Utility tests
+│   ├── test_db_connection.py     # Database connection + engine tests
+│   ├── test_db_models.py         # ORM model tests
+│   ├── test_events.py            # SSE event manager + TTL cleanup tests
+│   ├── test_pipeline_process_images.py  # Image enrichment pipeline tests
 │   ├── test_state.py             # AppState model tests
 │   ├── test_repository.py        # Article repository tests
 │   ├── test_photobook_repository.py  # Photobook repository tests
@@ -298,7 +302,6 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 ├── main.py                   # Reference CLI entry point (hardcoded GPX)
 ├── pyproject.toml            # Project metadata + dependencies
 ├── uv.lock                   # Locked dependency versions
-├── CLAUDE.md                 # Claude Code instructions
 └── AGENTS.md                 # OpenCode agent instructions
 ```
 
@@ -308,7 +311,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 uv run pytest tests/ -v
 ```
 
-350 tests total. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
+433 tests total. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 
