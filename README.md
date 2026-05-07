@@ -18,7 +18,7 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated blo
 - **AI blog design** — styled HTML with two writer personas (Mountain Veteran / Field Reporter) and three length presets (short / normal / detailed)
 - **PDF export** — downloadable PDFs via headless Chrome CDP (optional, user-togglable)
 - **Database persistence** — SQLAlchemy with SQLite for articles and photobooks, PostgreSQL-ready
-- **Article & photobook browser** — filterable table, batch delete, sub-tabs (Blogartikel / Fotobücher), inline HTML rendering for articles, iframe for photobooks
+- **Article & photobook browser** — filterable, sortable table with fixed headers, batch delete, sub-tabs (Blogartikel / Fotobücher), inline HTML rendering for articles, iframe for photobooks
 - **Web UI** — Svelte 5 frontend with drag-and-drop, live SSE progress streaming
 
 ### Photobook Pipeline (NEW)
