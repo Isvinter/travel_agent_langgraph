@@ -70,21 +70,23 @@
 
   <!-- RECHTE SEITE -->
   <main class="main">
-    <nav class="right-tabs">
+    <div class="top-tab-bar">
+      <div class="top-tab-bar-line"></div>
       <button
-        class="right-tab"
+        class="top-tab"
         class:active={rightTab === "pipeline"}
         onclick={() => switchRightTab("pipeline")}
       >
         Pipeline
       </button>
       <button
-        class="right-tab"
+        class="top-tab"
         class:active={rightTab === "datenbank"}
         onclick={() => switchRightTab("datenbank")}
       >
         Datenbank
       </button>
+      <div class="top-tab-bar-spacer"></div>
       <button
         class="theme-toggle"
         onclick={toggleTheme}
@@ -104,7 +106,7 @@
           </svg>
         {/if}
       </button>
-    </nav>
+    </div>
 
     {#if rightTab === "datenbank"}
       <div class="sub-tabs">
