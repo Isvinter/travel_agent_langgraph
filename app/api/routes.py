@@ -16,6 +16,8 @@ from app.state import AVAILABLE_MODELS, OutputConfig
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository, ArticleFilters
 from app.db.models import Article, ArticleImage
+from app.db.models import Photobook, PhotobookImage
+from app.db.photobook_repository import PhotobookRepository, PhotobookFilters
 import re
 import shutil
 
@@ -101,6 +103,81 @@ def _article_to_detail(a: Article) -> dict:
             for img in a.images
         ],
     }
+
+
+def _photobook_to_summary(p: Photobook) -> dict:
+    return {
+        "id": p.id,
+        "title": p.title,
+        "tour_date": p.tour_date.isoformat() if p.tour_date else None,
+        "tour_duration_hours": p.tour_duration_hours,
+        "tour_duration_source": p.tour_duration_source,
+        "generation_timestamp": p.generation_timestamp.isoformat() if p.generation_timestamp else None,
+        "total_distance_km": p.total_distance_km,
+        "elevation_gain_m": p.elevation_gain_m,
+        "elevation_loss_m": p.elevation_loss_m,
+        "image_count": p.image_count,
+        "model_used": p.model_used,
+        "notes": p.notes,
+        "photobook_size": p.photobook_size,
+        "page_count": p.page_count,
+    }
+
+
+def _photobook_to_detail(p: Photobook) -> dict:
+    return {
+        **_photobook_to_summary(p),
+        "html_content": _rewrite_photobook_html(p.html_content, p.id),
+        "html_path": p.html_path,
+        "pdf_path": p.pdf_path,
+        "gpx_file": p.gpx_file,
+        "images": [
+            {
+                "image_path": img.image_path,
+                "is_map": img.is_map,
+                "is_elevation_profile": img.is_elevation_profile,
+            }
+            for img in p.images
+        ],
+    }
+
+
+def _rewrite_photobook_html(html_content: str | None, photobook_id: int) -> str | None:
+    """Passt HTML-Inhalt für das Frontend an. Gleiche Logik wie _rewrite_html_content."""
+    if not html_content:
+        return html_content
+
+    html_content = re.sub(
+        r"<style[^>]*>.*?</style\s*>",
+        "",
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    body_match = re.search(
+        r"<body[^>]*>(.*?)</body\s*>",
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    if body_match:
+        html_content = body_match.group(1).strip()
+    else:
+        html_content = re.sub(r"<!DOCTYPE[^>]*>", "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r"<html[^>]*>", "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r"</html\s*>", "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(
+            r"<head[^>]*>.*?</head\s*>",
+            "",
+            html_content,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+
+    html_content = html_content.replace(
+        "./images/",
+        f"/api/photobooks/{photobook_id}/images/",
+    )
+
+    return html_content
 
 
 router = APIRouter(prefix="/api")
@@ -328,9 +405,11 @@ async def _run_pipeline_in_background(
         output_path = output_paths.get("markdown", output_dir)
 
         article_id = None
+        photobook_id = None
         pdf_available = False
         if hasattr(result, "metadata"):
             article_id = result.metadata.get("article_id")
+            photobook_id = result.metadata.get("photobook_id")
         if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
             pdf_available = True
 
@@ -341,6 +420,7 @@ async def _run_pipeline_in_background(
         event_manager.complete_run(
             run_id, "success", output_path,
             article_id=article_id,
+            photobook_id=photobook_id,
             pdf_available=pdf_available,
         )
 
@@ -546,31 +626,173 @@ async def get_article_image(article_id: int, filename: str):
         session.close()
 
 
-# ── Photobook PDF Download ─────────────────────────────
+# ── Photobooks ────────────────────────────────────────
 
-@router.get("/photobook/{run_id}/pdf")
-async def download_photobook_pdf(run_id: str):
-    """Liefert das generierte Fotobuch-PDF eines Pipeline-Runs aus."""
-    result = event_manager.get_result(run_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Run nicht gefunden oder noch nicht abgeschlossen")
+@router.get("/photobooks")
+async def get_photobooks(
+    tour_date_from: Optional[str] = None,
+    tour_date_to: Optional[str] = None,
+    duration_min: Optional[float] = None,
+    duration_max: Optional[float] = None,
+    generated_from: Optional[str] = None,
+    generated_to: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Liste aller persistierten Fotobücher mit optionalen Filtern."""
+    filters = PhotobookFilters(limit=limit, offset=offset)
 
-    pdf_path = result.get("photobook_pdf_path")
-    if not pdf_path:
-        raise HTTPException(status_code=400, detail="Kein PDF für diesen Run verfügbar")
+    if tour_date_from:
+        filters.tour_date_from = date.fromisoformat(tour_date_from)
+    if tour_date_to:
+        filters.tour_date_to = date.fromisoformat(tour_date_to)
+    if duration_min is not None:
+        filters.duration_min = duration_min
+    if duration_max is not None:
+        filters.duration_max = duration_max
+    if generated_from:
+        filters.generated_from = datetime.fromisoformat(generated_from)
+    if generated_to:
+        filters.generated_to = datetime.fromisoformat(generated_to)
 
-    path = Path(pdf_path)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="PDF-Datei nicht gefunden")
+    session = get_session()
+    try:
+        repo = PhotobookRepository(session)
+        records, total = repo.list(filters)
+        return {
+            "photobooks": [_photobook_to_summary(p) for p in records],
+            "total": total,
+        }
+    finally:
+        session.close()
 
-    return FileResponse(
-        path,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{path.name}"',
-            "Cache-Control": "no-cache",
-        },
-    )
+
+@router.get("/photobooks/{photobook_id}")
+async def get_photobook(photobook_id: int):
+    """Einzelnes Fotobuch mit vollständigem Inhalt abrufen."""
+    session = get_session()
+    try:
+        repo = PhotobookRepository(session)
+        record = repo.get_by_id(photobook_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Photobook not found")
+        return {"photobook": _photobook_to_detail(record)}
+    finally:
+        session.close()
+
+
+@router.delete("/photobooks/{photobook_id}")
+async def delete_photobook(photobook_id: int):
+    """Fotobuch und zugehörige Dateien löschen."""
+    session = get_session()
+    try:
+        repo = PhotobookRepository(session)
+        record = repo.get_by_id(photobook_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Photobook not found")
+
+        output_dir = os.path.dirname(record.html_path) if record.html_path else None
+        repo.delete(photobook_id)
+
+        if output_dir and os.path.exists(output_dir):
+            try:
+                shutil.rmtree(output_dir)
+            except OSError as e:
+                print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+
+        return {"deleted": photobook_id}
+    finally:
+        session.close()
+
+
+@router.post("/photobooks/delete-batch")
+async def delete_photobooks_batch(body: DeleteBatchRequest):
+    """Mehrere Fotobücher und deren Dateien auf einmal löschen."""
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="No photobook IDs provided")
+
+    session = get_session()
+    try:
+        repo = PhotobookRepository(session)
+
+        output_dirs: list[str] = []
+        for pb_id in body.ids:
+            record = repo.get_by_id(pb_id)
+            if record and record.html_path:
+                d = os.path.dirname(record.html_path)
+                if d not in output_dirs:
+                    output_dirs.append(d)
+
+        deleted = repo.delete_batch(body.ids)
+
+        for d in output_dirs:
+            if os.path.exists(d):
+                try:
+                    shutil.rmtree(d)
+                except OSError as e:
+                    print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+
+        return {"deleted": deleted}
+    finally:
+        session.close()
+
+
+@router.get("/photobooks/{photobook_id}/pdf")
+async def get_photobook_pdf(photobook_id: int):
+    """PDF eines persistierten Fotobuchs ausliefern."""
+    session = get_session()
+    try:
+        repo = PhotobookRepository(session)
+        record = repo.get_by_id(photobook_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Fotobuch nicht gefunden")
+        if not record.pdf_path:
+            raise HTTPException(status_code=400, detail="Fotobuch hat kein PDF")
+
+        path = Path(record.pdf_path)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="PDF-Datei nicht gefunden")
+
+        return FileResponse(
+            path,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{path.name}"',
+                "Cache-Control": "no-cache",
+            },
+        )
+    finally:
+        session.close()
+
+
+@router.get("/photobooks/{photobook_id}/images/{filename}")
+async def get_photobook_image(photobook_id: int, filename: str):
+    """Bilddatei eines Fotobuchs ausliefern."""
+    session = get_session()
+    try:
+        repo = PhotobookRepository(session)
+        record = repo.get_by_id(photobook_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Photobook not found")
+
+        for img in record.images:
+            if os.path.basename(img.image_path) == filename:
+                if os.path.isfile(img.image_path):
+                    return FileResponse(img.image_path)
+                break
+
+        output_dir = None
+        if record.html_path:
+            output_dir = os.path.dirname(record.html_path)
+
+        if output_dir:
+            image_path = os.path.join(output_dir, "images", filename)
+            if os.path.isfile(image_path):
+                return FileResponse(image_path)
+
+        raise HTTPException(status_code=404, detail="Image not found")
+    finally:
+        session.close()
 
 
 # ── SSE Streaming ──────────────────────────────────────
