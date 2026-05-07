@@ -2,7 +2,7 @@
 import os
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker, Session
-from app.db.models import Base, Article
+from app.db.models import Base, Article, Photobook
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///travel_agent.db")
 
@@ -32,12 +32,13 @@ def _ensure_indexes():
     engine = _get_engine()
     from sqlalchemy import inspect
     inspector = inspect(engine)
-    existing = inspector.get_indexes("articles")
-    existing_names = [idx["name"] for idx in existing]
-    for col in ["tour_date", "generation_timestamp", "tour_duration_hours"]:
-        idx_name = f"idx_articles_{col}"
-        if idx_name not in existing_names:
-            Index(idx_name, Article.__table__.c[col]).create(engine)
+    for model, table_name in [(Article, "articles"), (Photobook, "photobooks")]:
+        existing = inspector.get_indexes(table_name)
+        existing_names = [idx["name"] for idx in existing]
+        for col in ["tour_date", "generation_timestamp", "tour_duration_hours"]:
+            idx_name = f"idx_{table_name}_{col}"
+            if idx_name not in existing_names:
+                Index(idx_name, model.__table__.c[col]).create(engine)
 
 
 def get_session() -> Session:
