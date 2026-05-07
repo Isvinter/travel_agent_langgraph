@@ -317,7 +317,7 @@
     color: var(--error);
   }
   .table-container {
-    overflow-x: auto;
+    /* overflow handled by .table-scroll-wrapper */
   }
   table {
     width: 100%;
@@ -419,7 +419,7 @@
 
   .table-scroll-wrapper {
     flex: 1;
-    overflow-y: auto;
+    overflow: auto;
     min-height: 0;
   }
 </style>
