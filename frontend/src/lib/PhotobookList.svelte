@@ -182,55 +182,57 @@
   {:else if photobooks.length === 0}
     <p class="status">Keine Fotobücher gefunden.</p>
   {:else}
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th class="th-check">
-              <input
-                type="checkbox"
-                checked={selectedIds.size === photobooks.length && photobooks.length > 0}
-                onchange={toggleSelectAll}
-              />
-            </th>
-            <th>Titel</th>
-            <th>Tour-Datum</th>
-            <th>Dauer</th>
-            <th>Distanz</th>
-            <th>Höhenmeter</th>
-            <th>Bilder</th>
-            <th>Grösse</th>
-            <th></th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each photobooks as p}
+    <div class="table-scroll-wrapper">
+      <div class="table-container">
+        <table>
+          <thead>
             <tr>
-              <td class="td-check">
+              <th class="th-check">
                 <input
                   type="checkbox"
-                  checked={selectedIds.has(p.id)}
-                  onchange={() => toggleSelect(p.id)}
+                  checked={selectedIds.size === photobooks.length && photobooks.length > 0}
+                  onchange={toggleSelectAll}
                 />
-              </td>
-              <td>{p.title || "Ohne Titel"}</td>
-              <td>{formatDate(p.tour_date)}</td>
-              <td>{formatDuration(p.tour_duration_hours)}</td>
-              <td>{p.total_distance_km ? `${p.total_distance_km} km` : "\u2014"}</td>
-              <td>{p.elevation_gain_m ? `${p.elevation_gain_m} m` : "\u2014"}</td>
-              <td>{p.image_count ?? "\u2014"}</td>
-              <td>{formatSize(p.photobook_size)}</td>
-              <td>
-                <button class="view-btn" onclick={() => handleView(p.id)}>Ansehen</button>
-              </td>
-              <td>
-                <button class="delete-btn" onclick={() => openSingleDelete(p.id)}>Löschen</button>
-              </td>
+              </th>
+              <th>Titel</th>
+              <th>Tour-Datum</th>
+              <th>Dauer</th>
+              <th>Distanz</th>
+              <th>Höhenmeter</th>
+              <th>Bilder</th>
+              <th>Grösse</th>
+              <th></th>
+              <th></th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each photobooks as p}
+              <tr>
+                <td class="td-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(p.id)}
+                    onchange={() => toggleSelect(p.id)}
+                  />
+                </td>
+                <td>{p.title || "Ohne Titel"}</td>
+                <td>{formatDate(p.tour_date)}</td>
+                <td>{formatDuration(p.tour_duration_hours)}</td>
+                <td>{p.total_distance_km ? `${p.total_distance_km} km` : "\u2014"}</td>
+                <td>{p.elevation_gain_m ? `${p.elevation_gain_m} m` : "\u2014"}</td>
+                <td>{p.image_count ?? "\u2014"}</td>
+                <td>{formatSize(p.photobook_size)}</td>
+                <td>
+                  <button class="view-btn" onclick={() => handleView(p.id)}>Ansehen</button>
+                </td>
+                <td>
+                  <button class="delete-btn" onclick={() => openSingleDelete(p.id)}>Löschen</button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     </div>
   {/if}
 </div>
@@ -256,8 +258,9 @@
 <style>
   .photobook-list {
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
     height: 100%;
-    overflow-y: auto;
   }
   .header {
     display: flex;
@@ -328,6 +331,10 @@
     padding: 0.5rem 0.5rem;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 1;
   }
   .th-check {
     width: 2rem;
@@ -408,5 +415,11 @@
   .confirm-btn:disabled, .cancel-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .table-scroll-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 </style>
