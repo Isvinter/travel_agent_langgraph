@@ -9,12 +9,15 @@ from app.db.photobook_repository import PhotobookRepository
 
 
 def _sanitize_html(html: str) -> str:
-    """Entfernt potenziell gefährliche Inhalte aus LLM-generiertem HTML."""
+    """Entfernt potenziell gefährliche Inhalte aus LLM-generiertem HTML.
+
+    Style-Tags werden NICHT entfernt — das Fotobuch-CSS wird für das
+    Layout im iframe benötigt.
+    """
     if not html:
         return html
     html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
-    html = re.sub(r'<style[^>]*>.*?</style\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
     html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
     html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
