@@ -17,8 +17,8 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated blo
 - **AI blog generation** — multimodal LLM writes narrative travel blog enriched with weather, POIs, images, map
 - **AI blog design** — styled HTML with two writer personas (Mountain Veteran / Field Reporter) and three length presets (short / normal / detailed)
 - **PDF export** — downloadable PDFs via headless Chrome CDP (optional, user-togglable)
-- **Database persistence** — SQLAlchemy with filterable article queries, PostgreSQL-ready
-- **Article browser** — filterable table, batch delete, inline HTML rendering with images
+- **Database persistence** — SQLAlchemy with SQLite for articles and photobooks, PostgreSQL-ready
+- **Article & photobook browser** — filterable table, batch delete, sub-tabs (Blogartikel / Fotobücher), inline HTML rendering for articles, iframe for photobooks
 - **Web UI** — Svelte 5 frontend with drag-and-drop, live SSE progress streaming
 
 ### Photobook Pipeline (NEW)
@@ -31,6 +31,7 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated blo
 - **CSS Grid rendering** — each preset renders as a precise 210×297mm page with A4 print CSS
 - **PDF export** — headless Chrome CDP with print media emulation
 - **HTML debug output** — intermediate HTML saved alongside PDF for inspection
+- **Persistence** — photobooks stored in SQLite alongside articles, browsable in the web UI
 - **Pipeline separation** — photobook mode branches early, skipping expensive blog enrichment nodes
 
 ## Architecture
@@ -54,9 +55,9 @@ process_gpx → load_images → extract_metadata → clustering_images → gener
                                                               │              ↓
                                                    generate_photobook_pdf generate_enriched_map
                                                               │              ↓
-                                                            END     generate_blog_post
-                                                                             ↓
-                                                                     design_blogpost
+                                                     persist_photobook   generate_blog_post
+                                                              │              ↓
+                                                            END       design_blogpost
                                                                              ↓
                                                                      persist_article
                                                                         │        │
@@ -75,17 +76,17 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 |-------|--------|---------|
 | State | `app/state.py` | `AppState`, `ImageData`, `WeatherInfo`, `DailyWeather`, `PageDescription`, `PhotobookConfig`, `OutputConfig` |
 | Config | `app/config.py` | `OLLAMA_BASE_URL`, `OUTPUT_DIR`, `LENGTH_PRESETS`, `PERSONAS`, blog styles |
-| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 20 nodes |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`), 20 nodes |
-| Services | `app/services/*.py` | Blog business logic (GPX, images, clustering, maps, weather, POI, review, blog, design, PDF) |
+| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 21 nodes |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`), 21 nodes |
+| Services | `app/services/*.py` | Blog + photobook business logic (GPX, images, clustering, maps, weather, POI, review, blog, design, PDF, persistence) |
 | Pipeline | `app/pipeline/*.py` | Higher-level orchestration helper (`enrich_images_with_metadata`) |
 | Photobook | `app/photobook/*.py` | Photobook module: plan, generate, render, validate, PDF, image selection, 18 presets |
 | Presets | `app/photobook/preset_data/` | 18 JSON preset definitions with CSS grid areas and text constraints |
 | CSS | `app/photobook/styles.css` | A4-optimized print CSS with 18 preset grid layouts |
-| Database | `app/db/` | SQLAlchemy ORM models, connection, repository pattern |
+| Database | `app/db/` | SQLAlchemy ORM models (articles, article_images, photobooks, photobook_images), connection, repositories |
 | API | `app/api/` | FastAPI server, routes, SSE events |
 | Utils | `app/utils/` | EXIF helpers, image compression/base64 encoding |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (13 components, 2 stores) |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (15 components, 2 stores) |
 
 ## Tech Stack
 
@@ -186,10 +187,11 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── routes.py             # REST endpoints (models, files, pipeline, articles)
 │   │   └── events.py             # SSE event types and emitter
 │   ├── db/                   # SQLAlchemy persistence layer
-│   │   ├── models.py             # ORM models (Article, Image)
-│   │   ├── connection.py         # Engine/session factory
-│   │   └── repository.py         # CRUD repository pattern
-│   ├── nodes/                # LangGraph pipeline nodes (20 nodes)
+│   │   ├── models.py             # ORM models (Article, ArticleImage, Photobook, PhotobookImage)
+│   │   ├── connection.py         # Engine/session factory + indexes
+│   │   ├── repository.py         # ArticleRepository
+│   │   └── photobook_repository.py # PhotobookRepository
+│   ├── nodes/                # LangGraph pipeline nodes (21 nodes)
 │   │   ├── process_gpx.py            # GPX parsing and analytics
 │   │   ├── load_images.py            # Load images from directory
 │   │   ├── extract_metadata.py        # EXIF GPS + timestamp extraction
@@ -203,13 +205,14 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── generate_enriched_map.py   # Map with POIs + weather overlay
 │   │   ├── generate_blogpost.py       # Multimodal LLM blog generation
 │   │   ├── design_blogpost.py         # CSS styling + persona + length presets
-│   │   ├── persist_article.py         # Database persistence
+│   │   ├── persist_article.py         # Database persistence for articles
 │   │   ├── generate_pdf.py            # Optional blog PDF export (Chrome CDP)
 │   │   ├── select_photobook_images_node.py  # AI image selection for photobook
 │   │   ├── plan_photobook_node.py          # LLM layout planning (18 presets)
 │   │   ├── generate_photobook_node.py      # LLM slot assignment + text generation
 │   │   ├── render_photobook_node.py        # HTML assembler from PageDescription
-│   │   └── generate_photobook_pdf_node.py  # Photobook PDF via headless Chrome CDP
+│   │   ├── generate_photobook_pdf_node.py  # Photobook PDF via headless Chrome CDP
+│   │   └── persist_photobook.py            # Database persistence for photobooks
 │   ├── services/             # Business logic (no side effects except file I/O)
 │   │   ├── gpx_analytics.py           # GPX parsing, distance/elevation/speed/pauses
 │   │   ├── image_loader.py            # Directory scanning, JPEG loading
@@ -224,7 +227,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── content_reviewer.py        # LLM quality gate for enrichment data
 │   │   ├── blog_generator.py          # Multimodal LLM blog post generation
 │   │   ├── design_blogpost.py         # Persona-aware CSS design
-│   │   ├── persist_article.py         # SQLAlchemy CRUD operations
+│   │   ├── persist_article.py         # SQLAlchemy CRUD for articles
+│   │   ├── persist_photobook.py       # SQLAlchemy CRUD for photobooks
 │   │   └── generate_pdf.py            # Headless Chrome CDP PDF export
 │   ├── photobook/            # Photobook module
 │   │   ├── preset_data/          # 18 JSON preset definitions
@@ -263,6 +267,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   │   ├── OutputWindow.svelte     # Live SSE progress + result display
 │   │   │   ├── PdfExportCheckbox.svelte # PDF export toggle
 │   │   │   ├── PhotobookSizeSelector.svelte # Photobook size picker
+│   │   │   ├── PhotobookList.svelte    # Filterable photobook browser
+│   │   │   ├── PhotobookDetail.svelte  # Full photobook view (iframe)
 │   │   │   ├── RunButton.svelte        # Pipeline start button (auto-detects mode)
 │   │   │   ├── StyleSelector.svelte    # Persona picker
 │   │   │   └── WildcardCount.svelte    # Max image config
@@ -273,18 +279,20 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── tests/                    # pytest suite (335 tests, 73 photobook)
+├── tests/                    # pytest suite (~350 tests)
 │   ├── fixtures/                 # Test data (GPX, images, notes)
 │   ├── conftest.py               # Shared fixtures
 │   ├── test_api/                 # API integration + enrichment e2e
 │   ├── test_services/            # Per-service unit/integration tests
 │   ├── test_nodes/               # Per-node unit/integration tests
 │   ├── test_graph/               # Graph integration + pipeline e2e
-│   ├── test_photobook/           # Photobook-specific tests (73 tests)
+│   ├── test_photobook/           # Photobook-specific tests
 │   ├── test_utils/               # Utility tests
 │   ├── test_state.py             # AppState model tests
-│   ├── test_repository.py        # DB repository tests
-│   ├── test_persist_service.py   # Persist service tests
+│   ├── test_repository.py        # Article repository tests
+│   ├── test_photobook_repository.py  # Photobook repository tests
+│   ├── test_persist_service.py       # Article persist service tests
+│   ├── test_persist_photobook_service.py # Photobook persist service tests
 │   ├── test_api_endpoints.py     # API endpoint tests
 │   └── test_conftest_fixtures.py # Fixture verification
 ├── main.py                   # Reference CLI entry point (hardcoded GPX)
@@ -300,7 +308,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 uv run pytest tests/ -v
 ```
 
-335 tests total, 73 of which are photobook-specific. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
+350 tests total. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 
@@ -318,6 +326,12 @@ uv run pytest tests/ -v
 | `POST` | `/api/articles/delete-batch` | Delete multiple articles at once |
 | `GET` | `/api/articles/{id}/pdf` | Export an article as a downloadable PDF file |
 | `GET` | `/api/articles/{id}/images/{filename}` | Serve an article's image file |
+| `GET` | `/api/photobooks` | List persisted photobooks with filters (tour date, duration, generation time) and pagination |
+| `GET` | `/api/photobooks/{id}` | Get full photobook detail with HTML, PDF path, and image references |
+| `DELETE` | `/api/photobooks/{id}` | Delete a photobook — removes DB record and output files |
+| `POST` | `/api/photobooks/delete-batch` | Delete multiple photobooks at once |
+| `GET` | `/api/photobooks/{id}/pdf` | Download a photobook PDF |
+| `GET` | `/api/photobooks/{id}/images/{filename}` | Serve a photobook's image file |
 
 ## Configuration
 
@@ -329,7 +343,7 @@ uv run pytest tests/ -v
 | `OUTPUT_DIR` | `output` | Directory for generated articles and photobooks |
 | `DATABASE_URL` | `sqlite:///travel_agent.db` | SQLAlchemy connection string (set to `postgresql://...` for PostgreSQL) |
 
-Default is SQLite — a single `travel_agent.db` file created in the project root on first use. Tables and indexes are auto-created. Images are referenced by file path (no BLOBs).
+Default is SQLite — a single `travel_agent.db` file created in the project root on first use. Tables (`articles`, `article_images`, `photobooks`, `photobook_images`) and indexes are auto-created. Images are referenced by file path (no BLOBs).
 
 ### Blog Options
 
