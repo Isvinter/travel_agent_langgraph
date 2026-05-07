@@ -13,15 +13,31 @@
   import OutputWindow from "./lib/OutputWindow.svelte";
   import ArticleList from "./lib/ArticleList.svelte";
   import ArticleDetail from "./lib/ArticleDetail.svelte";
+  import PhotobookList from "./lib/PhotobookList.svelte";
+  import PhotobookDetail from "./lib/PhotobookDetail.svelte";
 
   let rt = $derived($route);
   let rightTab = $derived(rt.page === "pipeline" ? "pipeline" : "datenbank");
+  let dbSubTab: "articles" | "photobooks" = $state("articles");
 
   function switchRightTab(tab: "pipeline" | "datenbank") {
     if (tab === "pipeline") {
       navigateTo({ page: "pipeline" });
     } else {
+      if (dbSubTab === "articles") {
+        navigateTo({ page: "articles" });
+      } else {
+        navigateTo({ page: "photobooks" });
+      }
+    }
+  }
+
+  function switchDbSubTab(sub: "articles" | "photobooks") {
+    dbSubTab = sub;
+    if (sub === "articles") {
       navigateTo({ page: "articles" });
+    } else {
+      navigateTo({ page: "photobooks" });
     }
   }
 
@@ -90,11 +106,34 @@
       </button>
     </nav>
 
+    {#if rightTab === "datenbank"}
+      <div class="sub-tabs">
+        <button
+          class="sub-tab"
+          class:active={dbSubTab === "articles"}
+          onclick={() => switchDbSubTab("articles")}
+        >
+          Blogartikel
+        </button>
+        <button
+          class="sub-tab"
+          class:active={dbSubTab === "photobooks"}
+          onclick={() => switchDbSubTab("photobooks")}
+        >
+          Fotobücher
+        </button>
+      </div>
+    {/if}
+
     <div class="right-content">
       {#if rightTab === "pipeline"}
         <OutputWindow />
       {:else if rt.page === "article"}
         <ArticleDetail id={rt.id} />
+      {:else if rt.page === "photobook"}
+        <PhotobookDetail id={rt.id} />
+      {:else if dbSubTab === "photobooks"}
+        <PhotobookList />
       {:else}
         <ArticleList />
       {/if}
@@ -172,6 +211,31 @@
     border-color: var(--accent);
   }
   .right-tab:hover:not(.active) {
+    background: var(--panel-2);
+    color: var(--text-primary);
+  }
+  .sub-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+  }
+  .sub-tab {
+    padding: 0.35rem 0.75rem;
+    background: var(--panel);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .sub-tab.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .sub-tab:hover:not(.active) {
     background: var(--panel-2);
     color: var(--text-primary);
   }
