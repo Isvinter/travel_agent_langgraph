@@ -109,16 +109,16 @@
     </div>
 
     {#if rightTab === "datenbank"}
-      <div class="sub-tabs">
+      <div class="segmented-control">
         <button
-          class="sub-tab"
+          class="segment"
           class:active={dbSubTab === "articles"}
           onclick={() => switchDbSubTab("articles")}
         >
           Blogartikel
         </button>
         <button
-          class="sub-tab"
+          class="segment"
           class:active={dbSubTab === "photobooks"}
           onclick={() => switchDbSubTab("photobooks")}
         >
@@ -216,28 +216,31 @@
     background: var(--panel-2);
     color: var(--text-primary);
   }
-  .sub-tabs {
+  .segmented-control {
     display: flex;
-    gap: 0.25rem;
+    gap: 0;
     margin-bottom: 0.75rem;
     flex-shrink: 0;
-  }
-  .sub-tab {
-    padding: 0.35rem 0.75rem;
     background: var(--panel);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .segment {
+    padding: 0.35rem 0.75rem;
+    background: transparent;
     color: var(--text-secondary);
     font-size: 0.75rem;
     font-weight: 500;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: none;
+    border-radius: 0;
     cursor: pointer;
   }
-  .sub-tab.active {
+  .segment.active {
     background: var(--accent);
     color: white;
-    border-color: var(--accent);
   }
-  .sub-tab:hover:not(.active) {
+  .segment:hover:not(.active) {
     background: var(--panel-2);
     color: var(--text-primary);
   }
