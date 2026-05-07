@@ -502,43 +502,300 @@ class TestArticlePdf:
                 os.unlink(tmp)
 
 
-class TestPhotobookPdf:
-    def test_missing_run_returns_404(self, client):
-        response = client.get("/api/photobook/nonexistent-run/pdf")
+class TestPhotobooksList:
+    def test_list_empty_returns_empty_array(self, monkeypatch):
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker as sm
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            response = client.get("/api/photobooks")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["photobooks"] == []
+            assert data["total"] == 0
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+    def test_list_with_filters(self, monkeypatch):
+        import os
+        import tempfile
+        from datetime import date as date_type, datetime as datetime_type
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.photobook_repository import PhotobookRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = PhotobookRepository(session)
+            repo.insert(
+                photobook_data={
+                    "title": "Test Fotobuch",
+                    "tour_date": date_type(2026, 4, 15),
+                    "tour_duration_hours": 5.0,
+                    "generation_timestamp": datetime_type(2026, 4, 30, 12, 0, 0),
+                    "html_content": "<h1>Test</h1>",
+                    "html_path": "output/test/html.html",
+                    "photobook_size": "normal",
+                    "page_count": 10,
+                },
+                images=[],
+            )
+            session.commit()
+
+            response = client.get("/api/photobooks?tour_date_from=2026-04-01&tour_date_to=2026-05-01")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total"] == 1
+            assert data["photobooks"][0]["photobook_size"] == "normal"
+            assert data["photobooks"][0]["page_count"] == 10
+            assert "html_content" not in data["photobooks"][0]
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+
+class TestPhotobookDetail:
+    def test_get_by_valid_id(self, monkeypatch):
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.photobook_repository import PhotobookRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = PhotobookRepository(session)
+            pb_id = repo.insert(
+                photobook_data={
+                    "title": "Detail Test",
+                    "html_content": "<h1>Detail</h1><p>Content</p>",
+                    "html_path": "output/test/html.html",
+                    "photobook_size": "short",
+                },
+                images=[
+                    {"image_path": "./images/01.jpg", "is_map": False, "is_elevation_profile": False},
+                ],
+            )
+            session.commit()
+
+            response = client.get(f"/api/photobooks/{pb_id}")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["photobook"]["id"] == pb_id
+            assert data["photobook"]["photobook_size"] == "short"
+            assert len(data["photobook"]["images"]) == 1
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+    def test_get_by_invalid_id_returns_404(self, client):
+        response = client.get("/api/photobooks/99999")
         assert response.status_code == 404
 
-    def test_run_without_pdf_returns_400(self, monkeypatch):
-        """Run existiert, aber hat kein photobook_pdf_path."""
-        from app.api.events import PipelineEventManager
-        mgr = PipelineEventManager()
-        mgr.store_result("test-run-no-pdf", {"success": True})
-        monkeypatch.setattr("app.api.routes.event_manager", mgr)
-        from fastapi.testclient import TestClient
-        from app.api.server import create_app
-        app = create_app()
-        client = TestClient(app)
-        response = client.get("/api/photobook/test-run-no-pdf/pdf")
-        assert response.status_code == 400
 
-    def test_valid_pdf_served(self, monkeypatch, tmp_path):
-        """PDF-Datei wird korrekt ausgeliefert."""
+class TestPhotobookDelete:
+    def test_delete_existing(self, monkeypatch):
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.photobook_repository import PhotobookRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = PhotobookRepository(session)
+            pb_id = repo.insert(
+                photobook_data={"html_path": "output/test/html.html"},
+                images=[],
+            )
+            session.commit()
+
+            response = client.delete(f"/api/photobooks/{pb_id}")
+            assert response.status_code == 200
+            assert response.json()["deleted"] == pb_id
+
+            response2 = client.get(f"/api/photobooks/{pb_id}")
+            assert response2.status_code == 404
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+    def test_delete_nonexistent_returns_404(self, client):
+        response = client.delete("/api/photobooks/99999")
+        assert response.status_code == 404
+
+
+class TestPhotobookPdf:
+    def test_pdf_endpoint_returns_404_for_missing(self, client):
+        response = client.get("/api/photobooks/99999/pdf")
+        assert response.status_code == 404
+
+    def test_pdf_endpoint_with_valid_photobook(self, monkeypatch, tmp_path):
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.photobook_repository import PhotobookRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+
         pdf_file = tmp_path / "test.pdf"
-        pdf_file.write_bytes(b"%PDF-1.4 mock photobook")
+        pdf_file.write_bytes(b"%PDF-1.4 mock")
 
-        from app.api.events import PipelineEventManager
-        mgr = PipelineEventManager()
-        mgr.store_result("test-run-pdf", {
-            "success": True,
-            "photobook_pdf_path": str(pdf_file),
-        })
-        monkeypatch.setattr("app.api.routes.event_manager", mgr)
-        from fastapi.testclient import TestClient
-        from app.api.server import create_app
-        app = create_app()
-        client = TestClient(app)
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
 
-        response = client.get("/api/photobook/test-run-pdf/pdf")
-        assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
-        assert "attachment" in response.headers["content-disposition"]
-        assert response.content == b"%PDF-1.4 mock photobook"
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = PhotobookRepository(session)
+            pb_id = repo.insert(
+                photobook_data={
+                    "html_path": "output/test/html.html",
+                    "pdf_path": str(pdf_file),
+                },
+                images=[],
+            )
+            session.commit()
+
+            response = client.get(f"/api/photobooks/{pb_id}/pdf")
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "application/pdf"
+            assert response.content == b"%PDF-1.4 mock"
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+    def test_pdf_endpoint_with_no_pdf_returns_400(self, monkeypatch):
+        import os
+        import tempfile
+        from app.db import connection as conn_module
+        from app.db.models import Base
+        from app.db.photobook_repository import PhotobookRepository
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session, sessionmaker as sm
+
+        tmp = tempfile.mktemp(suffix=".db")
+        try:
+            engine = create_engine(f"sqlite:///{tmp}", echo=False)
+            Base.metadata.create_all(engine)
+            session = Session(engine)
+
+            factory = sm(bind=engine)
+            monkeypatch.setattr(conn_module, "_engine", engine)
+            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+            monkeypatch.setattr(conn_module, "get_session", factory)
+
+            from app.api.server import create_app
+            from fastapi.testclient import TestClient
+            app = create_app()
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
+            client = TestClient(app)
+
+            repo = PhotobookRepository(session)
+            pb_id = repo.insert(photobook_data={"html_path": "output/test/html.html"}, images=[])
+            session.commit()
+
+            response = client.get(f"/api/photobooks/{pb_id}/pdf")
+            assert response.status_code == 400
+
+            session.close()
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
