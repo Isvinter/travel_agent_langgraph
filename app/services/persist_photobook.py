@@ -1,11 +1,28 @@
 # app/services/persist_photobook.py
 """Service zum Persistieren generierter Fotobücher in der Datenbank."""
+import os
 import re
 from datetime import datetime, date
 from typing import Optional, List
 
 from app.db.connection import get_session
 from app.db.photobook_repository import PhotobookRepository
+
+
+def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[str]:
+    """Extrahiert den Fotobuch-Titel aus der Titelseite des LLM-Generats."""
+    if photobook_pages:
+        cover_page = photobook_pages[0]
+        for slot in (cover_page.slots if hasattr(cover_page, "slots") else cover_page.get("slots", [])):
+            if slot.get("slot_id") == "title" and slot.get("text", "").strip():
+                return slot["text"]
+
+    if gpx_file:
+        base = os.path.splitext(os.path.basename(gpx_file))[0].strip()
+        if base:
+            return base
+
+    return None
 
 
 def _sanitize_html(html: str) -> str:
@@ -76,8 +93,10 @@ def persist_photobook(
     gain_m = gpx_stats.elevation_gain_m if gpx_stats else None
     loss_m = gpx_stats.elevation_loss_m if gpx_stats else None
 
+    title = _extract_photobook_title(photobook_pages, gpx_file)
+
     photobook_data = {
-        "title": None,
+        "title": title,
         "tour_date": tour_date,
         "tour_duration_hours": round(tour_duration_hours, 2) if tour_duration_hours else None,
         "tour_duration_source": tour_duration_source,

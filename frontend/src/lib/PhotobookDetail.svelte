@@ -30,6 +30,11 @@
   let error: string | null = $state(null);
   let deleting: boolean = $state(false);
 
+  function iframeHeight(pageCount: number | null): string {
+    if (!pageCount || pageCount < 1) return "1200px";
+    return `${pageCount * 1125}px`;
+  }
+
   async function fetchPhotobook() {
     loading = true;
     error = null;
@@ -144,7 +149,9 @@
         srcdoc={photobook.html_content}
         title="Fotobuch"
         sandbox="allow-scripts allow-same-origin"
-      />
+        scrolling="no"
+        style="height: {iframeHeight(photobook.page_count)}; overflow: hidden;"
+      ></iframe>
     {/if}
   {/if}
 </div>
@@ -152,9 +159,9 @@
 <style>
   .photobook-detail {
     padding: 1rem;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     max-width: 1400px;
   }
   .toolbar {
@@ -223,8 +230,6 @@
   }
   .photobook-iframe {
     width: 100%;
-    flex: 1;
-    min-height: 0;
     border: none;
     background: white;
   }
