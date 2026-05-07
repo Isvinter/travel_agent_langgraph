@@ -50,9 +50,15 @@
 </script>
 
 <div class="layout">
+  <!-- TITELBAR -->
+  <header class="titlebar">
+    <h1 class="titlebar-title">Tavilo</h1>
+    <p class="titlebar-subtitle">KI-basierte Erstellung von Blogartikeln und Fotobüchern aus Rohdaten die Deine Privatsphäre respektiert</p>
+  </header>
+
   <!-- LINKE SIDEBAR -->
   <aside class="sidebar panel">
-    <h1 class="title">Travel Agent</h1>
+    <h1 class="sidebar-title">Einstellungen</h1>
 
     <ModelSelector />
     <div class="section">
@@ -147,9 +153,30 @@
   .layout {
     display: grid;
     grid-template-columns: 280px 1fr;
+    grid-template-rows: auto 1fr;
     height: 100vh;
     width: 100vw;
     background: var(--bg);
+  }
+  .titlebar {
+    grid-column: 1 / -1;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .titlebar-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--accent);
+  }
+  .titlebar-subtitle {
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--text-secondary);
   }
   .sidebar {
     background: var(--panel);
@@ -160,7 +187,7 @@
     gap: 0.75rem;
     overflow-y: auto;
   }
-  .title {
+  .sidebar-title {
     font-size: 1rem;
     font-weight: bold;
     color: var(--accent);
