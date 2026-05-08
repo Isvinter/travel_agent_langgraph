@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import { route, navigateTo } from "./lib/stores/router";
-  import { runState, currentDraftId } from "./lib/stores/pipeline";
+  import { runState, currentDraftId, pipelineMode } from "./lib/stores/pipeline";
   import { theme, toggleTheme } from "./lib/stores/theme";
   import ModelSelector from "./lib/ModelSelector.svelte";
   import FileDropZone from "./lib/FileDropZone.svelte";
@@ -10,6 +10,7 @@
   import NotesInput from "./lib/NotesInput.svelte";
   import SettingsTabs from "./lib/SettingsTabs.svelte";
   import RunButton from "./lib/RunButton.svelte";
+  import PdfExportCheckbox from "./lib/PdfExportCheckbox.svelte";
   import PipelineTimeline from "./lib/PipelineTimeline.svelte";
   import ArticleList from "./lib/ArticleList.svelte";
   import ArticleDetail from "./lib/ArticleDetail.svelte";
@@ -33,7 +34,7 @@
 <div class="layout" class:has-sidebar={showSidebar}>
 
   <header class="topnav">
-    <span class="topnav-brand">Tavilo</span>
+    <span class="topnav-brand">Travilo</span>
     <nav class="topnav-tabs">
       <button
         class="t-tab"
@@ -97,6 +98,11 @@
         <div class="sb-group">
           <div class="sb-group-title">Ausgabe</div>
           <OutputDirInput />
+          {#if $pipelineMode === "blog"}
+            <PdfExportCheckbox />
+          {:else}
+            <div class="pdf-info">PDF-Export immer aktiv</div>
+          {/if}
         </div>
       </div>
 
@@ -152,7 +158,7 @@
   .topnav-brand {
     font-weight: 700;
     color: var(--accent);
-    font-size: 1rem;
+    font-size: 1.3rem;
     margin-right: 24px;
   }
   .topnav-tabs {
@@ -168,7 +174,7 @@
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 1.05rem;
     font-weight: 500;
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
@@ -212,9 +218,9 @@
     overflow: hidden;
   }
   .sidebar-header {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 12px;
@@ -238,7 +244,7 @@
     gap: 0.5rem;
   }
   .sb-group-title {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -248,6 +254,12 @@
     flex-shrink: 0;
     padding: 0.5rem 0 14px 0;
     background: var(--panel);
+  }
+  .pdf-info {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 0.1rem 0;
   }
 
   /* ── Main Content ── */

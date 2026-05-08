@@ -30,13 +30,13 @@
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
   }
   .checkbox-label input[type="checkbox"] {
     accent-color: var(--accent);
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
   }
   .checkbox-text {

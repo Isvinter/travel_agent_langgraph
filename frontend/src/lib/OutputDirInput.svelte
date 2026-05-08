@@ -20,7 +20,7 @@
     gap: 0.5rem;
   }
   label {
-    font-size: 0.75rem;
+    font-size: 0.6rem;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;

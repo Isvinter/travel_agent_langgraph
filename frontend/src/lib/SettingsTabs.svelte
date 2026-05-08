@@ -5,7 +5,6 @@
   import WildcardCount from "./WildcardCount.svelte";
   import LengthSelector from "./LengthSelector.svelte";
   import StyleSelector from "./StyleSelector.svelte";
-  import PdfExportCheckbox from "./PdfExportCheckbox.svelte";
   import ReviewCheckbox from "./ReviewCheckbox.svelte";
   import PhotobookSizeSelector from "./PhotobookSizeSelector.svelte";
   import PhotobookPresetSelector from "./PhotobookPresetSelector.svelte";
@@ -18,7 +17,6 @@
 </script>
 
 <div class="settings-tabs">
-  <span class="settings-label">Modus</span>
 
   <div class="tabs">
     <button
@@ -42,14 +40,10 @@
       <WildcardCount />
       <LengthSelector />
       <StyleSelector />
-      <PdfExportCheckbox />
       <ReviewCheckbox />
     {:else}
       <PhotobookSizeSelector />
       <PhotobookPresetSelector />
-      <div class="pdf-info">
-        PDF-Export immer aktiv
-      </div>
     {/if}
   </div>
 </div>
@@ -59,12 +53,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-  }
-  .settings-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
   .tabs {
     display: flex;
@@ -100,11 +88,5 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0.75rem;
-  }
-  .pdf-info {
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    font-style: italic;
-    padding: 0.1rem 0;
   }
 </style>

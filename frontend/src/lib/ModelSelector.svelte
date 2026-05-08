@@ -31,7 +31,6 @@
 </script>
 
 <div class="selector">
-  <label for="model-select">Modell</label>
   {#if models.length === 0 && !fetchError}
     <select disabled><option>Modelle werden geladen…</option></select>
   {:else if models.length === 0 && fetchError}
@@ -49,13 +48,6 @@
   .selector {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-  }
-  label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
   select {
     width: 100%;

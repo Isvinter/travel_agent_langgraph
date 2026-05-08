@@ -1,9 +1,8 @@
 <svelte:options runes />
 
 <script lang="ts">
-  import { pipelineSteps, result, runState } from "./stores/pipeline";
+  import { pipelineSteps, result, runState, resetPipeline } from "./stores/pipeline";
   import { navigateTo } from "./stores/router";
-  import type { StepState } from "./stores/pipeline";
 
   let steps = $derived($pipelineSteps);
   let res = $derived($result);
@@ -26,15 +25,15 @@
         </div>
         <div class="success-actions">
           {#if res.draft_id}
-            <button class="btn-accent" onclick={() => { const id = res.draft_id ?? 0; navigateTo({ page: "draft", id }); }}>
+            <button class="btn-accent" onclick={() => { const id = res.draft_id ?? 0; resetPipeline(); navigateTo({ page: "draft", id }); }}>
               Entwurf ansehen
             </button>
           {:else if res.article_id}
-            <button class="btn-accent" onclick={() => { const id = res.article_id ?? 0; navigateTo({ page: "article", id }); }}>
+            <button class="btn-accent" onclick={() => { const id = res.article_id ?? 0; resetPipeline(); navigateTo({ page: "article", id }); }}>
               Artikel ansehen
             </button>
           {/if}
-          <button class="btn-secondary" onclick={() => navigateTo({ page: "articles" })}>
+          <button class="btn-secondary" onclick={() => { resetPipeline(); navigateTo({ page: "articles" }); }}>
             Zur Übersicht
           </button>
         </div>
@@ -60,10 +59,6 @@
           </div>
           <div class="t-body" class:pending={step.status === "pending"} class:error={step.status === "error"}>
             <div class="t-label">{step.label}</div>
-            <div class="t-tech">{step.stage}</div>
-            {#if step.message}
-              <div class="t-msg">{step.message}</div>
-            {/if}
           </div>
         </div>
       {/each}
@@ -159,8 +154,6 @@
 
   .t-body { flex: 1; padding-bottom: 14px; min-width: 0; }
   .t-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; }
-  .t-tech { font-size: 0.65rem; color: var(--text-muted); font-family: monospace; }
-  .t-msg { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
 
   @keyframes spin-timeline { to { transform: rotate(360deg); } }
 </style>

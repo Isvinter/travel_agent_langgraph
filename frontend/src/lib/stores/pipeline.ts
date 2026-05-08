@@ -37,6 +37,20 @@ const STEP_LABELS: Record<string, string> = {
   load_tour_notes: "Notizen laden",
   select_images: "Bilder auswählen",
   generate_blog_post: "Blogpost generiert",
+  enrich_weather: "Wetterdaten abrufen",
+  enrich_poi: "POIs suchen",
+  review_content: "Inhalte prüfen",
+  design_blogpost: "Design anwenden",
+  persist_article: "Artikel speichern",
+  save_draft: "Entwurf speichern",
+  generate_pdf: "PDF generieren",
+  generate_enriched_map: "Angereicherte Karte",
+  select_photobook_images: "Fotobuch-Bilder auswählen",
+  plan_photobook: "Fotobuch-Layout planen",
+  generate_photobook: "Fotobuch-Seiten generieren",
+  render_photobook: "Fotobuch rendern",
+  generate_photobook_pdf: "Fotobuch-PDF erstellen",
+  persist_photobook: "Fotobuch speichern",
 };
 
 // Regenerate on each page load; set cookie so backend receives it.
@@ -86,6 +100,9 @@ export function addLine(stage: string, status: string, message: string) {
   logLines.update((lines) => [...lines, { timestamp, stage, status, message }]);
 
   // Steps aggregieren: ein Eintrag pro Stage, Status wird aktualisiert
+  // Meta-Stages wie __done__ und connection nicht in der Timeline anzeigen
+  if (stage.startsWith("__") || stage === "connection") return;
+
   pipelineSteps.update((steps) => {
     const idx = steps.findIndex((s) => s.stage === stage);
     const label = STEP_LABELS[stage] || stage;
