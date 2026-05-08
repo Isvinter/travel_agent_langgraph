@@ -2,6 +2,10 @@
 
 This file provides guidance to OpenCode when working with code in this repository.
 
+## Worktree convention
+
+**When a git worktree exists (e.g., `.worktrees/blog-draft-review/`), ALL edits must be made in the WORKTREE, never in the main tree.** The worktree contains an in-progress feature branch. Changes to the main tree will be lost when the worktree branch is merged.
+
 ## Quick start
 
 ```bash
