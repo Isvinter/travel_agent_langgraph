@@ -15,6 +15,8 @@ export interface RunResult {
   html?: string;
   file_paths?: Record<string, string>;
   error?: string;
+  draft_id?: number;
+  article_id?: number;
 }
 
 // Regenerate on each page load; set cookie so backend receives it.
@@ -50,6 +52,9 @@ export const photobookSize = writable<"short" | "normal" | "detailed">("normal")
 export const photobookPreset = writable<
   "nature_outdoor" | "culture_architecture" | "people" | "nature_collage" | "mixed"
 >("mixed");
+
+export const reviewEnabled = writable<boolean>(false);
+export const currentDraftId = writable<number | null>(null);
 
 let eventSource: EventSource | null = null;
 
@@ -89,7 +94,6 @@ export function startStream(runId: string) {
     addLine("__done__", data.status, `Pipeline ${isSuccess ? "erfolgreich" : "fehlgeschlagen"}.`);
     runState.set(isSuccess ? "done" : "failed");
 
-    // Auto-download PDF if available
     if (data.pdf_available) {
       if (data.article_id) {
         window.open(`/api/articles/${data.article_id}/pdf`, "_blank");
@@ -98,13 +102,21 @@ export function startStream(runId: string) {
       }
     }
 
-    try {
-      const res = await fetch(`/api/pipeline/result/${runId}`);
-      if (res.ok) {
-        result.set(await res.json());
+    if (data.draft_id) {
+      currentDraftId.set(data.draft_id);
+      result.set({
+        success: true,
+        draft_id: data.draft_id,
+      });
+    } else {
+      try {
+        const res = await fetch(`/api/pipeline/result/${runId}`);
+        if (res.ok) {
+          result.set(await res.json());
+        }
+      } catch (err) {
+        console.error("Failed to fetch result:", err);
       }
-    } catch (err) {
-      console.error("Failed to fetch result:", err);
     }
   });
 
@@ -127,4 +139,5 @@ export function resetPipeline() {
   runState.set("idle");
   currentRunId.set(null);
   result.set(null);
+  currentDraftId.set(null);
 }
