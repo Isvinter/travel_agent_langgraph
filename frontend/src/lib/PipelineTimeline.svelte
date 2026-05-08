@@ -6,20 +6,19 @@
   import type { StepState } from "./stores/pipeline";
 
   let steps = $derived($pipelineSteps);
-  let state = $derived($runState);
   let res = $derived($result);
 </script>
 
 <div class="timeline-wrapper">
   {#if steps.length === 0}
     <div class="timeline-empty">
-      <div class="timeline-empty-icon">🚀</div>
+      <div class="timeline-empty-icon" aria-hidden="true">🚀</div>
       <p>Pipeline bereit. Konfiguriere die Einstellungen und starte die Generierung.</p>
     </div>
   {:else}
-    {#if state === "done" && res}
+    {#if $runState === "done" && res}
       <div class="success-banner">
-        <div class="success-icon">🎉</div>
+        <div class="success-icon" aria-hidden="true">🎉</div>
         <div class="success-body">
           <div class="success-title">
             {res.draft_id ? "Dein Entwurf wurde erstellt!" : "Dein Artikel wurde erfolgreich generiert!"}
@@ -27,11 +26,11 @@
         </div>
         <div class="success-actions">
           {#if res.draft_id}
-            <button class="btn-accent" onclick={() => navigateTo({ page: "draft", id: res.draft_id! })}>
+            <button class="btn-accent" onclick={() => { const id = res.draft_id ?? 0; navigateTo({ page: "draft", id }); }}>
               Entwurf ansehen
             </button>
           {:else if res.article_id}
-            <button class="btn-accent" onclick={() => navigateTo({ page: "article", id: res.article_id! })}>
+            <button class="btn-accent" onclick={() => { const id = res.article_id ?? 0; navigateTo({ page: "article", id }); }}>
               Artikel ansehen
             </button>
           {/if}
@@ -49,7 +48,7 @@
             {#if step.status === "done"}
               <div class="t-dot done">✓</div>
             {:else if step.status === "running"}
-              <div class="t-dot running"><div class="t-spinner"></div></div>
+              <div class="t-dot running"><div class="t-spinner" role="status" aria-label="In Bearbeitung"></div></div>
             {:else if step.status === "error"}
               <div class="t-dot error">✕</div>
             {:else}
@@ -152,7 +151,7 @@
   .t-dot.error { background: var(--error); color: white; }
   .t-dot.pending { background: var(--panel-2); border: 2px solid var(--border); }
 
-  .t-spinner { width: 10px; height: 10px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+  .t-spinner { width: 10px; height: 10px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin-timeline 1s linear infinite; }
 
   .t-line { width: 2px; flex: 1; min-height: 24px; background: var(--border); }
   .t-line.done { background: var(--success); opacity: 0.5; }
@@ -163,5 +162,5 @@
   .t-tech { font-size: 0.65rem; color: var(--text-muted); font-family: monospace; }
   .t-msg { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin-timeline { to { transform: rotate(360deg); } }
 </style>
