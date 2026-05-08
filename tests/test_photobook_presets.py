@@ -1,0 +1,88 @@
+"""Tests für PhotobookPreset und get_photobook_preset."""
+import pytest
+from app.photobook.presets import (
+    PhotobookPreset,
+    PHOTOBOOK_PRESETS,
+    get_photobook_preset,
+)
+
+
+class TestPhotobookPresetModel:
+    def test_valid_preset_creation(self):
+        preset = PhotobookPreset(
+            id="test",
+            name="Test Preset",
+            selection_criteria="wähle testbilder",
+            layout_preferences="nutze tests",
+            generation_instructions="schreibe testtext",
+            text_enabled=True,
+        )
+        assert preset.id == "test"
+        assert preset.name == "Test Preset"
+        assert preset.selection_criteria == "wähle testbilder"
+        assert preset.layout_preferences == "nutze tests"
+        assert preset.generation_instructions == "schreibe testtext"
+        assert preset.text_enabled is True
+
+    def test_text_enabled_defaults_to_true(self):
+        preset = PhotobookPreset(
+            id="test",
+            name="Test",
+            selection_criteria="",
+            layout_preferences="",
+            generation_instructions="",
+        )
+        assert preset.text_enabled is True
+
+
+class TestPhotobookPresetsMap:
+    def test_all_five_presets_defined(self):
+        expected_ids = {
+            "nature_outdoor",
+            "culture_architecture",
+            "people",
+            "nature_collage",
+            "mixed",
+        }
+        assert set(PHOTOBOOK_PRESETS.keys()) == expected_ids
+
+    def test_each_preset_is_valid_model(self):
+        for preset in PHOTOBOOK_PRESETS.values():
+            assert isinstance(preset, PhotobookPreset)
+            assert preset.id
+            assert preset.name
+
+    def test_nature_collage_has_text_disabled(self):
+        preset = PHOTOBOOK_PRESETS["nature_collage"]
+        assert preset.text_enabled is False
+
+    def test_mixed_has_empty_criteria_prefs_instructions(self):
+        preset = PHOTOBOOK_PRESETS["mixed"]
+        assert preset.selection_criteria == ""
+        assert preset.layout_preferences == ""
+        assert preset.generation_instructions == ""
+        assert preset.text_enabled is True
+
+    def test_non_mixed_presets_have_criteria(self):
+        for pid, preset in PHOTOBOOK_PRESETS.items():
+            if pid != "mixed":
+                assert preset.selection_criteria != "", f"{pid} hat leere selection_criteria"
+                assert preset.layout_preferences != "", f"{pid} hat leere layout_preferences"
+                # nature_collage generiert keine Texte, daher keine instructions nötig
+                if pid != "nature_collage":
+                    assert preset.generation_instructions != "", f"{pid} hat leere generation_instructions"
+
+
+class TestGetPhotobookPreset:
+    def test_valid_id_returns_correct_preset(self):
+        preset = get_photobook_preset("nature_outdoor")
+        assert preset.id == "nature_outdoor"
+        assert preset.name == "Natur, Outdoor & Sport"
+
+    def test_invalid_id_falls_back_to_mixed(self):
+        preset = get_photobook_preset("nonexistent")
+        assert preset.id == "mixed"
+
+    def test_empty_string_falls_back_to_mixed(self):
+        preset = get_photobook_preset("")
+        assert preset.id == "mixed"
