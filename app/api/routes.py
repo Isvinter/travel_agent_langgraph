@@ -385,7 +385,7 @@ async def _run_pipeline_in_background(
 
         state = AppState(
             gpx_file=gpx_file,
-            model=model,
+            model=model or AppState.model_fields["model"].default,
             notes=combined_notes,
             output_config=OutputConfig(
                 mode=body.mode,
@@ -432,13 +432,20 @@ async def _run_pipeline_in_background(
         photobook_id = None
         draft_id = None
         pdf_available = False
-        if hasattr(result, "metadata"):
+        if isinstance(result, dict):
+            metadata = result.get("metadata", {})
+            aid = metadata.get("article_id") if isinstance(metadata, dict) else None
+            photobook_id = result.get("photobook_id")
+        elif hasattr(result, "metadata"):
             aid = result.metadata.get("article_id")
+            photobook_id = result.metadata.get("photobook_id")
+        else:
+            aid = None
+        if aid is not None:
             if body.review_enabled:
                 draft_id = aid
             else:
                 article_id = aid
-            photobook_id = result.metadata.get("photobook_id")
         if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
             pdf_available = True
 
@@ -625,7 +632,9 @@ async def revise_article(article_id: int, body: RevisionRequest):
             raise HTTPException(status_code=500, detail="LLM revision failed")
 
         try:
-            html = design_blogpost_service(result["markdown"])
+            import markdown
+            html_body = markdown.markdown(result["markdown"], extensions=["fenced_code", "tables", "sane_lists"])
+            html = design_blogpost_service(html_body)
         except Exception:
             html = result["markdown"]
 
@@ -638,7 +647,7 @@ async def revise_article(article_id: int, body: RevisionRequest):
 
         return {
             "markdown": result["markdown"],
-            "html": html,
+            "html": _rewrite_html_content(html, article_id),
             "revision_round": new_round,
             "paragraph_count_changed": result.get("paragraph_count_changed", False),
         }
