@@ -4,6 +4,7 @@ export type Route =
   | { page: "pipeline" }
   | { page: "articles" }
   | { page: "article"; id: number }
+  | { page: "draft"; id: number }
   | { page: "photobooks" }
   | { page: "photobook"; id: number };
 
@@ -21,6 +22,11 @@ function parseHash(hash: string): Route {
 
   if (path === "articles") {
     return { page: "articles" };
+  }
+
+  const draftMatch = path.match(/^draft\/(\d+)$/);
+  if (draftMatch) {
+    return { page: "draft", id: parseInt(draftMatch[1], 10) };
   }
 
   const photobooksMatch = path.match(/^photobooks\/(\d+)$/);
@@ -52,6 +58,9 @@ export function navigateTo(route: Route) {
       break;
     case "article":
       hash = `#/articles/${route.id}`;
+      break;
+    case "draft":
+      hash = `#/draft/${route.id}`;
       break;
     case "photobooks":
       hash = "#/photobooks";

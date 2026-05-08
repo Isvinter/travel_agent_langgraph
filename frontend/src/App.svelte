@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import { route, navigateTo } from "./lib/stores/router";
-  import { runState } from "./lib/stores/pipeline";
+  import { runState, currentDraftId } from "./lib/stores/pipeline";
   import { theme, toggleTheme } from "./lib/stores/theme";
   import ModelSelector from "./lib/ModelSelector.svelte";
   import FileDropZone from "./lib/FileDropZone.svelte";
@@ -13,11 +13,12 @@
   import OutputWindow from "./lib/OutputWindow.svelte";
   import ArticleList from "./lib/ArticleList.svelte";
   import ArticleDetail from "./lib/ArticleDetail.svelte";
+  import DraftReview from "./lib/DraftReview.svelte";
   import PhotobookList from "./lib/PhotobookList.svelte";
   import PhotobookDetail from "./lib/PhotobookDetail.svelte";
 
   let rt = $derived($route);
-  let rightTab = $derived(rt.page === "pipeline" ? "pipeline" : "datenbank");
+  let rightTab = $derived(rt.page === "pipeline" || rt.page === "draft" ? "pipeline" : "datenbank");
   let dbSubTab: "articles" | "photobooks" = $state("articles");
 
   function switchRightTab(tab: "pipeline" | "datenbank") {
@@ -44,6 +45,9 @@
   $effect(() => {
     if ($runState === "running" && rt.page !== "pipeline") {
       navigateTo({ page: "pipeline" });
+    }
+    if ($currentDraftId !== null && rt.page !== "draft") {
+      navigateTo({ page: "draft", id: $currentDraftId });
     }
   });
 
@@ -138,6 +142,8 @@
     <div class="right-content">
       {#if rightTab === "pipeline"}
         <OutputWindow />
+      {:else if rt.page === "draft"}
+        <DraftReview id={rt.id} />
       {:else if rt.page === "article"}
         <ArticleDetail id={rt.id} />
       {:else if rt.page === "photobook"}

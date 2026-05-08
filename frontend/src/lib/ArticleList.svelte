@@ -6,6 +6,7 @@
   interface ArticleSummary {
     id: number;
     title: string | null;
+    status: string | null;
     tour_date: string | null;
     tour_duration_hours: number | null;
     total_distance_km: number | null;
@@ -252,7 +253,12 @@
                   onchange={() => toggleSelect(a.id)}
                 />
               </td>
-              <td>{a.title || "Ohne Titel"}</td>
+              <td>
+                {a.title || "Ohne Titel"}
+                {#if a.status === "draft"}
+                  <span class="draft-badge">Entwurf</span>
+                {/if}
+              </td>
               <td>{formatDate(a.tour_date)}</td>
               <td>{formatDuration(a.tour_duration_hours)}</td>
               <td>{a.total_distance_km ? `${a.total_distance_km} km` : "—"}</td>
@@ -460,6 +466,16 @@
   .confirm-btn:disabled, .cancel-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .draft-badge {
+    font-size: 0.6rem;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 0.4rem;
+    font-weight: 500;
   }
 
   .table-scroll-wrapper {
