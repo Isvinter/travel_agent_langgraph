@@ -72,6 +72,18 @@ def _compute_tour_date_and_duration(gpx_stats, photobook_images) -> tuple:
     return None, None, None
 
 
+def _count_images_in_pages(photobook_pages: List) -> int:
+    """Zaehlt die tatsaechlich im Fotobuch verwendeten Bilder (unique image_index)."""
+    used = set()
+    for page in photobook_pages:
+        slots = page.slots if hasattr(page, "slots") else page.get("slots", []) if isinstance(page, dict) else []
+        for slot in slots:
+            idx = slot.get("image_index") if isinstance(slot, dict) else getattr(slot, "image_index", None)
+            if idx is not None and idx >= 0:
+                used.add(idx)
+    return len(used)
+
+
 def persist_photobook(
     gpx_stats,
     photobook_images: List,
@@ -105,7 +117,7 @@ def persist_photobook(
         "total_distance_km": round(distance_m / 1000.0, 2) if distance_m else None,
         "elevation_gain_m": round(gain_m, 0) if gain_m else None,
         "elevation_loss_m": round(loss_m, 0) if loss_m else None,
-        "image_count": len(photobook_images),
+        "image_count": _count_images_in_pages(photobook_pages),
         "html_content": _sanitize_html(photobook_html or ""),
         "html_path": photobook_html_path or "",
         "model_used": model,

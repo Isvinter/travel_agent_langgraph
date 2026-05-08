@@ -20,6 +20,7 @@ def _build_plan_prompt(
     notes: Optional[str],
     weather: Optional[WeatherInfo],
     poi_count: int,
+    page_range: Optional[str] = None,
 ) -> str:
     context_parts = [f"BILDER: {image_count} Fotos (chronologisch sortiert, Index 0-{image_count - 1})"]
     if gpx_stats_d:
@@ -36,10 +37,19 @@ def _build_plan_prompt(
 
     preset_catalog = get_preset_summary()
 
+    page_range_hint = ""
+    if page_range:
+        page_range_hint = (
+            f"\nSEITENZIEL: Erstelle {page_range} Seiten. "
+            "Verwende ueberwiegend Presets mit 1 Bild (single_full, single_text_below), "
+            "nur gelegentlich 2- oder 3-Bild-Presets fuer Abwechslung. "
+            "Vermeide 4-Bild-Presets (quad_grid) so weit wie moeglich — "
+            "das Fotobuch soll viele Einzelseiten mit grossen Bildern haben.\n"
+        )
+
     return f"""Du bist Fotobuch-Art-Director fuer eine Wandertour.
 
-{context}
-
+{context}{page_range_hint}
 PRESETS (waehle eins pro Seite):
 {preset_catalog}
 
@@ -51,14 +61,19 @@ VARIETY-REGELN (UNBEDINGT EINHALTEN):
 5. Dramatischer Bogen: Cover (cover_hero) -> ruhiger Start (1-Bild) -> Aufbau (2-3 Bilder) -> Hoehepunkt (4-Bild) -> Ausklang (1-Bild)
 6. Seite 0 MUSS cover_hero sein
 
-PLANE die Seitenabfolge. Gib jedem Bild einen Platz.
+PLANE die Seitenabfolge. Gib JEDEM Bild einen Platz — alle {image_count} Bilder muessen verwendet werden.
 
 ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
 {{"pages": [{{"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"}}], "dramatic_arc": "kurze Beschreibung"}}"""
 
 
 def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Dict[str, Any]:
-    """Deterministische Fallback-Planung: einfache lineare Sequenz mit Presets."""
+    """Deterministische Fallback-Planung: chronologische Einzelbilder.
+    
+    Verwendet ueberwiegend single_full-Presets (1 Bild pro Seite), damit alle
+    Bilder im Fotobuch erscheinen und die Seitenanzahl der Bildanzahl entspricht.
+    Nur wenn viele Bilder uebrig sind, werden 2-Bild-Presets eingestreut.
+    """
     indices = list(range(min(image_count, len(images))))
     pages = []
     if indices:
@@ -71,23 +86,7 @@ def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Dict[s
     pos = 1
     while indices:
         remaining = len(indices)
-        if remaining >= 4:
-            pid = get_any_preset(4)
-            pages.append({
-                "position": pos,
-                "preset_id": pid,
-                "image_indices": [indices.pop(0) for _ in range(min(4, remaining))],
-                "purpose": "Sammlung",
-            })
-        elif remaining >= 3:
-            pid = get_any_preset(3)
-            pages.append({
-                "position": pos,
-                "preset_id": pid,
-                "image_indices": [indices.pop(0) for _ in range(min(3, remaining))],
-                "purpose": "Sequenz",
-            })
-        elif remaining >= 2:
+        if remaining >= 2:
             pid = get_any_preset(2)
             pages.append({
                 "position": pos,
@@ -103,7 +102,17 @@ def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Dict[s
                 "purpose": "Einzelbild",
             })
         pos += 1
-    return {"pages": pages, "dramatic_arc": "Fallback: lineare Sequenz"}
+    return {"pages": pages, "dramatic_arc": "Fallback: chronologische Einzelbilder"}
+
+
+def _all_images_used(plan: Dict[str, Any], image_count: int) -> bool:
+    """Prueft, ob alle verfuegbaren Bilder im Plan verwendet werden."""
+    used = set()
+    for page in plan.get("pages", []):
+        for idx in page.get("image_indices", []):
+            if 0 <= idx < image_count:
+                used.add(idx)
+    return len(used) >= image_count
 
 
 def plan_photobook_layout(
@@ -114,10 +123,14 @@ def plan_photobook_layout(
     poi_list: List[Dict[str, Any]],
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
+    page_range: str = "",
 ) -> Dict[str, Any]:
     if not images:
         return {"pages": [], "dramatic_arc": ""}
-    prompt = _build_plan_prompt(len(images), gpx_stats, notes, weather, len(poi_list))
+    prompt = _build_plan_prompt(
+        len(images), gpx_stats, notes, weather, len(poi_list),
+        page_range=page_range if page_range else None,
+    )
 
     # Bilder als Base64 encodieren
     encoded_images = []
@@ -126,6 +139,7 @@ def plan_photobook_layout(
         if b64:
             encoded_images.append(b64)
 
+    plan = None
     try:
         payload = {
             "model": model,
@@ -149,7 +163,11 @@ def plan_photobook_layout(
             if json_match:
                 plan = json.loads(json_match.group())
                 if "pages" in plan and len(plan["pages"]) > 0:
-                    return plan
+                    # Pruefe, ob alle Bilder verwendet wurden
+                    if _all_images_used(plan, len(images)):
+                        return plan
+                    else:
+                        print(f"⚠️ LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
     except Exception as e:
         print(f"⚠️ Pass 1 (Planung) fehlgeschlagen: {e}")
     return _generate_fallback_plan(images, len(images))

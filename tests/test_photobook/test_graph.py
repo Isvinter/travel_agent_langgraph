@@ -8,7 +8,22 @@ from app.nodes.generate_photobook_node import generate_photobook_node
 from app.nodes.render_photobook_node import render_photobook_node
 
 MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(16))})}}
-MOCK_PLAN = {"message": {"content": json.dumps({"pages": [{"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"}], "dramatic_arc": "test"})}}
+MOCK_PLAN = {"message": {"content": json.dumps({
+    "pages": [
+        {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
+        {"position": 1, "preset_id": "single_full", "image_indices": [1], "purpose": "Start"},
+        {"position": 2, "preset_id": "single_full", "image_indices": [2], "purpose": "Weg"},
+        {"position": 3, "preset_id": "single_full", "image_indices": [3], "purpose": "Weg"},
+        {"position": 4, "preset_id": "single_full", "image_indices": [4], "purpose": "Weg"},
+        {"position": 5, "preset_id": "single_full", "image_indices": [5], "purpose": "Weg"},
+        {"position": 6, "preset_id": "double_stacked", "image_indices": [6, 7], "purpose": "Aufbau"},
+        {"position": 7, "preset_id": "single_full", "image_indices": [8], "purpose": "Hoehepunkt"},
+        {"position": 8, "preset_id": "single_full", "image_indices": [9], "purpose": "Hoehepunkt"},
+        {"position": 9, "preset_id": "single_full", "image_indices": [10], "purpose": "Ausklang"},
+        {"position": 10, "preset_id": "single_full", "image_indices": [11], "purpose": "Ende"},
+    ],
+    "dramatic_arc": "intro -> buildup -> climax -> outro"
+})}}
 MOCK_GENERATE = {"message": {"content": json.dumps([{"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]}])}}
 
 
@@ -39,7 +54,7 @@ class TestPhotobookNodes:
         state.photobook_images = state.images[:12]
         result = plan_photobook_node(state)
         assert result.photobook_plan is not None
-        assert len(result.photobook_plan["pages"]) == 1
+        assert len(result.photobook_plan["pages"]) == 11  # 12 Bilder: cover + 10 weitere Seiten
 
     @patch("app.photobook.generate.requests.post")
     def test_generate_node(self, mock_post):

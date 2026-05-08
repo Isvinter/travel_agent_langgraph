@@ -60,14 +60,16 @@
   <aside class="sidebar panel">
     <h1 class="sidebar-title">Einstellungen</h1>
 
-    <ModelSelector />
-    <div class="section">
-      <span class="section-title">TourDaten</span>
-      <FileDropZone />
-      <NotesInput />
+    <div class="sidebar-scroll">
+      <ModelSelector />
+      <div class="section">
+        <span class="section-title">TourDaten</span>
+        <FileDropZone />
+        <NotesInput />
+      </div>
+      <OutputDirInput />
+      <SettingsTabs />
     </div>
-    <OutputDirInput />
-    <SettingsTabs />
 
     <div class="run-section">
       <RunButton />
@@ -181,11 +183,11 @@
   .sidebar {
     background: var(--panel);
     border-right: 1px solid var(--border);
-    padding: 20px;
+    padding: 20px 20px 0 20px;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    overflow-y: auto;
+    overflow: hidden;
   }
   .sidebar-title {
     font-size: 1rem;
@@ -193,6 +195,19 @@
     color: var(--accent);
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    flex-shrink: 0;
+    padding-bottom: 0.25rem;
+  }
+  .sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.25rem;
+  }
+  .sidebar-scroll > :first-child {
+    padding-top: 0.25rem;
   }
   .section {
     display: flex;
@@ -206,8 +221,8 @@
     letter-spacing: 0.05em;
   }
   .run-section {
-    margin-top: auto;
-    padding-top: 0.25rem;
+    flex-shrink: 0;
+    padding: 0.5rem 0 20px 0;
   }
 
   .main {

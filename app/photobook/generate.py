@@ -180,10 +180,19 @@ def generate_photobook_pages(
                                 cleansed = {k: v for k, v in slot.items() if k != "image_index"}
                                 if cleansed.get("text") or cleansed.get("slot_id"):
                                     valid_slots.append(cleansed)
+                        # Dedupliziere Slots: behalte letzten Eintrag pro slot_id
+                        deduped = []
+                        seen = set()
+                        for s in reversed(valid_slots):
+                            sid = s.get("slot_id", "")
+                            if sid not in seen:
+                                seen.add(sid)
+                                deduped.append(s)
+                        deduped.reverse()
                         page = PageDescription(
                             template_id=pd.get("preset_id", "quad_grid"),
                             page_type="single",
-                            slots=valid_slots,
+                            slots=deduped,
                         )
                         result.append(page)
                     if result:

@@ -217,6 +217,73 @@ class TestValidateAllPages:
         # Bild muss erhalten bleiben
         assert any(s.get("slot_id") == "main" for s in result.slots)
 
+    def test_enforce_fallback_deduplicates_duplicate_slots(self):
+        """Doppelte slot_ids (z.B. LLM generiert 2x caption) werden dedupliziert (last wins)."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="single_text_below",
+            page_type="single",
+            slots=[
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Alpenwiese"},
+                {"slot_id": "caption", "text": "Erster Text, der überschrieben wurde"},
+                {"slot_id": "caption", "text": "Zweiter Text, der sichtbar sein sollte"},
+            ],
+        )
+        result = enforce_fallback(page)
+        caption_slots = [s for s in result.slots if s.get("slot_id") == "caption"]
+        assert len(caption_slots) == 1, (
+            f"Erwarte genau 1 caption-Slot, aber {len(caption_slots)} gefunden"
+        )
+        assert caption_slots[0]["text"] == "Zweiter Text, der sichtbar sein sollte"
+
+    def test_enforce_fallback_deduplicates_multiple_duplicates(self):
+        """Mehrfache Duplikate unterschiedlicher slot_ids werden alle dedupliziert."""
+        from app.photobook.validator import enforce_fallback
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="image_text_split",
+            page_type="single",
+            slots=[
+                {"slot_id": "image", "image_index": 0},
+                {"slot_id": "title", "text": "Kapitel"},
+                {"slot_id": "text", "text": "Text A"},
+                {"slot_id": "text", "text": "Text B"},
+                {"slot_id": "text", "text": "Text C (last wins)"},
+            ],
+        )
+        result = enforce_fallback(page)
+        text_slots = [s for s in result.slots if s.get("slot_id") == "text"]
+        assert len(text_slots) == 1, (
+            f"Erwarte genau 1 text-Slot, aber {len(text_slots)} gefunden"
+        )
+        assert text_slots[0]["text"] == "Text C (last wins)"
+
+    def test_replace_preset_deduplicates_duplicate_slots(self):
+        """_replace_preset dedupliziert doppelte slot_ids beim Preset-Wechsel."""
+        from app.photobook.validator import _replace_preset
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="double_stacked",
+            page_type="single",
+            slots=[
+                {"slot_id": "top", "image_index": 0},
+                {"slot_id": "bottom", "image_index": 1},
+                {"slot_id": "caption", "text": "Text 1"},
+                {"slot_id": "caption", "text": "Text 2 (last wins)"},
+            ],
+        )
+        result = _replace_preset(page, "double_stacked_text")
+        caption_slots = [s for s in result.slots if s.get("slot_id") == "caption"]
+        assert len(caption_slots) == 1, (
+            f"Nach Preset-Wechsel erwarte genau 1 caption-Slot, aber {len(caption_slots)} gefunden"
+        )
+        assert caption_slots[0]["text"] == "Text 2 (last wins)"
+
     def test_validate_all_pages_fills_text_for_all_presets_with_text(self):
         """Nach validate_all_pages haben alle text-fähigen Presets Text-Slots."""
         from app.photobook.validator import validate_all_pages

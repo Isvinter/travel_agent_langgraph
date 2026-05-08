@@ -194,10 +194,20 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
     if not has_title:
         repaired_slots.append({"slot_id": "title", "text": "Fotobuch"})
 
+    # Dedupliziere Slots: behalte letzten Eintrag pro slot_id (last wins)
+    deduped_slots = []
+    seen = set()
+    for s in reversed(repaired_slots):
+        sid = s.get("slot_id", "")
+        if sid not in seen:
+            seen.add(sid)
+            deduped_slots.append(s)
+    deduped_slots.reverse()
+
     return PageDescription(
         template_id=page.template_id,
         page_type="single",
-        slots=repaired_slots,
+        slots=deduped_slots,
     )
 
 
@@ -351,10 +361,20 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
     if not has_title:
         new_slots.append({"slot_id": "title", "text": "Fotobuch"})
 
+    # Dedupliziere Slots: behalte letzten Eintrag pro slot_id (last wins)
+    deduped_slots = []
+    seen = set()
+    for s in reversed(new_slots):
+        sid = s.get("slot_id", "")
+        if sid not in seen:
+            seen.add(sid)
+            deduped_slots.append(s)
+    deduped_slots.reverse()
+
     return PageDescription(
         template_id=new_preset_id,
         page_type="single",
-        slots=new_slots,
+        slots=deduped_slots,
     )
 
 

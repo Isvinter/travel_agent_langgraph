@@ -46,7 +46,16 @@ class TestPersistPhotobookService:
             ImageData(path="/tmp/01_photo.jpg", timestamp="2026-05-01T12:00:00"),
             ImageData(path="/tmp/02_photo.jpg", timestamp="2026-05-01T14:00:00"),
         ]
-        page_descriptions = [{"template_id": "cover_hero"}, {"template_id": "single_full"}]
+        page_descriptions = [
+            {"template_id": "cover_hero", "slots": [
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Titel"},
+            ]},
+            {"template_id": "single_full", "slots": [
+                {"slot_id": "main", "image_index": 1},
+                {"slot_id": "title", "text": "Seite 1"},
+            ]},
+        ]
 
         photobook_id = persist_photobook(
             gpx_stats=gpx_stats,
@@ -72,7 +81,7 @@ class TestPersistPhotobookService:
         assert record.total_distance_km == 25.0
         assert record.elevation_gain_m == 1200.0
         assert record.elevation_loss_m == 900.0
-        assert record.image_count == 3
+        assert record.image_count == 2  # Nur die in photobook_pages referenzierten Bilder
         assert record.model_used == "gemma4:26b-ctx128k"
         assert record.notes == "Tolle Fototour"
         assert record.photobook_size == "normal"
@@ -110,7 +119,10 @@ class TestPersistPhotobookService:
         photobook_id = persist_photobook(
             gpx_stats=GPXWithoutTime(),
             photobook_images=photobook_images,
-            photobook_pages=[{"template_id": "single_full"}],
+            photobook_pages=[{"template_id": "single_full", "slots": [
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Titel"},
+            ]}],
             photobook_html="<h1>Test</h1>",
             photobook_html_path="output/test.html",
             photobook_pdf_path="output/test.pdf",
