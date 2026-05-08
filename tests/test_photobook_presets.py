@@ -109,3 +109,42 @@ class TestImageSelectorPresetIntegration:
         prompt = _build_batch_prompt(batch_size=3, select_count=1, preset=preset)
         assert "Gemischt" in prompt
         assert "starke Motive" in prompt
+
+
+from app.photobook.plan import _build_plan_prompt
+
+
+class TestPlanPresetIntegration:
+    def test_build_plan_prompt_injects_layout_preferences(self):
+        preset = PhotobookPreset(
+            id="test",
+            name="Test Layout",
+            selection_criteria="",
+            layout_preferences="Bevorzuge nur 1-Bild-Presets.",
+            generation_instructions="",
+            text_enabled=True,
+        )
+        prompt = _build_plan_prompt(
+            image_count=5,
+            gpx_stats_d=None,
+            notes=None,
+            weather=None,
+            poi_count=0,
+            page_range=None,
+            preset=preset,
+        )
+        assert "THEMA: Test Layout" in prompt
+        assert "Bevorzuge nur 1-Bild-Presets." in prompt
+
+    def test_build_plan_prompt_mixed_has_no_theme_section(self):
+        preset = PHOTOBOOK_PRESETS["mixed"]
+        prompt = _build_plan_prompt(
+            image_count=5,
+            gpx_stats_d=None,
+            notes=None,
+            weather=None,
+            poi_count=0,
+            page_range=None,
+            preset=preset,
+        )
+        assert "THEMA:" not in prompt

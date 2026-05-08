@@ -11,7 +11,7 @@ import requests
 from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, WeatherInfo
 from app.utils.image_utils import encode_image_base64
-from app.photobook.presets import get_preset_summary, get_any_preset
+from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookPreset, get_photobook_preset
 
 
 def _build_plan_prompt(
@@ -21,6 +21,7 @@ def _build_plan_prompt(
     weather: Optional[WeatherInfo],
     poi_count: int,
     page_range: Optional[str] = None,
+    preset: Optional[PhotobookPreset] = None,
 ) -> str:
     context_parts = [f"BILDER: {image_count} Fotos (chronologisch sortiert, Index 0-{image_count - 1})"]
     if gpx_stats_d:
@@ -47,6 +48,10 @@ def _build_plan_prompt(
             "das Fotobuch soll viele Einzelseiten mit grossen Bildern haben.\n"
         )
 
+    theme_block = ""
+    if preset and preset.layout_preferences:
+        theme_block = f"\nTHEMA: {preset.name}\n{preset.layout_preferences}\n"
+
     return f"""Du bist Fotobuch-Art-Director fuer eine Wandertour.
 
 {context}{page_range_hint}
@@ -60,7 +65,7 @@ VARIETY-REGELN (UNBEDINGT EINHALTEN):
 4. Nicht 3x hintereinander die gleiche Bildanzahl
 5. Dramatischer Bogen: Cover (cover_hero) -> ruhiger Start (1-Bild) -> Aufbau (2-3 Bilder) -> Hoehepunkt (4-Bild) -> Ausklang (1-Bild)
 6. Seite 0 MUSS cover_hero sein
-
+{theme_block}
 PLANE die Seitenabfolge. Gib JEDEM Bild einen Platz — alle {image_count} Bilder muessen verwendet werden.
 
 ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
@@ -124,12 +129,18 @@ def plan_photobook_layout(
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
     page_range: str = "",
+    preset: Optional[PhotobookPreset] = None,
 ) -> Dict[str, Any]:
     if not images:
         return {"pages": [], "dramatic_arc": ""}
+
+    if preset is None:
+        preset = get_photobook_preset("mixed")
+
     prompt = _build_plan_prompt(
         len(images), gpx_stats, notes, weather, len(poi_list),
         page_range=page_range if page_range else None,
+        preset=preset,
     )
 
     # Bilder als Base64 encodieren
