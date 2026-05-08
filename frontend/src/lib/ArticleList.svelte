@@ -374,9 +374,6 @@
   .status.error {
     color: var(--error);
   }
-  .table-container {
-    /* overflow handled by .table-scroll-wrapper */
-  }
   table {
     width: 100%;
     border-collapse: collapse;
