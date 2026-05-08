@@ -1,5 +1,4 @@
 """Tests für PhotobookPreset und get_photobook_preset."""
-import pytest
 from app.photobook.presets import (
     PhotobookPreset,
     PHOTOBOOK_PRESETS,
