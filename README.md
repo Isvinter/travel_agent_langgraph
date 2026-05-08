@@ -16,6 +16,7 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated blo
 - **AI image selection** — multimodal LLM selects best photos for the blog (batched, iterative)
 - **AI blog generation** — multimodal LLM writes narrative travel blog enriched with weather, POIs, images, map
 - **AI blog design** — styled HTML with two writer personas (Mountain Veteran / Field Reporter) and three length presets (short / normal / detailed)
+- **Draft review & revision** — optional pre-publish workflow: review draft, mark paragraphs/images for changes, send revision instructions to LLM, iterate until satisfied, then publish
 - **PDF export** — downloadable PDFs via headless Chrome CDP (optional, user-togglable)
 - **Database persistence** — SQLAlchemy with SQLite for articles and photobooks, PostgreSQL-ready
 - **Article & photobook browser** — filterable, sortable table with fixed headers, batch delete, sub-tabs (Blogartikel / Fotobücher), inline HTML rendering for articles, iframe for photobooks
@@ -58,17 +59,21 @@ process_gpx → load_images → extract_metadata → clustering_images → gener
                                                      persist_photobook   generate_blog_post
                                                               │              ↓
                                                             END       design_blogpost
-                                                                             ↓
-                                                                     persist_article
-                                                                        │        │
-                                                                pdf=true│        │pdf=false
-                                                                        ↓        ↓
-                                                                generate_pdf    END
-                                                                        ↓
-                                                                      END
+                                                                         │        │
+                                                            review=true│        │review=false
+                                                                         ↓        ↓
+                                                                   save_draft   persist_article
+                                                                         │        │
+                                                                       END  pdf=true│pdf=false
+                                                                                  ↓        ↓
+                                                                          generate_pdf    END
+                                                                                  ↓
+                                                                                END
 ```
 
 **Photobook mode** branches at `load_tour_notes`, skipping 6 blog-only enrichment nodes.
+
+**Blog draft review** — when the "Entwurf prüfen" checkbox is enabled, the graph takes `save_draft` instead of `persist_article`, saving the article with `status=draft` and opening the draft review UI. The user can mark paragraphs/images for revision, send changes to the LLM, iterate, and publish when satisfied.
 
 All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic model). Nodes are thin wrappers in `app/nodes/` delegating to services.
 
@@ -191,7 +196,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── connection.py         # Engine/session factory + indexes
 │   │   ├── repository.py         # ArticleRepository
 │   │   └── photobook_repository.py # PhotobookRepository
-│   ├── nodes/                # LangGraph pipeline nodes (21 nodes)
+│   ├── nodes/                # LangGraph pipeline nodes (22 nodes)
 │   │   ├── process_gpx.py            # GPX parsing and analytics
 │   │   ├── load_images.py            # Load images from directory
 │   │   ├── extract_metadata.py        # EXIF GPS + timestamp extraction
@@ -205,6 +210,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── generate_enriched_map.py   # Map with POIs + weather overlay
 │   │   ├── generate_blogpost.py       # Multimodal LLM blog generation
 │   │   ├── design_blogpost.py         # CSS styling + persona + length presets
+│   │   ├── save_draft.py              # Save article as draft (review_enabled=true)
 │   │   ├── persist_article.py         # Database persistence for articles
 │   │   ├── generate_pdf.py            # Optional blog PDF export (Chrome CDP)
 │   │   ├── select_photobook_images_node.py  # AI image selection for photobook
@@ -226,6 +232,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── image_selector.py          # Multimodal LLM batch image selection
 │   │   ├── content_reviewer.py        # LLM quality gate for enrichment data
 │   │   ├── blog_generator.py          # Multimodal LLM blog post generation
+│   │   ├── revise_blogpost.py         # LLM-based draft revision (text-only)
 │   │   ├── design_blogpost.py         # Persona-aware CSS design
 │   │   ├── persist_article.py         # SQLAlchemy CRUD for articles
 │   │   ├── persist_photobook.py       # SQLAlchemy CRUD for photobooks
@@ -258,6 +265,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   │   │   └── router.ts           # Client-side routing
 │   │   │   ├── ArticleDetail.svelte    # Full article view with images
 │   │   │   ├── ArticleList.svelte      # Filterable article browser
+│   │   │   ├── DraftReview.svelte       # Draft review & revision UI (mark, comment, send, publish, discard)
 │   │   │   ├── FileDropZone.svelte     # GPX + image drag-and-drop upload
 │   │   │   ├── LengthSelector.svelte   # Blog length preset picker
 │   │   │   ├── ModelSelector.svelte    # Ollama model picker
@@ -267,8 +275,10 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   │   ├── OutputWindow.svelte     # Live SSE progress + result display
 │   │   │   ├── PdfExportCheckbox.svelte # PDF export toggle
 │   │   │   ├── PhotobookSizeSelector.svelte # Photobook size picker
+│   │   │   ├── PhotobookPresetSelector.svelte # Photobook preset picker
 │   │   │   ├── PhotobookList.svelte    # Filterable photobook browser
 │   │   │   ├── PhotobookDetail.svelte  # Full photobook view (iframe)
+│   │   │   ├── ReviewCheckbox.svelte    # "Entwurf vor Veröffentlichung prüfen" checkbox
 │   │   │   ├── RunButton.svelte        # Pipeline start button (auto-detects mode)
 │   │   │   ├── StyleSelector.svelte    # Persona picker
 │   │   │   └── WildcardCount.svelte    # Max image config
@@ -297,6 +307,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── test_photobook_repository.py  # Photobook repository tests
 │   ├── test_persist_service.py       # Article persist service tests
 │   ├── test_persist_photobook_service.py # Photobook persist service tests
+│   ├── test_draft_persistence.py     # Draft persistence and status tests
+│   ├── test_revise_api.py            # Revise and publish API endpoint tests
 │   ├── test_api_endpoints.py     # API endpoint tests
 │   └── test_conftest_fixtures.py # Fixture verification
 ├── main.py                   # Reference CLI entry point (hardcoded GPX)
@@ -323,8 +335,11 @@ uv run pytest tests/ -v
 | `POST` | `/api/pipeline/run` | Start a pipeline run → returns `run_id` |
 | `GET` | `/api/pipeline/stream/{run_id}` | SSE stream of pipeline progress events |
 | `GET` | `/api/pipeline/result/{run_id}` | Retrieve completed pipeline result |
-| `GET` | `/api/articles` | List persisted articles with filters (tour date, duration, generation time) and pagination |
+| `GET` | `/api/articles` | List persisted articles with filters (tour date, duration, generation time, status) and pagination |
 | `GET` | `/api/articles/{id}` | Get full article detail with markdown, HTML, and image references |
+| `GET` | `/api/articles/{id}/images/{filename}` | Serve an article's image file |
+| `POST` | `/api/articles/{id}/revise` | Revise a draft article via LLM — send marked changes with instructions |
+| `POST` | `/api/articles/{id}/publish` | Publish a draft article (status: draft → published) |
 | `DELETE` | `/api/articles/{id}` | Delete an article — removes DB record and output files |
 | `POST` | `/api/articles/delete-batch` | Delete multiple articles at once |
 | `GET` | `/api/articles/{id}/pdf` | Export an article as a downloadable PDF file |
