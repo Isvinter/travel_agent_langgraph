@@ -561,6 +561,44 @@ async def delete_articles_batch(body: DeleteBatchRequest):
         session.close()
 
 
+# ── Revise & Publish ───────────────────────────────────
+
+class ReviseRequest(BaseModel):
+    changes: list[dict]
+
+
+@router.post("/articles/{article_id}/revise")
+async def revise_article(article_id: int, body: ReviseRequest):
+    """Revision eines Draft-Artikels anstossen."""
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        article = repo.get_by_id(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        if article.status != "draft":
+            raise HTTPException(status_code=400, detail="Article is not a draft")
+        # TODO: Revision-Logik implementieren
+        return {"status": "ok", "article_id": article_id}
+    finally:
+        session.close()
+
+
+@router.post("/articles/{article_id}/publish")
+async def publish_article(article_id: int):
+    """Draft-Artikel veröffentlichen."""
+    session = get_session()
+    try:
+        repo = ArticleRepository(session)
+        article = repo.get_by_id(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        repo.update(article_id, status="published")
+        return {"status": "published", "article_id": article_id}
+    finally:
+        session.close()
+
+
 # ── PDF Export ─────────────────────────────────────────
 
 @router.get("/articles/{article_id}/pdf")
