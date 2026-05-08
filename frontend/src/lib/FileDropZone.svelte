@@ -169,11 +169,11 @@
   }
   .zone:hover {
     border-color: var(--accent);
-    background: rgba(91, 140, 255, 0.04);
+    background: var(--accent-ghost-hover);
   }
   .zone.active {
     border-color: var(--accent);
-    background: rgba(91, 140, 255, 0.08);
+    background: var(--accent-ghost);
   }
   .zone-icon {
     font-size: 1.5rem;
