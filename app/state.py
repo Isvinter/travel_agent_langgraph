@@ -69,6 +69,9 @@ class OutputConfig(BaseModel):
     pdf_export: bool = False
     mode: Literal["blog", "photobook"] = "blog"
     photobook: PhotobookConfig = PhotobookConfig()
+    photobook_preset: Literal[
+        "nature_outdoor", "culture_architecture", "people", "nature_collage", "mixed"
+    ] = "mixed"
 
 
 class PageDescription(BaseModel):
