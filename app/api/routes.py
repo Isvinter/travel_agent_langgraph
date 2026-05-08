@@ -270,6 +270,9 @@ class RunPipelineRequest(BaseModel):
     pdf_export: bool = False
     mode: Literal["blog", "photobook"] = "blog"
     photobook_size: Literal["short", "normal", "detailed"] | None = None
+    photobook_preset: Literal[
+        "nature_outdoor", "culture_architecture", "people", "nature_collage", "mixed"
+    ] = "mixed"
 
 
 @router.post("/pipeline/run")
@@ -379,6 +382,7 @@ async def _run_pipeline_in_background(
                 style_persona=body.style_persona,
                 pdf_export=body.pdf_export,
                 photobook=photobook_config,
+                photobook_preset=body.photobook_preset,
             ),
         )
 
