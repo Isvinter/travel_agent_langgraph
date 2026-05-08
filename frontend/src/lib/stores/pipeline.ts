@@ -19,6 +19,26 @@ export interface RunResult {
   article_id?: number;
 }
 
+export interface StepState {
+  stage: string;
+  label: string;
+  status: "pending" | "running" | "done" | "error";
+  message?: string;
+  timestamp?: string;
+}
+
+// Deutsche Labels für die Pipeline-Schritte
+const STEP_LABELS: Record<string, string> = {
+  process_gpx: "GPX-Datei analysiert",
+  load_images: "Bilder geladen",
+  extract_metadata: "Metadaten extrahiert",
+  clustering_images: "Bilder geclustert",
+  generate_map_image: "Karte generiert",
+  load_tour_notes: "Notizen geladen & Bilder ausgewählt",
+  select_images: "Notizen geladen & Bilder ausgewählt",
+  generate_blog_post: "Blogpost generiert",
+};
+
 // Regenerate on each page load; set cookie so backend receives it.
 // Cookie lifetime: session only (deleted when browser closes).
 const newSessionId = (() => {
@@ -28,6 +48,7 @@ const newSessionId = (() => {
 })();
 
 export const logLines = writable<LogLine[]>([]);
+export const pipelineSteps = writable<StepState[]>([]);
 export const runState = writable<RunState>("idle");
 export const currentRunId = writable<string | null>(null);
 export const result = writable<RunResult | null>(null);
@@ -59,13 +80,27 @@ export const currentDraftId = writable<number | null>(null);
 let eventSource: EventSource | null = null;
 
 export function addLine(stage: string, status: string, message: string) {
-  const line: LogLine = {
-    timestamp: new Date().toLocaleTimeString("de-DE"),
-    stage,
-    status,
-    message,
-  };
-  logLines.update((lines) => [...lines, line]);
+  const timestamp = new Date().toLocaleTimeString("de-DE");
+
+  // Bestehende logLines weiter pflegen
+  logLines.update((lines) => [...lines, { timestamp, stage, status, message }]);
+
+  // Steps aggregieren: ein Eintrag pro Stage, Status wird aktualisiert
+  pipelineSteps.update((steps) => {
+    const idx = steps.findIndex((s) => s.stage === stage);
+    const label = STEP_LABELS[stage] || stage;
+    const stepStatus = status === "done" || status === "success" ? "done"
+      : status === "error" ? "error"
+      : status === "running" ? "running"
+      : "pending";
+
+    if (idx >= 0) {
+      const updated = [...steps];
+      updated[idx] = { ...updated[idx], status: stepStatus, message, timestamp };
+      return updated;
+    }
+    return [...steps, { stage, label, status: stepStatus, message, timestamp }];
+  });
 }
 
 export function startStream(runId: string) {
@@ -136,6 +171,7 @@ export function stopStream() {
 export function resetPipeline() {
   stopStream();
   logLines.set([]);
+  pipelineSteps.set([]);
   runState.set("idle");
   currentRunId.set(null);
   result.set(null);
