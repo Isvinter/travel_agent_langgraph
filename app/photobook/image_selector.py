@@ -10,6 +10,7 @@ import re
 from typing import Any, Dict, List, Optional
 import requests
 from app.config import OLLAMA_BASE_URL
+from app.photobook.presets import PhotobookPreset, get_photobook_preset
 from app.state import ImageData
 from app.utils.image_utils import encode_image_base64
 
@@ -23,12 +24,16 @@ def _parse_selection(text: str, max_index: int) -> List[int]:
     return sorted({int(n) for n in numbers if int(n) <= max_index})
 
 
-def _build_batch_prompt(batch_size: int, select_count: int) -> str:
+def _build_batch_prompt(batch_size: int, select_count: int, preset: PhotobookPreset) -> str:
+    criteria = preset.selection_criteria if preset.selection_criteria else (
+        "starke Motive, gute Belichtung, landschaftliche Vielfalt, "
+        "verschiedene Perspektiven, Details und Porträts mischen."
+    )
     return (
         f"Du erhältst {batch_size} Fotos aus einer Wanderung.\n"
-        f"Wähle die {select_count} besten Bilder für ein A4-Fotobuch.\n"
-        "Kriterien: starke Motive, gute Belichtung, landschaftliche Vielfalt, "
-        "verschiedene Perspektiven, Details und Porträts mischen.\n"
+        f"Wähle die {select_count} besten Bilder für ein A4-Fotobuch "
+        f"({preset.name}).\n"
+        f"Kriterien: {criteria}\n"
         "Antworte NUR mit den 0-basierten Indexnummern, kommagetrennt, aufsteigend. "
         "Keine Erklärung.\n\n"
         + "\n".join(f"--- Bild {i} ---" for i in range(batch_size))
@@ -40,6 +45,7 @@ def _select_batch(
     select_count: int,
     model: str,
     base_url: str,
+    preset: PhotobookPreset,
 ) -> List[int]:
     """Fragt das LLM nach den besten Bildern aus einem Batch.
     Gleicher Ansatz wie Blog-Selector: permissives Parsing, Fallback auf evenly-spaced.
@@ -53,7 +59,7 @@ def _select_batch(
     if len(encoded) <= select_count:
         return list(range(len(encoded)))
 
-    prompt = _build_batch_prompt(len(encoded), select_count)
+    prompt = _build_batch_prompt(len(encoded), select_count, preset)
 
     try:
         resp = requests.post(
@@ -91,12 +97,16 @@ def select_photobook_images(
     model: str = "gemma4:26b-ctx128k",
     photo_count: int = 16,
     base_url: str = OLLAMA_BASE_URL,
+    preset: PhotobookPreset = None,
 ) -> List[ImageData]:
     """Waehlt Bilder fuer das Fotobuch via LLM in Batches aus.
     Zweistufig: 1) Pro-Batch-Vorauswahl, 2) Finale Reduktion.
     """
     if not images:
         return []
+
+    if preset is None:
+        preset = get_photobook_preset("mixed")
 
     target = min(photo_count, len(images))
     if target >= len(images):
@@ -117,7 +127,7 @@ def select_photobook_images(
         if select <= 0:
             break
 
-        batch_indices = _select_batch(batch, select, model, base_url)
+        batch_indices = _select_batch(batch, select, model, base_url, preset)
         global_indices = [start + i for i in batch_indices if i < len(batch)]
         all_indices.extend(global_indices)
 
@@ -132,7 +142,7 @@ def select_photobook_images(
         return selected[:target]
 
     # Step 2: Finale Reduktion auf target
-    final_indices = _select_batch(selected, target, model, base_url)
+    final_indices = _select_batch(selected, target, model, base_url, preset)
     final = [selected[i] for i in final_indices if i < len(selected)]
     if len(final) < max(5, target // 2):
         final = selected[:target]

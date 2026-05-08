@@ -4,6 +4,7 @@ from app.photobook.presets import (
     PHOTOBOOK_PRESETS,
     get_photobook_preset,
 )
+from app.photobook.image_selector import _build_batch_prompt
 
 
 class TestPhotobookPresetModel:
@@ -85,3 +86,26 @@ class TestGetPhotobookPreset:
     def test_empty_string_falls_back_to_mixed(self):
         preset = get_photobook_preset("")
         assert preset.id == "mixed"
+
+
+class TestImageSelectorPresetIntegration:
+    def test_build_batch_prompt_injects_selection_criteria(self):
+        preset = PhotobookPreset(
+            id="test",
+            name="Test Preset",
+            selection_criteria="Wähle nur Sonnenuntergänge.",
+            layout_preferences="",
+            generation_instructions="",
+            text_enabled=True,
+        )
+        prompt = _build_batch_prompt(batch_size=5, select_count=2, preset=preset)
+        assert "Test Preset" in prompt
+        assert "Wähle nur Sonnenuntergänge." in prompt
+        assert "--- Bild 0 ---" in prompt
+        assert "--- Bild 4 ---" in prompt
+
+    def test_build_batch_prompt_mixed_preset_uses_default_criteria(self):
+        preset = PHOTOBOOK_PRESETS["mixed"]
+        prompt = _build_batch_prompt(batch_size=3, select_count=1, preset=preset)
+        assert "Gemischt" in prompt
+        assert "starke Motive" in prompt
