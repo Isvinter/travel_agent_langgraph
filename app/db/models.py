@@ -28,6 +28,8 @@ class Article(Base):
     html_path = Column(String, nullable=True)
     model_used = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    status = Column(String, default="published")
+    revision_round = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.now)
 
     images = relationship("ArticleImage", back_populates="article", cascade="all, delete-orphan")
