@@ -7,7 +7,6 @@ Schätzt die 0°C-Grenze aus Höhendaten und Temperatur (Lapse-Rate 6.5°C/km).
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
 
 import requests
 

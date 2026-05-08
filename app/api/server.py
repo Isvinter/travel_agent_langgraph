@@ -1,14 +1,19 @@
 """FastAPI application factory with optional Svelte static file serving."""
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.events import event_manager
 from app.api.routes import router
+from app.logging_setup import setup_logging
+
+setup_logging()
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
@@ -24,14 +29,33 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Travel Agent API", lifespan=lifespan)
 
-    # CORS: allow dev server (Vite on :5173) and any local origin
+    # CORS: allow dev server (Vite on :5173) and same-origin
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:5173",
+            "http://localhost:8000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8000",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # API-Key-(optional) Authentifizierung für Produktions-Deployments
+    api_key = os.getenv("API_KEY", "").strip()
+
+    @app.middleware("http")
+    async def api_key_middleware(request: Request, call_next):
+        if api_key and request.url.path.startswith("/api"):
+            provided = request.headers.get("X-API-Key", "")
+            if provided != api_key:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Ungültiger API-Key"},
+                )
+        return await call_next(request)
 
     app.include_router(router)
 

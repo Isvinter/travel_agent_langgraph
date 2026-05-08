@@ -132,7 +132,7 @@ def _render_cover_page(page: PageDescription, title: str, images: List[ImageData
 
     # Titel-Overlay
     parts.append('<div class="cover-overlay">')
-    parts.append(f'<div class="cover-book-title">Fotobuch</div>')
+    parts.append('<div class="cover-book-title">Fotobuch</div>')
     parts.append(f'<div class="cover-title">{html.escape(title)}</div>')
     parts.append('</div>')
 

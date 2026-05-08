@@ -274,4 +274,22 @@
     flex-direction: column;
     min-height: 0;
   }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .layout.has-sidebar {
+      grid-template-columns: 1fr;
+    }
+    .sidebar {
+      display: none;
+    }
+    .topnav-brand {
+      font-size: 1.1rem;
+      margin-right: 12px;
+    }
+    .t-tab {
+      padding: 0 10px;
+      font-size: 0.9rem;
+    }
+  }
 </style>

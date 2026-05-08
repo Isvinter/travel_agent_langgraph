@@ -166,14 +166,15 @@ def html_to_png(html_path: str, output_png: str):
     options.add_argument("--window-size=1200,800")
 
     driver = webdriver.Chrome(options=options)
+    try:
+        abs_path = os.path.abspath(html_path)
+        driver.get(f"file:///{abs_path}")
 
-    abs_path = os.path.abspath(html_path)
-    driver.get(f"file:///{abs_path}")
+        time.sleep(2)  # Karte laden lassen
 
-    time.sleep(2)  # Karte laden lassen
-
-    driver.save_screenshot(output_png)
-    driver.quit()
+        driver.save_screenshot(output_png)
+    finally:
+        driver.quit()
 def generate_enriched_map_html(
     points: List[TrackPoint],
     pauses: list,
@@ -287,3 +288,11 @@ def generate_enriched_map_html(
 
     m.fit_bounds([[south, west], [north, east]])
     m.save(output_html)
+
+    # FontAwesome CSS für DivIcon-Font-Icons injizieren
+    fa_link = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">'
+    with open(output_html, encoding="utf-8") as fh:
+        html = fh.read()
+    html = html.replace("</head>", f"    {fa_link}\n</head>")
+    with open(output_html, "w", encoding="utf-8") as fh:
+        fh.write(html)

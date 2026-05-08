@@ -1,12 +1,13 @@
 # app/services/persist_photobook.py
 """Service zum Persistieren generierter Fotobücher in der Datenbank."""
 import os
-import re
-from datetime import datetime, date
+from datetime import datetime
 from typing import Optional, List
 
 from app.db.connection import get_session
 from app.db.photobook_repository import PhotobookRepository
+from app.utils.html_sanitizer import sanitize_html
+from app.utils.tour_metadata import compute_tour_date_and_duration
 
 
 def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[str]:
@@ -23,53 +24,6 @@ def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[s
             return base
 
     return None
-
-
-def _sanitize_html(html: str) -> str:
-    """Entfernt potenziell gefährliche Inhalte aus LLM-generiertem HTML.
-
-    Style-Tags werden NICHT entfernt — das Fotobuch-CSS wird für das
-    Layout im iframe benötigt.
-    """
-    if not html:
-        return html
-    html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
-    html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
-    html = re.sub(r'(href|src)\s*=\s*"[^"]*javascript:[^"]*"', r'\1="#"', html, flags=re.IGNORECASE)
-    html = re.sub(r"(href|src)\s*=\s*'[^']*javascript:[^']*'", r"\1='#'", html, flags=re.IGNORECASE)
-    return html
-
-
-def _compute_tour_date_and_duration(gpx_stats, photobook_images) -> tuple:
-    """Berechnet tour_date und tour_duration aus GPX oder Foto-Timestamps."""
-    if gpx_stats and hasattr(gpx_stats, "points") and gpx_stats.points:
-        points = gpx_stats.points
-        if len(points) >= 2 and points[0].time and points[-1].time:
-            start = points[0].time
-            end = points[-1].time
-            duration_hours = (end - start).total_seconds() / 3600.0
-            return start.date(), abs(duration_hours), "gpx"
-
-    if photobook_images:
-        timestamps = []
-        for img in photobook_images:
-            ts = img.timestamp if hasattr(img, "timestamp") else img.get("timestamp")
-            if not ts:
-                continue
-            try:
-                timestamps.append(datetime.fromisoformat(str(ts)))
-            except (ValueError, TypeError):
-                continue
-        if len(timestamps) >= 2:
-            start = min(timestamps)
-            end = max(timestamps)
-            duration_hours = (end - start).total_seconds() / 3600.0
-            return start.date(), abs(duration_hours), "photos"
-
-    return None, None, None
 
 
 def _count_images_in_pages(photobook_pages: List) -> int:
@@ -97,7 +51,7 @@ def persist_photobook(
     notes: Optional[str] = None,
 ) -> Optional[int]:
     """Persistiert ein generiertes Fotobuch in der Datenbank."""
-    tour_date, tour_duration_hours, tour_duration_source = _compute_tour_date_and_duration(
+    tour_date, tour_duration_hours, tour_duration_source = compute_tour_date_and_duration(
         gpx_stats, photobook_images
     )
 
@@ -118,7 +72,7 @@ def persist_photobook(
         "elevation_gain_m": round(gain_m, 0) if gain_m else None,
         "elevation_loss_m": round(loss_m, 0) if loss_m else None,
         "image_count": _count_images_in_pages(photobook_pages),
-        "html_content": _sanitize_html(photobook_html or ""),
+        "html_content": sanitize_html(photobook_html or "", keep_style=True),
         "html_path": photobook_html_path or "",
         "model_used": model,
         "notes": notes,

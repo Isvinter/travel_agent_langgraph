@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from app.config import OLLAMA_BASE_URL
-from app.state import ImageData, WeatherInfo, DailyWeather
+from app.state import ImageData, WeatherInfo
 
 
 OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
@@ -255,7 +255,7 @@ def review_enrichment(
             rated.append((score, img))
         rated.sort(key=lambda x: x[0], reverse=True)
         result["filtered_images"] = [img for _, img in rated]
-        print(f"🖼️  Images sorted by quality rating (best first)")
+        print("🖼️  Images sorted by quality rating (best first)")
     else:
         result["filtered_images"] = list(selected_images)
 

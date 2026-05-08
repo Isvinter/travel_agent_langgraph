@@ -93,8 +93,16 @@ html.light {
 }
 
 /* ── Smooth UI ── */
-* {
-  transition: all 0.15s ease;
+button,
+a,
+input,
+select,
+textarea,
+.t-tab,
+.t-step,
+.file-item,
+.icon-btn {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 /* ── Body ── */
@@ -170,4 +178,19 @@ thead th {
 td.num, th.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Responsive Design ── */
+@media (max-width: 768px) {
+  table {
+    font-size: 0.8rem;
+  }
+  th, td {
+    padding: 0.4rem 0.5rem;
+  }
+}
+@media (max-width: 480px) {
+  input, select, textarea, button {
+    font-size: 0.8rem;
+  }
 }

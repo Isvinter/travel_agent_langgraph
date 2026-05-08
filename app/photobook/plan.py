@@ -178,7 +178,7 @@ def plan_photobook_layout(
                     if _all_images_used(plan, len(images)):
                         return plan
                     else:
-                        print(f"⚠️ LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
+                        print("⚠️ LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
     except Exception as e:
         print(f"⚠️ Pass 1 (Planung) fehlgeschlagen: {e}")
     return _generate_fallback_plan(images, len(images))

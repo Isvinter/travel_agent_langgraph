@@ -15,8 +15,8 @@ from app.api.events import event_manager
 from app.state import AVAILABLE_MODELS, OutputConfig
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository, ArticleFilters
-from app.db.models import Article, ArticleImage
-from app.db.models import Photobook, PhotobookImage
+from app.db.models import Article
+from app.db.models import Photobook
 from app.db.photobook_repository import PhotobookRepository, PhotobookFilters
 import re
 import shutil
@@ -39,23 +39,7 @@ def _article_to_summary(a: Article) -> dict:
     }
 
 
-def _sanitize_exposed_html(html: str) -> str:
-    """Defense-in-depth Sanitisierung für HTML, das per @html an das
-    Frontend ausgeliefert wird. Entfernt:
-    - <script>-Tags und deren Inhalt
-    - Event-Handler-Attribute (onerror, onclick, ...)
-    - javascript:-URIs in href/src
-    """
-    if not html:
-        return html
-    html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
-    html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
-    html = re.sub(r'(href|src)\s*=\s*"[^"]*javascript:[^"]*"', r'\1="#"', html, flags=re.IGNORECASE)
-    html = re.sub(r"(href|src)\s*=\s*'[^']*javascript:[^']*'", r"\1='#'", html, flags=re.IGNORECASE)
-    return html
+from app.utils.html_sanitizer import sanitize_html
 
 
 def _rewrite_html_content(html_content: str | None, article_id: int) -> str | None:
@@ -70,15 +54,7 @@ def _rewrite_html_content(html_content: str | None, article_id: int) -> str | No
         return html_content
 
     # Sicherheitssanitisierung (defense-in-depth)
-    html_content = _sanitize_exposed_html(html_content)
-
-    # <style>-Block entfernen — würde sonst global im SPA leaken
-    html_content = re.sub(
-        r"<style[^>]*>.*?</style\s*>",
-        "",
-        html_content,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
+    html_content = sanitize_html(html_content, keep_style=False)
 
     # Body-Inhalt extrahieren
     body_match = re.search(
@@ -176,7 +152,7 @@ def _rewrite_photobook_html(html_content: str | None, photobook_id: int) -> str 
         return html_content
 
     # Sicherheitssanitisierung (defense-in-depth, style-tags bleiben erhalten)
-    html_content = _sanitize_exposed_html(html_content)
+    html_content = sanitize_html(html_content, keep_style=True)
 
     html_content = re.sub(
         r'file:///[^"]*?/images/([^"]+)',
@@ -328,7 +304,7 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
             image_paths.append(str(_safe_join(session_dir, img)))
 
     # Defer pipeline execution to background task
-    asyncio.create_task(
+    task = asyncio.create_task(
         _run_pipeline_in_background(
             run_id=run_id,
             gpx_file=gpx_path,
@@ -338,6 +314,11 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
             output_dir=body.output_dir,
             notes=body.notes,
             body=body,
+        )
+    )
+    task.add_done_callback(
+        lambda t: t.exception() and logging.getLogger("api").error(
+            "Pipeline task %s failed: %s", run_id, t.exception()
         )
     )
 

@@ -1,7 +1,13 @@
 <svelte:options runes />
 
 <script lang="ts">
+  import DOMPurify from "dompurify";
   import { navigateTo } from "./stores/router";
+
+  function sanitize(html: string | null): string {
+    if (!html) return "";
+    return DOMPurify.sanitize(html);
+  }
 
   let { id }: { id: number } = $props();
 
@@ -130,7 +136,7 @@
 
     {#if article.html_content}
       <div class="content">
-        {@html article.html_content}
+        {@html sanitize(article.html_content)}
       </div>
     {/if}
   {/if}

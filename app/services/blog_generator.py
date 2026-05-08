@@ -6,8 +6,6 @@ Generiert Blogposts basierend auf Bildern, Geodaten und Metadaten
 unter Verwendung von Ollama (wählbar) multimodalem Modell.
 """
 
-import base64
-import io
 import os
 import re
 import shutil
@@ -16,6 +14,7 @@ import json
 from datetime import datetime
 
 from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
+from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
 
 
 def _strip_thinking_tokens(text: str) -> str:
@@ -27,47 +26,6 @@ def _strip_thinking_tokens(text: str) -> str:
         flags=re.DOTALL | re.IGNORECASE,
     )
     return text.lstrip('\n')
-
-
-def encode_image_to_base64(image_path: str, max_size: int = 800) -> Optional[str]:
-    """
-    Lädt ein Bild, skaliert es falls nötig und konvertiert es zu Base64.
-    
-    Args:
-        image_path: Pfad zum Bild
-        max_size: Maximale Breite/Höhe für Resize
-        
-    Returns:
-        Base64-encoded string oder None bei Fehler
-    """
-    try:
-        from PIL import Image
-        
-        if not os.path.exists(image_path):
-            print(f"⚠️ Image not found: {image_path}")
-            return None
-            
-        with Image.open(image_path) as img:
-            # Resize wenn nötig (für Token-Effizienz)
-            if max(img.size) > max_size:
-                img.thumbnail((max_size, max_size))
-
-            # Konvertieren zu RGB (JPEG unterstützt kein RGBA)
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-
-            # Konvertieren zu Base64
-            import io
-            buffer = io.BytesIO()
-            img.save(buffer, format='JPEG', quality=85)
-            return base64.b64encode(buffer.getvalue()).decode('utf-8')
-            
-    except Exception as e:
-        print(f"⚠️ Error encoding image {image_path}: {e}")
-        return None
-
-
-from app.utils.image_utils import compress_image_to_jpeg  # noqa: F401 — re-exported for callers
 
 
 
@@ -238,7 +196,7 @@ HIER SIND DIE DATEN ZUR TOUR:
                 text_prompt += f"(Nicht relevante Wetterdaten wurden ausgefiltert: {', '.join(discarded_fields)})\n"
 
         if kept_pois:
-            text_prompt += f"""
+            text_prompt += """
 📍  INTERESSANTE ORTE ENTLANG DER ROUTE:
 """
             for poi in kept_pois:
@@ -283,7 +241,7 @@ HIER SIND DIE DATEN ZUR TOUR:
     image_messages = []
     for img in available_images:
         path_for_encode = img.get("original_path", img["path"])
-        base64_image = encode_image_to_base64(path_for_encode)
+        base64_image = encode_image_base64(path_for_encode)
         if base64_image:
             image_messages.append({
                 "image": base64_image,
@@ -296,7 +254,7 @@ HIER SIND DIE DATEN ZUR TOUR:
     # Map Image hinzufügen falls vorhanden
     map_b64 = None
     if map_image_path and os.path.exists(map_image_path):
-        map_b64 = encode_image_to_base64(map_image_path)
+        map_b64 = encode_image_base64(map_image_path)
         if map_b64:
             image_messages.insert(0, {  # Map zuerst
                 "image": map_b64,
@@ -308,7 +266,7 @@ HIER SIND DIE DATEN ZUR TOUR:
     # Elevationsprofil hinzufügen falls vorhanden
     elevation_b64 = None
     if elevation_profile_path and os.path.exists(elevation_profile_path):
-        elevation_b64 = encode_image_to_base64(elevation_profile_path, max_size=800)
+        elevation_b64 = encode_image_base64(elevation_profile_path, max_size=800)
         if elevation_b64:
             image_messages.insert(1, {  # nach Map
                 "image": elevation_b64,
@@ -316,7 +274,7 @@ HIER SIND DIE DATEN ZUR TOUR:
                 "path": elevation_profile_path,
                 "type": "elevation_profile"
             })
-            text_prompt += f"\n\nHIER IST DAS HÖHENPROFIL der Tour (als Bild):"
+            text_prompt += "\n\nHIER IST DAS HÖHENPROFIL der Tour (als Bild):"
 
     return text_prompt, image_messages
 
@@ -412,7 +370,7 @@ def generate_blog_post(
     article_dir = os.path.join(project_root, OUTPUT_DIR, timestamp)
     images_dir = os.path.join(article_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
-    image_path_prefix = f"./images/"
+    image_path_prefix = "./images/"
 
     # ---- GPX-Bilder (Karte, Höhengraph) in Output kopieren ----
     final_elevation_path = None

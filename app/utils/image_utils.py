@@ -79,10 +79,16 @@ def compress_image_to_jpeg(
         return None
 
 
-def encode_image_base64(image_path: str, max_size: int = 600) -> str | None:
+def encode_image_base64(image_path: str, max_size: int = 800, quality: int = 85) -> str | None:
     """Encodiert ein Bild als Base64-String für multimodale LLM-Requests.
 
-    Thumbnail auf max_size, JPEG-Qualität 60, RGB-Konvertierung.
+    Args:
+        image_path: Pfad zum Bild
+        max_size: Maximale Breite/Höhe für Thumbnail (Default 800)
+        quality: JPEG-Qualität 1-100 (Default 85)
+
+    Returns:
+        Base64-encoded string oder None bei Fehler
     """
     try:
         from PIL import Image
@@ -93,8 +99,12 @@ def encode_image_base64(image_path: str, max_size: int = 600) -> str | None:
         with Image.open(image_path) as img:
             if max(img.size) > max_size:
                 img.thumbnail((max_size, max_size))
+
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+
             buf = _io.BytesIO()
-            img.convert("RGB").save(buf, format="JPEG", quality=60)
+            img.convert("RGB").save(buf, format="JPEG", quality=quality)
             return _b64.b64encode(buf.getvalue()).decode("utf-8")
     except Exception as e:
         print(f"⚠️ Error encoding image {image_path}: {e}")

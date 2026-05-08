@@ -136,7 +136,7 @@ def generate_photobook_pages(
                 print(f"    Anfang: {content[:200]}...")
             array_match = re.search(r'\[.*\]', content, re.DOTALL)
             if not array_match:
-                print(f"    ⚠️ Kein JSON-Array in LLM-Antwort gefunden!")
+                print("    ⚠️ Kein JSON-Array in LLM-Antwort gefunden!")
             else:
                 raw_json = array_match.group()
                 try:
@@ -164,10 +164,10 @@ def generate_photobook_pages(
                                     pages_data = json.loads(partial)
                                     print(f"  → Recovery (2): {len(pages_data)} von {len(raw_json)} Zeichen verwendet")
                                 except json.JSONDecodeError:
-                                    print(f"  → Recovery fehlgeschlagen, verwende Fallback")
+                                    print("  → Recovery fehlgeschlagen, verwende Fallback")
                                     pages_data = None
                     else:
-                        print(f"  → Recovery fehlgeschlagen, verwende Fallback")
+                        print("  → Recovery fehlgeschlagen, verwende Fallback")
                         pages_data = None
                 
                 if pages_data:
@@ -185,7 +185,7 @@ def generate_photobook_pages(
                         for pid, sid, t in text_samples[:5]:
                             print(f"    {pid}/{sid}: \"{t}...\"")
                     elif total_pages > 0:
-                        print(f"    ⚠️ LLM hat KEINE Text-Inhalte generiert!")
+                        print("    ⚠️ LLM hat KEINE Text-Inhalte generiert!")
                     result = []
                     for pd in pages_data:
                         valid_slots = []

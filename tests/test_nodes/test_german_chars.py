@@ -44,8 +44,8 @@ class TestGermanCharsInBlogPost:
         html = "<h1>Großartige Wanderung durch das schöne Allgäu</h1>"
         html += "<p>Wir genossen die Aussicht auf die Grünten und das Nebelhorn.</p>"
         html += "<p>Frühstück mit Weißwurst und süßem Senf.</p>"
-        from app.services.persist_article import _sanitize_html
-        result = _sanitize_html(html)
+        from app.utils.html_sanitizer import sanitize_html
+        result = sanitize_html(html)
         assert "Großartige" in result
         assert "schöne" in result
         assert "Allgäu" in result
@@ -54,8 +54,8 @@ class TestGermanCharsInBlogPost:
 
     def test_sanitize_html_strips_script_with_umlauts(self):
         html = "<p>Grüezi</p><script>alert('böse')</script><p>Tschüss</p>"
-        from app.services.persist_article import _sanitize_html
-        result = _sanitize_html(html)
+        from app.utils.html_sanitizer import sanitize_html
+        result = sanitize_html(html)
         assert "Grüezi" in result
         assert "Tschüss" in result
         assert "<script>" not in result.lower()
@@ -63,8 +63,8 @@ class TestGermanCharsInBlogPost:
 
     def test_xss_sanitization_strips_event_handler_with_umlauts(self):
         html = '<p onclick="alert(\'böse\')">Klick mich</p>'
-        from app.services.persist_article import _sanitize_html
-        result = _sanitize_html(html)
+        from app.utils.html_sanitizer import sanitize_html
+        result = sanitize_html(html)
         assert "onclick" not in result.lower()
 
 

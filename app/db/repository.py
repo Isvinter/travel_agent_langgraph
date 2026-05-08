@@ -83,17 +83,6 @@ class ArticleRepository:
         self.session.commit()
         return True
 
-    def update(self, article_id: int, **fields) -> Optional[Article]:
-        """Aktualisiert Felder eines Artikels. Gibt den aktualisierten Artikel zurück oder None."""
-        article = self.get_by_id(article_id)
-        if article is None:
-            return None
-        for key, value in fields.items():
-            if hasattr(article, key):
-                setattr(article, key, value)
-        self.session.commit()
-        return article
-
     def delete_batch(self, article_ids: List[int]) -> int:
         """Löscht mehrere Artikel und ihre Bilder (CASCADE). Gibt Anzahl gelöschter Artikel zurück."""
         if not article_ids:

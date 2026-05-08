@@ -1,8 +1,13 @@
 <svelte:options runes />
 
 <script lang="ts">
+  import DOMPurify from "dompurify";
   import { navigateTo } from "./stores/router";
   import { currentDraftId } from "./stores/pipeline";
+
+  function sanitize(html: string): string {
+    return DOMPurify.sanitize(html);
+  }
 
   interface Props {
     id: number;
@@ -293,7 +298,7 @@
           role="region"
           aria-label="Artikelvorschau"
         >
-          {@html getRenderedHtml()}
+          {@html sanitize(getRenderedHtml())}
         </div>
       </div>
 

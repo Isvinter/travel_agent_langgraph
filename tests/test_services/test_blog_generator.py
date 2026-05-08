@@ -6,6 +6,7 @@ import pytest
 from PIL import Image
 
 import app.services.blog_generator as bg
+from app.utils.image_utils import encode_image_base64
 
 
 class TestEncodeImageToBase64:
@@ -15,14 +16,14 @@ class TestEncodeImageToBase64:
         img = Image.new("RGB", (100, 100), color="red")
         img.save(img_path)
 
-        result = bg.encode_image_to_base64(img_path, max_size=800)
+        result = encode_image_base64(img_path, max_size=800)
         assert result is not None
         decoded = base64.b64decode(result)
         assert decoded[:2] == b'\xff\xd8'
 
     @pytest.mark.unit
     def test_returns_none_for_nonexistent(self):
-        result = bg.encode_image_to_base64("/nonexistent/image.jpg")
+        result = encode_image_base64("/nonexistent/image.jpg")
         assert result is None
 
 

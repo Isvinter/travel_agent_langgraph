@@ -173,7 +173,7 @@ export function startStream(runId: string) {
   });
 
   eventSource.onerror = () => {
-    if (eventSource?.readyState === EventSource.CLOSED) {
+    if (eventSource?.readyState === EventSource.CLOSED && get(runState) !== "done") {
       addLine("connection", "error", "Verbindung zum Server verloren.");
       runState.set("failed");
     }

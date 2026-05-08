@@ -1,36 +1,12 @@
 # app/services/persist_article.py
 """Service zum Persistieren generierter Blogposts in der Datenbank."""
-import re
-from datetime import datetime, date
-from typing import Optional, List, Dict, Any
+from datetime import datetime
+from typing import Optional, Dict, Any
 
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository
-
-
-def _sanitize_html(html: str) -> str:
-    """Entfernt potenziell gefährliche Inhalte aus LLM-generiertem HTML.
-
-    - <script>-Tags und deren Inhalt
-    - <style>-Tags (würden sonst global im SPA-Frontend leaken)
-    - Event-Handler-Attribute (onerror, onclick, ...)
-    - javascript:-URIs in href/src
-    """
-    if not html:
-        return html
-    # <script>...</script> komplett entfernen (inkl. Inhalt)
-    html = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<script[^>]*/>', '', html, flags=re.IGNORECASE)
-    # <style>-Tags entfernen (würden im SPA global leaken)
-    html = re.sub(r'<style[^>]*>.*?</style\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    # Event-Handler-Attribute entfernen
-    html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
-    html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
-    # javascript:-URIs entfernen
-    html = re.sub(r'(href|src)\s*=\s*"[^"]*javascript:[^"]*"', r'\1="#"', html, flags=re.IGNORECASE)
-    html = re.sub(r"(href|src)\s*=\s*'[^']*javascript:[^']*'", r"\1='#'", html, flags=re.IGNORECASE)
-    return html
+from app.utils.html_sanitizer import sanitize_html
+from app.utils.tour_metadata import compute_tour_date_and_duration
 
 
 def _extract_title(markdown: str) -> Optional[str]:
@@ -40,42 +16,6 @@ def _extract_title(markdown: str) -> Optional[str]:
         if line.startswith("# ") and not line.startswith("## "):
             return line[2:].strip()
     return None
-
-
-def _compute_tour_date_and_duration(gpx_stats, images) -> tuple[Optional[date], Optional[float], Optional[str]]:
-    """
-    Berechnet tour_date und tour_duration aus GPX oder Foto-Timestamps.
-    Gibt (tour_date, tour_duration_hours, tour_duration_source) zurück.
-    """
-    # GPX primary source
-    if gpx_stats and hasattr(gpx_stats, "points") and gpx_stats.points:
-        points = gpx_stats.points
-        if len(points) >= 2 and points[0].time and points[-1].time:
-            start = points[0].time
-            end = points[-1].time
-            duration_hours = (end - start).total_seconds() / 3600.0
-            return start.date(), abs(duration_hours), "gpx"
-
-    # Photos fallback
-    if images:
-        timestamps = []
-        for img in images:
-            if not isinstance(img, dict):
-                continue
-            ts = img.get("timestamp")
-            if not ts:
-                continue
-            try:
-                timestamps.append(datetime.fromisoformat(ts))
-            except (ValueError, TypeError):
-                continue
-        if len(timestamps) >= 2:
-            start = min(timestamps)
-            end = max(timestamps)
-            duration_hours = (end - start).total_seconds() / 3600.0
-            return start.date(), abs(duration_hours), "photos"
-
-    return None, None, None
 
 
 def persist_article(
@@ -110,7 +50,7 @@ def persist_article(
     file_paths = blog_post.get("file_paths", {})
     selected_images = blog_post.get("selected_images", [])
 
-    tour_date, tour_duration_hours, tour_duration_source = _compute_tour_date_and_duration(
+    tour_date, tour_duration_hours, tour_duration_source = compute_tour_date_and_duration(
         gpx_stats, [img.model_dump() for img in images] if images else []
     )
 
@@ -130,7 +70,7 @@ def persist_article(
         "elevation_loss_m": round(loss_m, 0) if loss_m else None,
         "image_count": len(selected_images),
         "markdown_content": markdown,
-        "html_content": _sanitize_html(html),
+        "html_content": sanitize_html(html),
         "markdown_path": file_paths.get("markdown", ""),
         "html_path": file_paths.get("html", ""),
         "model_used": model,

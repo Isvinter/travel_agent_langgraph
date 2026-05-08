@@ -1,6 +1,6 @@
 """Service für die LLM-basierte Überarbeitung von Blog-Drafts."""
 import re
-from typing import Dict, Any, List, Optional
+from typing import Optional
 
 from app.config import OLLAMA_BASE_URL
 
