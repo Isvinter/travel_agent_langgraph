@@ -34,8 +34,8 @@ const STEP_LABELS: Record<string, string> = {
   extract_metadata: "Metadaten extrahiert",
   clustering_images: "Bilder geclustert",
   generate_map_image: "Karte generiert",
-  load_tour_notes: "Notizen geladen & Bilder ausgewählt",
-  select_images: "Notizen geladen & Bilder ausgewählt",
+  load_tour_notes: "Notizen laden",
+  select_images: "Bilder auswählen",
   generate_blog_post: "Blogpost generiert",
 };
 
