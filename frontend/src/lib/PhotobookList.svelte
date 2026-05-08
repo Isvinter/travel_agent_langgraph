@@ -182,7 +182,7 @@
       disabled={selectedIds.size === 0}
       onclick={openBatchDelete}
     >
-      Auswahl löschen ({selectedIds.size})
+      🗑 Auswahl löschen ({selectedIds.size})
     </button>
   </div>
 
