@@ -16,21 +16,24 @@ html.dark {
 
   --text-primary: #E6EAF2;
   --text-secondary: #9AA3B2;
-  --text-muted: #6B7280;
+  --text-muted: #8B95A5;
 
   --accent: #5B8CFF;
   --accent-hover: #7AA2FF;
 
   --success: #4ADE80;
-  --error: #F87171;
+  --error: #E63946;
   --warning: #FBBF24;
 
   --radius: 8px;
   --radius-sm: 6px;
 
+  --th-bg: var(--panel-2);
+  --th-border: var(--border);
+
   --badge-success-bg: rgba(74, 222, 128, 0.15);
   --badge-success-text: var(--success);
-  --badge-error-bg: rgba(248, 113, 113, 0.15);
+  --badge-error-bg: rgba(230, 57, 70, 0.12);
   --badge-error-text: var(--error);
   --badge-running-bg: rgba(91, 140, 255, 0.15);
   --badge-running-text: var(--accent);
@@ -57,11 +60,14 @@ html.light {
   --accent-hover: #6366F1;
 
   --success: #22C55E;
-  --error: #EF4444;
+  --error: #DC2626;
   --warning: #F59E0B;
 
   --radius: 8px;
   --radius-sm: 6px;
+
+  --th-bg: #F1F3F6;
+  --th-border: #E6E8EC;
 
   --badge-success-bg: #DCFCE7;
   --badge-success-text: #166534;
@@ -148,4 +154,18 @@ select:focus {
 }
 html.light .panel {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ── Table Headers ── */
+thead th {
+  background: var(--th-bg);
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--th-border);
+}
+
+/* ── Numerische Tabellenzellen ── */
+td.num, th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
