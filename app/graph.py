@@ -12,6 +12,7 @@ from app.nodes.generate_blogpost import generate_blog_post_node
 from app.nodes.enrich_weather_node import enrich_weather_node
 from app.nodes.enrich_poi_node import enrich_poi_node
 from app.nodes.review_content_node import review_content_node
+from app.nodes.save_draft import save_draft_node
 from app.nodes.persist_article import persist_article_node
 from app.nodes.design_blogpost import design_blogpost_node
 from app.nodes.generate_enriched_map import generate_enriched_map_node
@@ -39,6 +40,7 @@ NODE_NAMES = {
     "enrich_poi": "POIs suchen",
     "review_content": "Inhalte prüfen",
     "persist_article": "Artikel speichern",
+    "save_draft": "Draft speichern",
     "design_blogpost": "Design anwenden",
     "generate_pdf": "PDF generieren",
     "generate_enriched_map": "Angereicherte Karte generieren",
@@ -118,6 +120,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     rcn = _wrap_node(review_content_node, "review_content", event_emitter) if event_emitter else review_content_node
     gem = _wrap_node(generate_enriched_map_node, "generate_enriched_map", event_emitter) if event_emitter else generate_enriched_map_node
     pan = _wrap_node(persist_article_node, "persist_article", event_emitter) if event_emitter else persist_article_node
+    sdn = _wrap_node(save_draft_node, "save_draft", event_emitter) if event_emitter else save_draft_node
     gpn = _wrap_node(generate_pdf_node, "generate_pdf", event_emitter) if event_emitter else generate_pdf_node
 
     builder.add_node("process_gpx", pgn)
@@ -135,6 +138,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_node("persist_article", pan)
     builder.add_node("generate_pdf", gpn)
     builder.add_node("generate_enriched_map", gem)
+    builder.add_node("save_draft", sdn)
 
     # Photobook nodes
     spi = _wrap_node(select_photobook_images_node, "select_photobook_images", event_emitter) if event_emitter else select_photobook_images_node
@@ -191,7 +195,23 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("persist_photobook", END)
 
     builder.add_edge("generate_blog_post", "design_blogpost")
-    builder.add_edge("design_blogpost", "persist_article")
+
+    def _route_after_design(state: AppState) -> str:
+        if state.output_config.review_enabled:
+            return "save_draft"
+        return "persist_article"
+
+    builder.add_conditional_edges(
+        "design_blogpost",
+        _route_after_design,
+        {
+            "save_draft": "save_draft",
+            "persist_article": "persist_article",
+        },
+    )
+
+    # save_draft ends the pipeline (no PDF in draft mode)
+    builder.add_edge("save_draft", END)
 
     def _should_generate_pdf(state: AppState) -> str:
         if state.output_config.pdf_export:
