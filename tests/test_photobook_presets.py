@@ -146,3 +146,50 @@ class TestPlanPresetIntegration:
             preset=preset,
         )
         assert "THEMA:" not in prompt
+
+
+from app.photobook.generate import _build_generate_prompt
+
+
+class TestGeneratePresetIntegration:
+    def test_build_generate_prompt_injects_generation_instructions(self):
+        preset = PhotobookPreset(
+            id="test",
+            name="Test Gen",
+            selection_criteria="",
+            layout_preferences="",
+            generation_instructions="Schreibe im poetischen Stil.",
+            text_enabled=True,
+        )
+        pages_plan = [
+            {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
+        ]
+        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        assert "STILVORGABE (Test Gen)" in prompt
+        assert "Schreibe im poetischen Stil." in prompt
+
+    def test_build_generate_prompt_mixed_has_no_style_section(self):
+        preset = PHOTOBOOK_PRESETS["mixed"]
+        pages_plan = [
+            {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
+        ]
+        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        assert "STILVORGABE" not in prompt
+
+    def test_build_generate_prompt_text_disabled_no_text_block(self):
+        preset = PHOTOBOOK_PRESETS["nature_collage"]
+        pages_plan = [
+            {"preset_id": "quad_grid", "image_indices": [0, 1, 2, 3], "purpose": "Collage"}
+        ]
+        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        assert "TEXT IST PFLICHT" not in prompt
+        assert "title-Slot" not in prompt
+
+    def test_build_generate_prompt_text_enabled_has_text_block(self):
+        preset = PHOTOBOOK_PRESETS["nature_outdoor"]
+        pages_plan = [
+            {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
+        ]
+        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        assert "TEXT IST PFLICHT" in prompt
+        assert "title-Slot" in prompt

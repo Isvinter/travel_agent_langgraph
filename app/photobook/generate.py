@@ -7,11 +7,15 @@ import requests
 from app.config import OLLAMA_BASE_URL
 from app.state import ImageData, PageDescription
 from app.photobook.preset_loader import load_all_presets
-from app.photobook.presets import get_constraint_summary, get_any_preset
+from app.photobook.presets import get_constraint_summary, get_any_preset, get_photobook_preset
+from app.photobook.presets import PhotobookPreset
 from app.utils.image_utils import encode_image_base64
 
 
-def _build_generate_prompt(pages_plan, gpx_stats_d, notes):
+def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
+    if preset is None:
+        preset = get_photobook_preset("mixed")
+
     # Nur die tatsächlich im Plan verwendeten Presets laden
     all_presets = load_all_presets()
     used_preset_ids = set()
@@ -41,8 +45,19 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes):
         gpx_text = f"\nTOUR: {dist:.1f} km, {elev:.0f}m Hoehenmeter."
     notes_text = f"\nTOUR-NOTIZEN: {notes}" if notes else ""
 
-    # Bilde Text-Slot-Pflicht basierend auf den verwendeten Presets
-    text_required = any(all_presets.get(pid) and all_presets[pid].has_text for pid in used_preset_ids)
+    if preset.text_enabled:
+        text_required = any(all_presets.get(pid) and all_presets[pid].has_text for pid in used_preset_ids)
+        text_block = (
+            "TEXT IST PFLICHT: Hat ein Preset Text-Slots, MUSST du diese befuellen. "
+            "Lass KEINEN Text-Slot leer. Betrachte die Bilder und beschreibe ausfuehrlich, "
+            "was du siehst — Landschaft, Stimmung, Farben, Details, Wetter."
+        ) if text_required else ""
+    else:
+        text_block = ""
+
+    style_block = ""
+    if preset.generation_instructions:
+        style_block = f"\nSTILVORGABE ({preset.name}): {preset.generation_instructions}\n"
 
     return f"""Du befuellst die Slots der gewaehlten Presets mit Bildern und ausfuehrlichem Text.
 
@@ -55,14 +70,14 @@ VERWENDETE PRESETS (nur diese sind relevant):
 
 {constraints}
 
-{"TEXT IST PFLICHT: Hat ein Preset Text-Slots, MUSST du diese befuellen. Lass KEINEN Text-Slot leer. Betrachte die Bilder und beschreibe ausfuehrlich, was du siehst — Landschaft, Stimmung, Farben, Details, Wetter." if text_required else ""}
+{text_block}
 
-AUFGABE PRO SEITE:
+AUFGABE PRO SEITE:{style_block}
 1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
 2. Text-Rollen: title (stimmungsvoller Titel, 60 Z.), caption (ausfuehrliche Bildbeschreibung, max. 500 Z.), intro (detaillierte Einleitung, max. 1200 Z.).
 3. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter, was auf den Bildern zu sehen ist. Nutze die Zeichenlimits WIRKLICH aus.
-4. JEDE Seite MUSS einen title-Slot haben: {{"slot_id": "title", "text": "Einzeiliger Seitentitel"}}
-5. Bei Presets mit MEHREREN Bildern (quad_grid, double_stacked, triple_stacked): beschreibe den Gesamteindruck der Bildgruppe, nicht nur ein einzelnes Bild.
+{"4. JEDE Seite MUSS einen title-Slot haben: {{\"slot_id\": \"title\", \"text\": \"Einzeiliger Seitentitel\"}}" if preset.text_enabled else ""}
+{"5. Bei Presets mit MEHREREN Bildern (quad_grid, double_stacked, triple_stacked): beschreibe den Gesamteindruck der Bildgruppe, nicht nur ein einzelnes Bild." if preset.text_enabled else ""}
 
 BEISPIELE:
 - cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}, {{"slot_id": "main", "image_index": 0}}]}}]
@@ -80,11 +95,14 @@ def generate_photobook_pages(
     notes: Optional[str],
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
+    preset: Optional[PhotobookPreset] = None,
 ) -> List[PageDescription]:
+    if preset is None:
+        preset = get_photobook_preset("mixed")
     pages_plan = plan.get("pages", [])
     if not pages_plan:
         return []
-    prompt = _build_generate_prompt(pages_plan, gpx_stats, notes)
+    prompt = _build_generate_prompt(pages_plan, gpx_stats, notes, preset=preset)
 
     # Bilder als Base64 encodieren
     encoded_images = []
