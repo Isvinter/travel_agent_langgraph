@@ -81,12 +81,7 @@ def notes_dir_path() -> str:
 
 @pytest.fixture
 def _test_db(monkeypatch):
-    """Temporäre Test-Datenbank für API-Tests.
-
-    Erzeugt eine frische SQLite-DB im Temp-Verzeichnis und patched
-    das connection-Modul sowie routes.get_session, sodass API-Tests
-    gegen die temporäre DB laufen.
-    """
+    """Temporäre Test-Datenbank für API-Tests."""
     from app.db.models import Base
     import app.db.connection as conn_module
     import app.api.routes as routes_mod

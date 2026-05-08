@@ -13,12 +13,12 @@
   import OutputWindow from "./lib/OutputWindow.svelte";
   import ArticleList from "./lib/ArticleList.svelte";
   import ArticleDetail from "./lib/ArticleDetail.svelte";
-  import DraftReview from "./lib/DraftReview.svelte";
   import PhotobookList from "./lib/PhotobookList.svelte";
   import PhotobookDetail from "./lib/PhotobookDetail.svelte";
+  import DraftReview from "./lib/DraftReview.svelte";
 
   let rt = $derived($route);
-  let rightTab = $derived(rt.page === "pipeline" || rt.page === "draft" ? "pipeline" : "datenbank");
+  let rightTab = $derived(rt.page === "pipeline" ? "pipeline" : "datenbank");
   let dbSubTab: "articles" | "photobooks" = $state("articles");
 
   function switchRightTab(tab: "pipeline" | "datenbank") {

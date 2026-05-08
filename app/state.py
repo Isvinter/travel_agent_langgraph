@@ -67,6 +67,7 @@ class OutputConfig(BaseModel):
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
     pdf_export: bool = False
+    review_enabled: bool = False
     mode: Literal["blog", "photobook"] = "blog"
     photobook: PhotobookConfig = PhotobookConfig()
     photobook_preset: Literal[

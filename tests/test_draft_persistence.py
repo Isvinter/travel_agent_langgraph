@@ -1,7 +1,5 @@
 """Tests für Draft-Persistenz (save_draft Node + status-Feld)."""
-import pytest
 from unittest.mock import MagicMock, patch
-from app.state import AppState, OutputConfig
 from app.services.persist_article import persist_article
 
 

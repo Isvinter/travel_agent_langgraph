@@ -268,11 +268,23 @@ class RunPipelineRequest(BaseModel):
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
     pdf_export: bool = False
+    review_enabled: bool = False
     mode: Literal["blog", "photobook"] = "blog"
     photobook_size: Literal["short", "normal", "detailed"] | None = None
     photobook_preset: Literal[
         "nature_outdoor", "culture_architecture", "people", "nature_collage", "mixed"
     ] = "mixed"
+
+
+class RevisionItem(BaseModel):
+    element_type: Literal["paragraph", "image"]
+    element_index: int
+    original_content: str
+    instruction: str = ""
+
+
+class RevisionRequest(BaseModel):
+    changes: list[RevisionItem]
 
 
 @router.post("/pipeline/run")
@@ -381,6 +393,7 @@ async def _run_pipeline_in_background(
                 article_length=body.article_length,
                 style_persona=body.style_persona,
                 pdf_export=body.pdf_export,
+                review_enabled=body.review_enabled,
                 photobook=photobook_config,
                 photobook_preset=body.photobook_preset,
             ),
@@ -417,9 +430,14 @@ async def _run_pipeline_in_background(
 
         article_id = None
         photobook_id = None
+        draft_id = None
         pdf_available = False
         if hasattr(result, "metadata"):
-            article_id = result.metadata.get("article_id")
+            aid = result.metadata.get("article_id")
+            if body.review_enabled:
+                draft_id = aid
+            else:
+                article_id = aid
             photobook_id = result.metadata.get("photobook_id")
         if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
             pdf_available = True
@@ -432,6 +450,7 @@ async def _run_pipeline_in_background(
             run_id, "success", output_path,
             article_id=article_id,
             photobook_id=photobook_id,
+            draft_id=draft_id,
             pdf_available=pdf_available,
         )
 
@@ -452,13 +471,14 @@ async def get_articles(
     tour_date_to: Optional[str] = None,
     duration_min: Optional[float] = None,
     duration_max: Optional[float] = None,
+    status: Optional[str] = None,
     generated_from: Optional[str] = None,
     generated_to: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
 ):
     """Liste aller persistierten Artikel mit optionalen Filtern."""
-    filters = ArticleFilters(limit=limit, offset=offset)
+    filters = ArticleFilters(limit=limit, offset=offset, status=status)
 
     if tour_date_from:
         filters.tour_date_from = date.fromisoformat(tour_date_from)
@@ -561,15 +581,12 @@ async def delete_articles_batch(body: DeleteBatchRequest):
         session.close()
 
 
-# ── Revise & Publish ───────────────────────────────────
-
-class ReviseRequest(BaseModel):
-    changes: list[dict]
-
-
 @router.post("/articles/{article_id}/revise")
-async def revise_article(article_id: int, body: ReviseRequest):
-    """Revision eines Draft-Artikels anstossen."""
+async def revise_article(article_id: int, body: RevisionRequest):
+    """Überarbeitet einen Draft-Artikel via LLM und speichert die neue Version."""
+    from app.services.revise_blogpost import revise_blog_post
+    from app.services.design_blogpost import design_blogpost_service
+
     session = get_session()
     try:
         repo = ArticleRepository(session)
@@ -578,22 +595,70 @@ async def revise_article(article_id: int, body: ReviseRequest):
             raise HTTPException(status_code=404, detail="Article not found")
         if article.status != "draft":
             raise HTTPException(status_code=400, detail="Article is not a draft")
-        # TODO: Revision-Logik implementieren
-        return {"status": "ok", "article_id": article_id}
+
+        full_context = {
+            "notes": article.notes,
+            "gpx_stats": {
+                "total_distance_km": article.total_distance_km,
+                "elevation_gain_m": article.elevation_gain_m,
+                "elevation_loss_m": article.elevation_loss_m,
+            },
+        }
+
+        output_config = OutputConfig(
+            style_persona="mountain_veteran",
+            article_length="normal",
+        )
+
+        changes_dicts = [c.model_dump() for c in body.changes]
+
+        result = revise_blog_post(
+            current_markdown=article.markdown_content or "",
+            changes=changes_dicts,
+            full_context=full_context,
+            available_images=[],
+            output_config=output_config,
+            model=article.model_used or "gemma4:26b-ctx128k",
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail="LLM revision failed")
+
+        try:
+            html = design_blogpost_service(result["markdown"])
+        except Exception:
+            html = result["markdown"]
+
+        new_round = (article.revision_round or 0) + 1
+        repo.update(article_id, {
+            "markdown_content": result["markdown"],
+            "html_content": html,
+            "revision_round": new_round,
+        })
+
+        return {
+            "markdown": result["markdown"],
+            "html": html,
+            "revision_round": new_round,
+            "paragraph_count_changed": result.get("paragraph_count_changed", False),
+        }
     finally:
         session.close()
 
 
 @router.post("/articles/{article_id}/publish")
 async def publish_article(article_id: int):
-    """Draft-Artikel veröffentlichen."""
+    """Veröffentlicht einen Draft-Artikel (status: draft -> published)."""
     session = get_session()
     try:
         repo = ArticleRepository(session)
         article = repo.get_by_id(article_id)
         if article is None:
             raise HTTPException(status_code=404, detail="Article not found")
-        repo.update(article_id, status="published")
+        if article.status != "draft":
+            raise HTTPException(status_code=400, detail="Article is not a draft")
+
+        repo.update(article_id, {"status": "published"})
         return {"status": "published", "article_id": article_id}
     finally:
         session.close()

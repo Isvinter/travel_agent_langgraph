@@ -1,6 +1,4 @@
 """Tests für die /revise und /publish API-Endpoints."""
-import pytest
-from unittest.mock import MagicMock, patch
 
 
 class TestReviseApi:

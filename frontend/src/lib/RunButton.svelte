@@ -13,6 +13,7 @@
     articleLength,
     stylePersona,
     pdfExport,
+    reviewEnabled,
     photobookSize,
     photobookPreset,
     pipelineMode,
@@ -55,6 +56,7 @@
         body.article_length = length;
         body.style_persona = persona;
         body.pdf_export = pdf;
+        body.review_enabled = get(reviewEnabled);
       } else {
         const size = get(photobookSize);
         body.photobook_size = size;

@@ -17,6 +17,7 @@ class ArticleFilters:
     duration_max: Optional[float] = None
     generated_from: Optional[datetime] = None
     generated_to: Optional[datetime] = None
+    status: Optional[str] = None
     limit: int = 20
     offset: int = 0
 
@@ -55,6 +56,8 @@ class ArticleRepository:
             q = q.where(Article.generation_timestamp >= filters.generated_from)
         if filters.generated_to:
             q = q.where(Article.generation_timestamp <= filters.generated_to)
+        if filters.status:
+            q = q.where(Article.status == filters.status)
 
         # Count total (ohne Limit/Offset)
         count_q = select(func.count()).select_from(q.subquery())
@@ -102,3 +105,13 @@ class ArticleRepository:
         )
         self.session.commit()
         return count
+
+    def update(self, article_id: int, updates: dict) -> Optional[Article]:
+        """Aktualisiert Felder eines Artikels. Gibt den aktualisierten Artikel zurück."""
+        article = self.get_by_id(article_id)
+        if article is None:
+            return None
+        for key, value in updates.items():
+            setattr(article, key, value)
+        self.session.commit()
+        return article

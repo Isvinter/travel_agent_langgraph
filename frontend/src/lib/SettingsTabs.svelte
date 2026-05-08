@@ -6,6 +6,7 @@
   import LengthSelector from "./LengthSelector.svelte";
   import StyleSelector from "./StyleSelector.svelte";
   import PdfExportCheckbox from "./PdfExportCheckbox.svelte";
+  import ReviewCheckbox from "./ReviewCheckbox.svelte";
   import PhotobookSizeSelector from "./PhotobookSizeSelector.svelte";
   import PhotobookPresetSelector from "./PhotobookPresetSelector.svelte";
 
@@ -42,6 +43,7 @@
       <LengthSelector />
       <StyleSelector />
       <PdfExportCheckbox />
+      <ReviewCheckbox />
     {:else}
       <PhotobookSizeSelector />
       <PhotobookPresetSelector />
