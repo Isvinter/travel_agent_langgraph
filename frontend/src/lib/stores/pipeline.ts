@@ -30,6 +30,7 @@ export const runState = writable<RunState>("idle");
 export const currentRunId = writable<string | null>(null);
 export const result = writable<RunResult | null>(null);
 export const sessionId = writable<string>(newSessionId);
+export const currentDraftId = writable<number | null>(null);
 
 // Pipeline form fields — shared via stores (Svelte 5 runes mode:
 // export function creates props, not callable instance methods via bind:this)
