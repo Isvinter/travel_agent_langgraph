@@ -85,6 +85,7 @@ def persist_article(
     gpx_file: str,
     model: str,
     notes: Optional[str] = None,
+    status: str = "published",
 ) -> Optional[int]:
     """
     Persistiert einen generierten Blogpost in der Datenbank.
@@ -133,6 +134,8 @@ def persist_article(
         "html_path": file_paths.get("html", ""),
         "model_used": model,
         "notes": notes,
+        "status": status,
+        "revision_round": 0,
     }
 
     image_records = []
