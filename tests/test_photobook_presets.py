@@ -5,6 +5,7 @@ from app.photobook.presets import (
     get_photobook_preset,
 )
 from app.photobook.image_selector import _build_batch_prompt
+from app.photobook.plan import _build_plan_prompt
 
 
 class TestPhotobookPresetModel:
@@ -109,9 +110,6 @@ class TestImageSelectorPresetIntegration:
         prompt = _build_batch_prompt(batch_size=3, select_count=1, preset=preset)
         assert "Gemischt" in prompt
         assert "starke Motive" in prompt
-
-
-from app.photobook.plan import _build_plan_prompt
 
 
 class TestPlanPresetIntegration:
