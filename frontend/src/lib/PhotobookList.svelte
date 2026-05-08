@@ -89,8 +89,8 @@
       const params = new URLSearchParams();
       if (tourDateFrom) params.set("tour_date_from", tourDateFrom);
       if (tourDateTo) params.set("tour_date_to", tourDateTo);
-      if (durationMin) params.set("duration_min", durationMin);
-      if (durationMax) params.set("duration_max", durationMax);
+      if (durationMin && durationMin !== "0") params.set("duration_min", durationMin);
+      if (durationMax && durationMax !== "21") params.set("duration_max", durationMax);
       params.set("limit", "50");
 
       const res = await fetch(`/api/photobooks?${params.toString()}`);
@@ -195,14 +195,15 @@
       Tour-Datum bis:
       <input type="date" bind:value={tourDateTo} />
     </label>
-    <label>
-      Dauer (min h):
-      <input type="number" bind:value={durationMin} placeholder="z.B. 2" step="0.5" />
-    </label>
-    <label>
-      Dauer (max h):
-      <input type="number" bind:value={durationMax} placeholder="z.B. 8" step="0.5" />
-    </label>
+    <div class="filter-duration">
+      <span class="filter-duration-label">Dauer</span>
+      <input type="range" min={0} max={21} bind:value={durationMin} />
+      <span class="range-val">{durationMin || "0"}</span>
+      <span class="filter-sep">–</span>
+      <input type="range" min={0} max={21} bind:value={durationMax} />
+      <span class="range-val">{durationMax || "21"}</span>
+      <span class="filter-unit">Tage</span>
+    </div>
     <button class="filter-btn" onclick={fetchPhotobooks}>Filtern</button>
   </div>
 
@@ -231,23 +232,22 @@
               <th class="sortable" onclick={() => handleSort("tour_date")}>
                 Tour-Datum {sortColumn === "tour_date" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th class="sortable" onclick={() => handleSort("tour_duration_hours")}>
+              <th class="sortable num" onclick={() => handleSort("tour_duration_hours")}>
                 Dauer {sortColumn === "tour_duration_hours" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th class="sortable" onclick={() => handleSort("total_distance_km")}>
+              <th class="sortable num" onclick={() => handleSort("total_distance_km")}>
                 Distanz {sortColumn === "total_distance_km" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th class="sortable" onclick={() => handleSort("elevation_gain_m")}>
+              <th class="sortable num" onclick={() => handleSort("elevation_gain_m")}>
                 Höhenmeter {sortColumn === "elevation_gain_m" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th class="sortable" onclick={() => handleSort("image_count")}>
+              <th class="sortable num" onclick={() => handleSort("image_count")}>
                 Bilder {sortColumn === "image_count" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
               <th class="sortable" onclick={() => handleSort("photobook_size")}>
                 Grösse {sortColumn === "photobook_size" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th></th>
-              <th></th>
+              <th class="actions-header"></th>
             </tr>
           </thead>
           <tbody>
@@ -262,16 +262,24 @@
                 </td>
                 <td>{p.title || "Ohne Titel"}</td>
                 <td>{formatDate(p.tour_date)}</td>
-                <td>{formatDuration(p.tour_duration_hours)}</td>
-                <td>{p.total_distance_km ? `${p.total_distance_km} km` : "\u2014"}</td>
-                <td>{p.elevation_gain_m ? `${p.elevation_gain_m} m` : "\u2014"}</td>
-                <td>{p.image_count ?? "\u2014"}</td>
+                <td class="num">{formatDuration(p.tour_duration_hours)}</td>
+                <td class="num">{p.total_distance_km ? `${p.total_distance_km} km` : "\u2014"}</td>
+                <td class="num">{p.elevation_gain_m ? `${p.elevation_gain_m} m` : "\u2014"}</td>
+                <td class="num">{p.image_count ?? "\u2014"}</td>
                 <td>{formatSize(p.photobook_size)}</td>
-                <td>
-                  <button class="view-btn" onclick={() => handleView(p.id)}>Ansehen</button>
-                </td>
-                <td>
-                  <button class="delete-btn" onclick={() => openSingleDelete(p.id)}>Löschen</button>
+                <td class="actions-cell">
+                  <button class="icon-btn" title="Ansehen" onclick={() => handleView(p.id)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                  <button class="icon-btn icon-delete" title="Löschen" onclick={() => openSingleDelete(p.id)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
                 </td>
               </tr>
             {/each}
@@ -322,10 +330,18 @@
     background: var(--error);
     color: white;
     white-space: nowrap;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
   }
   .batch-delete-btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
+    background: var(--panel-2);
+    color: var(--text-muted);
+  }
+  .batch-delete-btn:not(:disabled):hover {
+    opacity: 0.9;
   }
   .filters {
     display: flex;
@@ -353,6 +369,35 @@
     height: fit-content;
     align-self: flex-end;
   }
+  .filter-duration {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .filter-duration-label {
+    margin-right: 4px;
+  }
+  .filter-duration input[type="range"] {
+    width: 70px;
+    accent-color: var(--accent);
+    padding: 0;
+    margin: 0;
+  }
+  .range-val {
+    min-width: 18px;
+    text-align: center;
+    color: var(--text-primary);
+    font-size: 0.75rem;
+  }
+  .filter-sep {
+    color: var(--text-muted);
+  }
+  .filter-unit {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+  }
   .status {
     color: var(--text-muted);
     padding: 2rem 0;
@@ -360,9 +405,6 @@
   }
   .status.error {
     color: var(--error);
-  }
-  .table-container {
-    /* overflow handled by .table-scroll-wrapper */
   }
   table {
     width: 100%;
@@ -372,14 +414,15 @@
   th {
     text-align: left;
     color: var(--text-muted);
-    font-weight: normal;
-    padding: 0.5rem 0.5rem;
-    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border);
     white-space: nowrap;
     position: sticky;
     top: 0;
-    background: var(--panel);
+    background: var(--th-bg);
     z-index: 1;
+    font-size: 0.72rem;
   }
   th.sortable {
     cursor: pointer;
@@ -392,7 +435,7 @@
     width: 2rem;
   }
   td {
-    padding: 0.5rem;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }
@@ -405,24 +448,32 @@
   tr:hover {
     background: var(--panel-2);
   }
-  .view-btn {
-    padding: 0.3rem 0.6rem;
-    background: var(--surface-alt);
-    color: var(--text);
-    font-size: 0.75rem;
+  .actions-header {
+    width: 70px;
   }
-  .view-btn:hover {
-    background: var(--accent);
+  .actions-cell {
+    text-align: center;
+    white-space: nowrap;
   }
-  .delete-btn {
-    padding: 0.3rem 0.6rem;
-    background: var(--error);
-    color: white;
-    font-size: 0.75rem;
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
   }
-  .delete-btn:hover {
-    opacity: 0.85;
+  .icon-btn:hover {
+    opacity: 1;
+    color: var(--accent);
   }
+  .icon-delete:hover {
+    color: var(--error);
+  }
+
   .dialog-overlay {
     position: fixed;
     inset: 0;
