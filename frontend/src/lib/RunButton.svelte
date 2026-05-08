@@ -14,6 +14,7 @@
     stylePersona,
     pdfExport,
     photobookSize,
+    photobookPreset,
     pipelineMode,
   } from "./stores/pipeline";
 
@@ -57,6 +58,7 @@
       } else {
         const size = get(photobookSize);
         body.photobook_size = size;
+        body.photobook_preset = get(photobookPreset);
       }
 
       const res = await fetch("/api/pipeline/run", {

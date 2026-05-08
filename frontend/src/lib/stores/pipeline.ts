@@ -47,6 +47,9 @@ export const stylePersona = writable<string>("mountain_veteran");
 export const pdfExport = writable<boolean>(false);
 export const pipelineMode = writable<"blog" | "photobook">("blog");
 export const photobookSize = writable<"short" | "normal" | "detailed">("normal");
+export const photobookPreset = writable<
+  "nature_outdoor" | "culture_architecture" | "people" | "nature_collage" | "mixed"
+>("mixed");
 
 let eventSource: EventSource | null = null;
 

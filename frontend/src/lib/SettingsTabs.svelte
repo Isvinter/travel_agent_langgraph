@@ -7,6 +7,7 @@
   import StyleSelector from "./StyleSelector.svelte";
   import PdfExportCheckbox from "./PdfExportCheckbox.svelte";
   import PhotobookSizeSelector from "./PhotobookSizeSelector.svelte";
+  import PhotobookPresetSelector from "./PhotobookPresetSelector.svelte";
 
   let current = $derived($pipelineMode);
 
@@ -43,6 +44,7 @@
       <PdfExportCheckbox />
     {:else}
       <PhotobookSizeSelector />
+      <PhotobookPresetSelector />
       <div class="pdf-info">
         PDF-Export immer aktiv
       </div>
