@@ -268,6 +268,7 @@ class RunPipelineRequest(BaseModel):
     article_length: Literal["short", "normal", "detailed"] = "normal"
     style_persona: Literal["mountain_veteran", "field_reporter"] = "mountain_veteran"
     pdf_export: bool = False
+    review_enabled: bool = False
     mode: Literal["blog", "photobook"] = "blog"
     photobook_size: Literal["short", "normal", "detailed"] | None = None
     photobook_preset: Literal[
@@ -381,6 +382,7 @@ async def _run_pipeline_in_background(
                 article_length=body.article_length,
                 style_persona=body.style_persona,
                 pdf_export=body.pdf_export,
+                review_enabled=body.review_enabled,
                 photobook=photobook_config,
                 photobook_preset=body.photobook_preset,
             ),
@@ -417,9 +419,14 @@ async def _run_pipeline_in_background(
 
         article_id = None
         photobook_id = None
+        draft_id = None
         pdf_available = False
         if hasattr(result, "metadata"):
-            article_id = result.metadata.get("article_id")
+            aid = result.metadata.get("article_id")
+            if body.review_enabled:
+                draft_id = aid
+            else:
+                article_id = aid
             photobook_id = result.metadata.get("photobook_id")
         if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
             pdf_available = True
@@ -432,6 +439,7 @@ async def _run_pipeline_in_background(
             run_id, "success", output_path,
             article_id=article_id,
             photobook_id=photobook_id,
+            draft_id=draft_id,
             pdf_available=pdf_available,
         )
 
