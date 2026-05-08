@@ -232,7 +232,7 @@
     border-radius: var(--radius);
     padding: 10px;
     margin-bottom: 10px;
-    background: rgba(91, 140, 255, 0.02);
+    background: var(--accent-ghost-hover);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
