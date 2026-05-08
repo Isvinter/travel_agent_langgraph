@@ -121,6 +121,7 @@
     role="button"
     tabindex="0"
   >
+    <p class="zone-icon">📂</p>
     <p class="zone-text">Dateien hier ablegen</p>
     <p class="zone-hint">.gpx .jpg .png .txt</p>
     <label class="browse-btn">
@@ -133,7 +134,13 @@
     <ul class="file-list">
       {#each files as f}
         <li class="file-item {f.type}">
-          <span class="file-type">{f.type.toUpperCase()}</span>
+          <span class="file-icon">
+            {#if f.type === "gpx"}📍
+            {:else if f.type === "image"}🖼
+            {:else if f.type === "txt"}📄
+            {:else}📎
+            {/if}
+          </span>
           <span class="file-name">{f.name}</span>
           <button class="remove-btn" onclick={() => removeFile(f)} title="Entfernen">&times;</button>
         </li>
@@ -160,9 +167,17 @@
     transition: border-color 0.2s, background 0.2s;
     cursor: pointer;
   }
+  .zone:hover {
+    border-color: var(--accent);
+    background: rgba(91, 140, 255, 0.04);
+  }
   .zone.active {
     border-color: var(--accent);
-    background: var(--accent-ghost);
+    background: rgba(91, 140, 255, 0.08);
+  }
+  .zone-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.2rem;
   }
   .zone-text {
     font-size: 0.9rem;
@@ -196,11 +211,10 @@
     border-radius: 3px;
     font-size: 0.75rem;
   }
-  .file-type {
-    font-weight: bold;
-    font-size: 0.65rem;
-    color: var(--accent);
-    min-width: 2rem;
+  .file-icon {
+    font-size: 0.8rem;
+    min-width: 1.2rem;
+    text-align: center;
   }
   .file-name {
     flex: 1;
