@@ -97,7 +97,7 @@ def select_photobook_images(
     model: str = "gemma4:26b-ctx128k",
     photo_count: int = 16,
     base_url: str = OLLAMA_BASE_URL,
-    preset: PhotobookPreset = None,
+    preset: Optional[PhotobookPreset] = None,
 ) -> List[ImageData]:
     """Waehlt Bilder fuer das Fotobuch via LLM in Batches aus.
     Zweistufig: 1) Pro-Batch-Vorauswahl, 2) Finale Reduktion.
