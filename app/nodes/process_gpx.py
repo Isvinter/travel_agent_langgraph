@@ -54,8 +54,8 @@ def process_gpx_node(state: AppState) -> AppState:
         "total_points": len(stats.points),
         "pauses_count": len(pauses),
     }
-    if elevation_profile_saved:
-        metadata_update["elevation_profile"] = elevation_path  # type: ignore[arg-type]
+    if elevation_profile_saved and elevation_path:
+        metadata_update["elevation_profile"] = elevation_path
     state.metadata.update(metadata_update)
 
     print("DEBUG: Returning with metadata")

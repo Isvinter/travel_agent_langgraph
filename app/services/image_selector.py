@@ -9,6 +9,7 @@ import math
 from typing import Any, Dict, List, Optional
 
 from app.config import OLLAMA_BASE_URL
+from app.services.ollama_client import call_ollama
 from app.utils.image_utils import encode_image_base64 as _encode_image
 
 
@@ -147,31 +148,17 @@ def _call_ollama(
     model: str,
     base_url: str,
 ) -> Optional[str]:
-    import requests
-
-    payload = {
-        "model": model,
-        "messages": [{
-            "role": "user",
-            "content": prompt,
-            "images": images,
-        }],
-        "stream": False,
-        "options": {
-            "temperature": 0.0,
-            "top_p": 0.1,
-            "num_predict": 128,
-        },
-        "keep_alive": "10m",
-    }
-
-    try:
-        resp = requests.post(f"{base_url}/api/chat", json=payload, timeout=300)
-        if resp.status_code == 200:
-            return resp.json().get("message", {}).get("content")
-    except Exception as e:
-        print(f"⚠️ Ollama select failed: {e}")
-    return None
+    """Ruft Ollama mit Bildern auf (Wrapper um zentralen ollama_client)."""
+    return call_ollama(
+        prompt,
+        model=model,
+        base_url=base_url,
+        images=images,
+        temperature=0.0,
+        top_p=0.1,
+        num_predict=128,
+        timeout=300,
+    )
 
 
 def _parse_selection(text: str, max_index: int) -> List[int]:

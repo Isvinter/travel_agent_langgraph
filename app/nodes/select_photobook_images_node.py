@@ -1,6 +1,6 @@
 from app.state import AppState
 from app.photobook.image_selector import select_photobook_images
-from app.photobook.presets import get_photobook_preset
+from app.nodes.plan_photobook_node import _get_photobook_context
 
 
 def select_photobook_images_node(state: AppState) -> AppState:
@@ -8,11 +8,7 @@ def select_photobook_images_node(state: AppState) -> AppState:
     if not state.images:
         print("⚠️ Keine Bilder fuer Fotobuch-Auswahl vorhanden.")
         return state
-    try:
-        gpx_dict = state.gpx_stats.model_dump() if state.gpx_stats else {}
-    except Exception:
-        gpx_dict = {}
-    preset = get_photobook_preset(state.output_config.photobook_preset)
+    gpx_dict, preset = _get_photobook_context(state)
     try:
         selected = select_photobook_images(
             images=state.images, gpx_stats=gpx_dict, notes=state.notes,

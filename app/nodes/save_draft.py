@@ -10,17 +10,20 @@ def save_draft_node(state: AppState) -> AppState:
     if not blog_post:
         return state
 
-    article_id = persist_article(
-        blog_post=blog_post,
-        gpx_stats=state.gpx_stats,
-        images=state.selected_images,
-        gpx_file=state.gpx_file,
-        model=state.model,
-        notes=state.notes,
-        status="draft",
-    )
+    try:
+        article_id = persist_article(
+            blog_post=blog_post,
+            gpx_stats=state.gpx_stats,
+            images=state.selected_images,
+            gpx_file=state.gpx_file,
+            model=state.model,
+            notes=state.notes,
+            status="draft",
+        )
 
-    if article_id:
-        state.metadata["article_id"] = article_id
+        if article_id:
+            state.metadata["article_id"] = article_id
+    except Exception as e:
+        print(f"❌ Draft-Persistierung fehlgeschlagen: {e}")
 
     return state

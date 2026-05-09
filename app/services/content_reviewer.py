@@ -8,9 +8,8 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from app.config import OLLAMA_BASE_URL
+from app.services.ollama_client import call_ollama
 from app.state import ImageData, WeatherInfo
 
 
@@ -220,27 +219,18 @@ def review_enrichment(
 
     print("🔍 Reviewing enriched content with LLM...")
 
-    try:
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {
-                "temperature": 0.3,
-                "num_predict": MAX_REVIEW_RESPONSE_TOKENS,
-            },
-            "keep_alive": "10m",
-        }
-        resp = requests.post(f"{base_url.rstrip('/')}/api/chat", json=payload, timeout=300)
-    except Exception as e:
-        print(f"⚠️ Review LLM call failed: {e}")
+    content = call_ollama(
+        prompt,
+        model=model,
+        base_url=base_url,
+        temperature=0.3,
+        top_p=None,
+        num_predict=MAX_REVIEW_RESPONSE_TOKENS,
+        timeout=300,
+    )
+    if content is None:
         return _build_fallback_context(weather, poi_list, selected_images)
 
-    if resp.status_code != 200:
-        print(f"⚠️ Review LLM returned {resp.status_code}: {resp.text[:500]}")
-        return _build_fallback_context(weather, poi_list, selected_images)
-
-    content = resp.json().get("message", {}).get("content", "")
     result = _parse_review_response(content)
 
     if result["coherence_score"] < 3 and result["coherence_score"] > 0:

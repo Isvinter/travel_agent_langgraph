@@ -12,6 +12,7 @@ def load_tour_notes(absolute_notes_dir: str) -> str:
     for filename in sorted(os.listdir(absolute_notes_dir)):
         if filename.endswith(".txt"):
             filepath = os.path.join(absolute_notes_dir, filename)
-            parts.append(f"### {filename}\n{open(filepath, encoding='utf-8').read()}")
+            with open(filepath, encoding='utf-8') as f:
+                parts.append(f"### {filename}\n{f.read()}")
 
     return "\n\n".join(parts)

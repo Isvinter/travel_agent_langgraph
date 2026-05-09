@@ -14,19 +14,9 @@ import json
 from datetime import datetime
 
 from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
+from app.services.ollama_client import call_ollama, strip_thinking_tokens
+_strip_thinking_tokens = strip_thinking_tokens  # backward compatibility
 from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
-
-
-def _strip_thinking_tokens(text: str) -> str:
-    """Entfernt Thinking-/CoT-Tokens aus dem LLM-Output."""
-    text = re.sub(
-        r'<(?:think|thinking)[^>]*>.*?</(?:think|thinking)\s*>',
-        '',
-        text,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
-    return text.lstrip('\n')
-
 
 
 def construct_blog_post_prompt(
@@ -285,64 +275,18 @@ def call_ollama_multimodal(
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
 ) -> Optional[str]:
-    """
-    Ruft Ollama multimodales Modell auf und generiert Blogpost.
-    
-    Args:
-        prompt: Text-Prompt
-        images: Liste von Bildern mit Base64-Encoding
-        model: Modell-Name (z.B. gemma4:26b-ctx128k)
-        base_url: Ollama API URL
-        
-    Returns:
-        Generierter Blogpost oder None bei Fehler
-    """
-    
-    try:
-        import requests
-        
-        # Ollama API Endpoint für chat (besser für multimodal)
-        url = f"{base_url.rstrip('/')}/api/chat"
-        
-        # Vorbereitung des Requests
-        # Ollama multimodal: Bilder als Top-Level "images" Key innerhalb der Message
-        image_b64 = [img["image"] for img in images]
-
-        messages_payload = {
-            "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                    "images": image_b64,
-                }
-            ],
-            "stream": False,
-            "options": {
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "num_predict": 16384  # Längere Antworten erlauben
-            },
-            "keep_alive": "10m",
-        }
-        
-        # Request senden
-        response = requests.post(url, json=messages_payload, timeout=600)
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("message", {}).get("content", "")
-        else:
-            print(f"❌ Ollama API Error: {response.status_code}")
-            print(f"Response: {response.text[:500]}")
-            return None
-            
-    except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to Ollama. Is it running? (ollama serve)")
-        return None
-    except Exception as e:
-        print(f"❌ Error calling Ollama: {e}")
-        return None
+    """Ruft Ollama multimodales Modell auf (Wrapper um zentralen ollama_client)."""
+    image_b64 = [img["image"] for img in images]
+    return call_ollama(
+        prompt,
+        model=model,
+        base_url=base_url,
+        images=image_b64,
+        temperature=0.7,
+        top_p=0.9,
+        num_predict=16384,
+        timeout=600,
+    )
 
 
 def generate_blog_post(
@@ -446,7 +390,7 @@ def generate_blog_post(
     print("✅ Blog post generated successfully!")
 
     # Thinking-Tokens entfernen
-    result = _strip_thinking_tokens(result)
+    result = strip_thinking_tokens(result)
 
     # ---- Post-processing: Bildpfade im Output normalisieren ----
     # Reverse-Mapping: alle Pfade die das LLM evtl. nutzt -> relativer Pfad
@@ -523,12 +467,14 @@ def generate_blog_post(
             "file_paths": {},
         }
 
+    html_saved = False
     html_return = result
     try:
         import markdown
         html_return = markdown.markdown(result, extensions=["fenced_code", "tables", "sane_lists"])
         with open(html_file_path, "w", encoding="utf-8") as f:
             f.write(html_return)
+        html_saved = True
         print(f"💾 HTML saved to: {html_file_path}")
     except Exception as e:
         print(f"❌ Error saving HTML file: {e}")
@@ -542,6 +488,7 @@ def generate_blog_post(
         "success": True,
         "markdown": result,
         "html": html_return,
+        "html_converted": html_saved,
         "selected_images": selected_images,
         "descriptions": descriptions,
         "file_paths": {

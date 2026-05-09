@@ -3,6 +3,7 @@ import re
 from typing import Optional
 
 from app.config import OLLAMA_BASE_URL
+from app.services.ollama_client import call_ollama, strip_thinking_tokens
 
 
 def _call_ollama_text(
@@ -11,39 +12,15 @@ def _call_ollama_text(
     model: str = "gemma4:26b-ctx128k",
 ) -> Optional[str]:
     """Ruft Ollama mit reinem Text auf (keine Bilder)."""
-    import requests
-
-    url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "stream": False,
-        "options": {
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "num_predict": 16384,
-        },
-        "keep_alive": "10m",
-    }
-
-    try:
-        response = requests.post(url, json=payload, timeout=600)
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("message", {}).get("content", "")
-        else:
-            print(f"❌ Ollama API Error: {response.status_code}")
-            print(f"Response: {response.text[:500]}")
-            return None
-    except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to Ollama. Is it running? (ollama serve)")
-        return None
-    except Exception as e:
-        print(f"❌ Error calling Ollama: {e}")
-        return None
+    return call_ollama(
+        user_prompt,
+        model=model,
+        system_prompt=system_prompt,
+        temperature=0.7,
+        top_p=0.9,
+        num_predict=16384,
+        timeout=600,
+    )
 
 
 def _count_paragraphs(markdown: str) -> int:
@@ -171,8 +148,7 @@ def revise_blog_post(
         return {"success": False, "markdown": "", "html": "", "paragraph_count_changed": False}
 
     # Clean thinking tokens
-    cleaned = re.sub(r'<thinking>.*?</thinking>', '', response, flags=re.DOTALL)
-    cleaned = cleaned.strip()
+    cleaned = strip_thinking_tokens(response)
 
     new_count = _count_paragraphs(cleaned)
     paragraph_count_changed = new_count != old_count

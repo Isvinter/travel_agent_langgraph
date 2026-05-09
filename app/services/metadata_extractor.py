@@ -52,8 +52,8 @@ def extract_gps(gps_raw):
 
 
 def extract_metadata(image_path):
-    image = Image.open(image_path)
-    exif_data = image._getexif()
+    with Image.open(image_path) as image:
+        exif_data = image._getexif()  # _getexif() löst GPSInfo-Sub-IFD korrekt auf
 
     metadata = {
         "timestamp": None,

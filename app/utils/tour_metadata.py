@@ -56,3 +56,20 @@ def compute_tour_date_and_duration(
             return start.date(), abs(duration_hours), "photos"
 
     return None, None, None
+
+
+def build_tour_stats(gpx_stats: Any) -> dict:
+    """Extrahiert gemeinsame Tour-Statistiken aus einem GPXStats-Objekt.
+
+    Vermeidet Code-Duplizierung zwischen persist_article und persist_photobook.
+    """
+    if not gpx_stats:
+        return {}
+    distance_m = getattr(gpx_stats, "total_distance_m", None)
+    gain_m = getattr(gpx_stats, "elevation_gain_m", None)
+    loss_m = getattr(gpx_stats, "elevation_loss_m", None)
+    return {
+        "total_distance_km": round(distance_m / 1000.0, 2) if distance_m else None,
+        "elevation_gain_m": round(gain_m, 0) if gain_m else None,
+        "elevation_loss_m": round(loss_m, 0) if loss_m else None,
+    }

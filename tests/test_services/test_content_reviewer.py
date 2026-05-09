@@ -108,14 +108,9 @@ class TestReviewEnrichment:
             "coherence_score": 7,
             "flags": [],
         })
-        mock_resp = Mock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "message": {"content": review_json},
-        }
 
-        with patch("app.services.content_reviewer.requests.post",
-                   return_value=mock_resp):
+        with patch("app.services.content_reviewer.call_ollama",
+                   return_value=review_json):
             result = review_enrichment(
                 weather=weather,
                 poi_list=pois,
@@ -140,8 +135,8 @@ class TestReviewEnrichment:
         )
         images = [ImageData(path="img1.jpg")]
 
-        with patch("app.services.content_reviewer.requests.post",
-                   side_effect=Exception("Connection refused")):
+        with patch("app.services.content_reviewer.call_ollama",
+                   return_value=None):
             result = review_enrichment(
                 weather=weather,
                 poi_list=[],

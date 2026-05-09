@@ -7,7 +7,7 @@ from typing import Optional, List
 from app.db.connection import get_session
 from app.db.photobook_repository import PhotobookRepository
 from app.utils.html_sanitizer import sanitize_html
-from app.utils.tour_metadata import compute_tour_date_and_duration
+from app.utils.tour_metadata import compute_tour_date_and_duration, build_tour_stats
 
 
 def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[str]:
@@ -55,9 +55,7 @@ def persist_photobook(
         gpx_stats, photobook_images
     )
 
-    distance_m = gpx_stats.total_distance_m if gpx_stats else None
-    gain_m = gpx_stats.elevation_gain_m if gpx_stats else None
-    loss_m = gpx_stats.elevation_loss_m if gpx_stats else None
+    tour_stats = build_tour_stats(gpx_stats)
 
     title = _extract_photobook_title(photobook_pages, gpx_file)
 
@@ -68,9 +66,9 @@ def persist_photobook(
         "tour_duration_source": tour_duration_source,
         "generation_timestamp": datetime.now(),
         "gpx_file": gpx_file,
-        "total_distance_km": round(distance_m / 1000.0, 2) if distance_m else None,
-        "elevation_gain_m": round(gain_m, 0) if gain_m else None,
-        "elevation_loss_m": round(loss_m, 0) if loss_m else None,
+        "total_distance_km": tour_stats.get("total_distance_km"),
+        "elevation_gain_m": tour_stats.get("elevation_gain_m"),
+        "elevation_loss_m": tour_stats.get("elevation_loss_m"),
         "image_count": _count_images_in_pages(photobook_pages),
         "html_content": sanitize_html(photobook_html or "", keep_style=True),
         "html_path": photobook_html_path or "",

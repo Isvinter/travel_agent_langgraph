@@ -63,18 +63,14 @@ class TestEnrichmentE2E:
         }
 
         # Mock: Ollama review response
-        mock_review_resp = Mock()
-        mock_review_resp.status_code = 200
-        mock_review_resp.json.return_value = {
-            "message": {"content": json.dumps({
-                "pois": [],
-                "weather_summary": "A beautiful sunny day in the Alps.",
-                "discarded_weather_fields": [],
-                "image_ratings": {f"img{i}.jpg": 4 for i in range(5)},
-                "coherence_score": 8,
-                "flags": [],
-            })},
-        }
+        review_response_json = json.dumps({
+            "pois": [],
+            "weather_summary": "A beautiful sunny day in the Alps.",
+            "discarded_weather_fields": [],
+            "image_ratings": {f"img{i}.jpg": 4 for i in range(5)},
+            "coherence_score": 8,
+            "flags": [],
+        })
 
         with patch("app.nodes.extract_metadata.enrich_images_with_metadata"), \
              patch("app.nodes.clustering_image_node.cluster_images", return_value=[]), \
@@ -86,8 +82,15 @@ class TestEnrichmentE2E:
                    return_value=mock_weather_resp), \
              patch("app.services.poi_enricher.requests.post",
                    return_value=mock_overpass_resp), \
-             patch("app.services.content_reviewer.requests.post",
-                   return_value=mock_review_resp), \
+             patch("app.services.content_reviewer.call_ollama",
+                   return_value=json.dumps({
+                       "pois": [],
+                       "weather_summary": "A beautiful sunny day in the Alps.",
+                       "discarded_weather_fields": [],
+                       "image_ratings": {f"img{i}.jpg": 4 for i in range(5)},
+                       "coherence_score": 8,
+                       "flags": [],
+                   })), \
              patch("app.services.blog_generator.call_ollama_multimodal",
                    return_value="# Test Blog\n\nThis is a test blog post."):
             graph = build_graph()
@@ -131,8 +134,15 @@ class TestEnrichmentE2E:
                    side_effect=Exception("Connection refused")), \
              patch("app.services.poi_enricher.requests.post",
                    return_value=mock_overpass_resp), \
-             patch("app.services.content_reviewer.requests.post",
-                   return_value=mock_review_resp), \
+             patch("app.services.content_reviewer.call_ollama",
+                   return_value=json.dumps({
+                       "pois": [],
+                       "weather_summary": "A beautiful sunny day in the Alps.",
+                       "discarded_weather_fields": [],
+                       "image_ratings": {f"img{i}.jpg": 4 for i in range(5)},
+                       "coherence_score": 8,
+                       "flags": [],
+                   })), \
              patch("app.services.blog_generator.call_ollama_multimodal",
                    return_value="# Test Blog\n\nWeather was unavailable."):
             graph = build_graph()

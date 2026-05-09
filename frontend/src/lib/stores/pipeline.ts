@@ -124,6 +124,8 @@ export function startStream(runId: string) {
   runState.set("running");
   currentRunId.set(runId);
 
+  stopStream();  // Vorhandene Verbindung schliessen bevor neue geöffnet wird
+
   const url = `/api/pipeline/stream/${runId}`;
   eventSource = new EventSource(url);
 
