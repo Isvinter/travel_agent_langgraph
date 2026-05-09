@@ -1,5 +1,6 @@
 # app/db/connection.py
 import os
+from pathlib import Path
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker, Session
 from app.db.models import Base, Article, Photobook
@@ -8,6 +9,29 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///travel_agent.db")
 
 _engine = None
 _SessionLocal = None
+
+
+def _run_migrations():
+    """Führt Alembic-Migrationen aus; fällt auf create_all zurück falls keine Migrationen existieren."""
+    if ":memory:" in DATABASE_URL or DATABASE_URL.startswith("sqlite+aiosqlite"):
+        Base.metadata.create_all(_get_engine())
+        _ensure_indexes()
+        return
+    try:
+        from alembic.config import Config
+        from alembic import command
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        alembic_ini = base_dir / "alembic.ini"
+        if alembic_ini.exists():
+            alembic_cfg = Config(str(alembic_ini))
+            alembic_cfg.set_main_option("script_location", str(base_dir / "migrations"))
+            alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+            command.upgrade(alembic_cfg, "head")
+            return
+    except Exception:
+        pass
+    Base.metadata.create_all(_get_engine())
+    _ensure_indexes()
 
 
 def _get_engine():
@@ -22,7 +46,7 @@ def _get_engine():
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA journal_mode=WAL;")
                 cursor.close()
-        Base.metadata.create_all(_engine)
+        _run_migrations()
         _ensure_indexes()
     return _engine
 
