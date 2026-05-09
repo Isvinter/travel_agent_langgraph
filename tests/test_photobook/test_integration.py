@@ -1,7 +1,7 @@
 """Integrationstest: Vollstaendiger Fotobuch-Graph-Durchlauf mit Mock-LLM."""
 import json
 from unittest.mock import patch, MagicMock
-from app.state import AppState, ImageData, OutputConfig
+from app.state import AppState, ImageData, OutputConfig, EnrichmentContext
 from app.graph import build_graph
 
 MOCK_SELECTION_CONTENT = "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
@@ -31,7 +31,7 @@ def _mock_blog_select(images, target_count=8, model=None, base_url=None):
 # Mock-Rueckgabe fuer den Content-Reviewer
 def _mock_review_enrichment(weather=None, poi_list=None, selected_images=None,
                             gpx_stats=None, notes=None, model=None):
-    return {"coherence_score": 5, "filtered_images": selected_images or []}
+    return EnrichmentContext(coherence_score=5, filtered_images=selected_images or [])
 
 
 def make_state(n_images=20):
@@ -121,8 +121,8 @@ class TestPresetPipeline:
             mock_plan_post.return_value = mock_plan_content
 
             plan = plan_photobook_layout(images, None, None, None, [], model="test")
-            assert len(plan["pages"]) == 5
-            assert plan["pages"][0]["preset_id"] == "cover_hero"
+            assert len(plan.pages) == 5
+            assert plan.pages[0].preset_id == "cover_hero"
 
             with patch("app.photobook.generate.call_ollama") as mock_gen_post:
                 mock_gen_post.return_value = mock_gen_content

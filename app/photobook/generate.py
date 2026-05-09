@@ -6,7 +6,7 @@ import re
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
-from app.state import ImageData, PageDescription
+from app.state import ImageData, PageDescription, PhotobookPlan, PagePlan, PageSlot
 from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_constraint_summary, get_any_preset, get_photobook_preset
 from app.photobook.presets import PhotobookPreset
@@ -19,11 +19,17 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
     if preset is None:
         preset = get_photobook_preset("mixed")
 
+    # pages_plan kann List[PagePlan] oder List[Dict] sein
+    def _get_pid(pp):
+        if hasattr(pp, "preset_id"):
+            return pp.preset_id
+        return pp.get("preset_id", "")
+
     # Nur die tatsächlich im Plan verwendeten Presets laden
     all_presets = load_all_presets()
     used_preset_ids = set()
     for pp in pages_plan:
-        pid = pp.get("preset_id", "")
+        pid = _get_pid(pp)
         if pid:
             used_preset_ids.add(pid)
 
@@ -40,7 +46,14 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
 
     constraints = get_constraint_summary()
 
-    plan_text = json.dumps(pages_plan, indent=2, ensure_ascii=False)
+    # Konvertiere PagePlan-Objekte zu dicts für JSON-Serialisierung
+    serializable_pages = []
+    for pp in pages_plan:
+        if hasattr(pp, "model_dump"):
+            serializable_pages.append(pp.model_dump())
+        else:
+            serializable_pages.append(pp)
+    plan_text = json.dumps(serializable_pages, indent=2, ensure_ascii=False)
     gpx_text = ""
     if gpx_stats_d:
         dist = gpx_stats_d.get("total_distance_m", 0) / 1000
@@ -92,7 +105,7 @@ ANTWORTE NUR mit JSON-Array:"""
 
 
 def generate_photobook_pages(
-    plan: Dict[str, Any],
+    plan: PhotobookPlan,
     images: List[ImageData],
     gpx_stats: Optional[Dict[str, Any]],
     notes: Optional[str],
@@ -102,7 +115,7 @@ def generate_photobook_pages(
 ) -> List[PageDescription]:
     if preset is None:
         preset = get_photobook_preset("mixed")
-    pages_plan = plan.get("pages", [])
+    pages_plan = plan.pages
     if not pages_plan:
         return []
     prompt = _build_generate_prompt(pages_plan, gpx_stats, notes, preset=preset)
@@ -209,10 +222,12 @@ def generate_photobook_pages(
                                 seen.add(sid)
                                 deduped.append(s)
                         deduped.reverse()
+                        # Konvertiere Dict-Slots zu PageSlot-Objekten
+                        page_slots = [PageSlot(**s) for s in deduped]
                         page = PageDescription(
                             template_id=pd.get("preset_id", "quad_grid"),
                             page_type="single",
-                            slots=deduped,
+                            slots=page_slots,
                         )
                         result.append(page)
                     if result:
@@ -224,28 +239,28 @@ def generate_photobook_pages(
     return _generate_fallback_pages(pages_plan, images)
 
 
-def _generate_fallback_pages(pages_plan: List[Dict[str, Any]], images: List[ImageData]) -> List[PageDescription]:
+def _generate_fallback_pages(pages_plan: List[PagePlan], images: List[ImageData]) -> List[PageDescription]:
     """Deterministische Fallback-Generierung wenn LLM fehlschlägt."""
     all_presets = load_all_presets()
     fallback = []
     for plan_page in pages_plan:
-        preset_id = plan_page.get("preset_id", "quad_grid")
+        preset_id = plan_page.preset_id or "quad_grid"
         preset = all_presets.get(preset_id)
         if preset is None:
             # Fallback: nächstes Preset mit passender Bildanzahl
-            count = len(plan_page.get("image_indices", []))
+            count = len(plan_page.image_indices)
             preset_id = get_any_preset(count)
             preset = all_presets.get(preset_id, all_presets["quad_grid"])
 
-        indices = plan_page.get("image_indices", [])
+        indices = plan_page.image_indices
         image_slots = [s.id for s in preset.slots if s.type == "image"]
         slots = []
         for sid, idx in zip(image_slots, indices):
             slots.append({"slot_id": sid, "image_index": idx})
 
         # Besserer Fallback-Titel: nutze "purpose" aus dem Plan falls vorhanden
-        purpose = plan_page.get("purpose", "")
-        position = plan_page.get("position", len(fallback))
+        purpose = plan_page.purpose
+        position = plan_page.position
         if purpose and purpose.lower() not in ("cover", "einzelbild", "sammlung", "sequenz", "vergleich"):
             title = purpose[:60]
         elif position == 0:
@@ -271,6 +286,6 @@ def _generate_fallback_pages(pages_plan: List[Dict[str, Any]], images: List[Imag
         fallback.append(PageDescription(
             template_id=preset_id,
             page_type="single",
-            slots=slots,
+            slots=[PageSlot(**s) for s in slots],
         ))
     return fallback

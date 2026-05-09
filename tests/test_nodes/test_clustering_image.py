@@ -12,7 +12,7 @@ class TestClusteringImageNode:
         state = AppState(images=images)
         result = clustering_image_node(state)
         assert len(result.image_clusters) == 1  # Same location → same cluster
-        assert len(result.image_clusters[0]["images"]) == 2  # Beide im gleichen Cluster
+        assert len(result.image_clusters[0].images) == 2  # Beide im gleichen Cluster
 
     def test_far_apart_images_form_multiple_clusters(self):
         images = [
@@ -38,5 +38,5 @@ class TestClusteringImageNode:
         result = clustering_image_node(state)
         # Nur das Bild mit Koordinaten bildet einen Cluster (None-GPS wird ge-skippt)
         assert len(result.image_clusters) == 1
-        assert len(result.image_clusters[0]["images"]) == 1
-        assert result.image_clusters[0]["images"][0].path == "with_gps.jpg"
+        assert len(result.image_clusters[0].images) == 1
+        assert result.image_clusters[0].images[0] == "with_gps.jpg"

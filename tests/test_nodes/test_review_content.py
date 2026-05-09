@@ -1,7 +1,7 @@
 """Tests for app/nodes/review_content_node.py"""
 from unittest.mock import patch
 from app.nodes.review_content_node import review_content_node
-from app.state import AppState, ImageData, DailyWeather, WeatherInfo
+from app.state import AppState, ImageData, DailyWeather, WeatherInfo, POI, EnrichmentContext
 from app.services.gpx_analytics import TrackPoint, GPXStats
 
 
@@ -25,28 +25,28 @@ class TestReviewContentNode:
         images = [ImageData(path="img1.jpg")]
         state = AppState(
             weather=weather,
-            poi_list=[{"name": "Berggipfel", "type": "peak", "distance_km": 1.0}],
+            poi_list=[POI(name="Berggipfel", type="peak", lat=47.3, lon=11.4, distance_km=1.0)],
             selected_images=images,
             gpx_stats=stats,
             notes="Great hike!",
             model="gemma4:26b-ctx128k",
         )
 
-        mock_context = {
-            "kept_pois": [{"name": "Berggipfel", "action": "KEEP"}],
-            "weather_summary": "Mild and sunny",
-            "discarded_weather_fields": ["freezing_level_m"],
-            "image_ratings": {"img1.jpg": 4},
-            "coherence_score": 8,
-            "flags": [],
-        }
+        mock_context = EnrichmentContext(
+            kept_pois=[POI(name="Berggipfel", type="peak", lat=47.3, lon=11.4, distance_km=1.0)],
+            weather_summary="Mild and sunny",
+            discarded_weather_fields=["freezing_level_m"],
+            image_ratings={"img1.jpg": 4},
+            filtered_images=images,
+            coherence_score=8,
+            flags=[],
+        )
         with patch(
             "app.nodes.review_content_node.review_enrichment",
             return_value=mock_context,
         ):
             result = review_content_node(state)
-            assert result.enrichment_context == mock_context
-            assert result.enrichment_context["coherence_score"] == 8
+            assert result.enrichment_context.coherence_score == 8
 
     def test_works_with_minimal_data(self):
         state = AppState(
@@ -56,17 +56,14 @@ class TestReviewContentNode:
             gpx_stats=None,
             model="gemma4:26b-ctx128k",
         )
-        mock_context = {
-            "kept_pois": [],
-            "weather_summary": "",
-            "discarded_weather_fields": [],
-            "image_ratings": {},
-            "coherence_score": 0,
-            "flags": ["review_unavailable"],
-        }
+        mock_context = EnrichmentContext(
+            filtered_images=[],
+            coherence_score=0,
+            flags=["review_unavailable"],
+        )
         with patch(
             "app.nodes.review_content_node.review_enrichment",
             return_value=mock_context,
         ):
             result = review_content_node(state)
-            assert result.enrichment_context == mock_context
+            assert result.enrichment_context.coherence_score == 0

@@ -19,7 +19,7 @@ class TestSaveDraftNode:
 
         with patch("app.nodes.save_draft.persist_article", return_value=42):
             result = save_draft_node(state)
-            assert result.metadata["article_id"] == 42
+            assert result.article_id == 42
 
     def test_save_draft_no_blog_post_does_nothing(self):
         from app.nodes.save_draft import save_draft_node
@@ -44,7 +44,7 @@ class TestSaveDraftNode:
         with patch("app.nodes.save_draft.persist_article",
                    side_effect=RuntimeError("DB error")):
             result = save_draft_node(state)
-            assert "article_id" not in result.metadata
+            assert result.article_id is None
 
     def test_save_draft_passes_correct_status(self):
         from app.nodes.save_draft import save_draft_node

@@ -9,7 +9,7 @@ class TestGenerateMapImageNode:
     def test_skips_when_no_gpx_stats(self):
         state = AppState(gpx_stats=None)
         result = generate_map_image_node(state)
-        assert "map_image_path" not in result.metadata
+        assert result.map_image_path is None
 
     def test_generates_map_with_mocked_services(self):
         points = [TrackPoint(lat=47.0, lon=8.0, elevation=500.0, time=None)]
@@ -28,4 +28,4 @@ class TestGenerateMapImageNode:
             result = generate_map_image_node(state)
             mock_html.assert_called_once()
             mock_png.assert_called_once()
-            assert "map_image_path" in result.metadata
+            assert result.map_image_path is not None

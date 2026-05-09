@@ -17,9 +17,12 @@ def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[s
     """Extrahiert den Fotobuch-Titel aus der Titelseite des LLM-Generats."""
     if photobook_pages:
         cover_page = photobook_pages[0]
-        for slot in (cover_page.slots if hasattr(cover_page, "slots") else cover_page.get("slots", [])):
-            if slot.get("slot_id") == "title" and slot.get("text", "").strip():
-                return slot["text"]
+        slots = cover_page.slots if hasattr(cover_page, "slots") else cover_page.get("slots", [])
+        for slot in slots:
+            sid = slot.get("slot_id") if isinstance(slot, dict) else getattr(slot, "slot_id", "")
+            text = slot.get("text", "") if isinstance(slot, dict) else getattr(slot, "text", "")
+            if sid == "title" and text.strip():
+                return text
 
     if gpx_file:
         base = os.path.splitext(os.path.basename(gpx_file))[0].strip()

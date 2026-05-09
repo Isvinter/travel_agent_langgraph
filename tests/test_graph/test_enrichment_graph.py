@@ -1,6 +1,6 @@
 """Tests for enrichment pipeline graph."""
 from app.graph import build_graph
-from app.state import AppState, ImageData, DailyWeather, WeatherInfo
+from app.state import AppState, ImageData, DailyWeather, WeatherInfo, POI, EnrichmentContext
 from app.services.gpx_analytics import TrackPoint, GPXStats
 from datetime import datetime
 
@@ -50,15 +50,15 @@ class TestEnrichmentPipeline:
                 ],
                 summary="Sunny",
             ),
-            poi_list=[{"name": "Test Peak", "type": "peak", "distance_km": 0.5}],
-            enrichment_context={
-                "kept_pois": [{"name": "Test Peak", "type": "peak", "distance_km": 0.5}],
-                "weather_summary": "Sunny and clear",
-                "discarded_weather_fields": [],
-                "image_ratings": {},
-                "coherence_score": 8,
-                "flags": [],
-            },
+            poi_list=[POI(name="Test Peak", type="peak", lat=47.3, lon=11.4, distance_km=0.5)],
+            enrichment_context=EnrichmentContext(
+                kept_pois=[POI(name="Test Peak", type="peak", lat=47.3, lon=11.4, distance_km=0.5)],
+                weather_summary="Sunny and clear",
+                discarded_weather_fields=[],
+                image_ratings={},
+                coherence_score=8,
+                flags=[],
+            ),
         )
 
         # The graph should run through without hard errors.

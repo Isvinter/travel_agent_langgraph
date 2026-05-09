@@ -1,7 +1,7 @@
 """Tests fuer Fotobuch Graph-Nodes."""
 import json
 from unittest.mock import patch, MagicMock
-from app.state import AppState, ImageData, OutputConfig, PageDescription
+from app.state import AppState, ImageData, OutputConfig, PageDescription, PhotobookPlan, PagePlan
 from app.nodes.select_photobook_images_node import select_photobook_images_node
 from app.nodes.plan_photobook_node import plan_photobook_node
 from app.nodes.generate_photobook_node import generate_photobook_node
@@ -48,14 +48,15 @@ class TestPhotobookNodes:
         state.photobook_images = state.images[:12]
         result = plan_photobook_node(state)
         assert result.photobook_plan is not None
-        assert len(result.photobook_plan["pages"]) == 11  # 12 Bilder: cover + 10 weitere Seiten
+        assert len(result.photobook_plan.pages) == 11  # 12 Bilder: cover + 10 weitere Seiten
 
     @patch("app.photobook.generate.call_ollama")
     def test_generate_node(self, mock_call):
         mock_call.return_value = MOCK_GENERATE
         state = make_state()
         state.photobook_images = state.images[:12]
-        state.photobook_plan = json.loads(MOCK_PLAN)
+        plan_dict = json.loads(MOCK_PLAN)
+        state.photobook_plan = PhotobookPlan(pages=[PagePlan(**p) for p in plan_dict["pages"]])
         result = generate_photobook_node(state)
         assert len(result.photobook_pages) == 1
 

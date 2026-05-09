@@ -271,7 +271,7 @@ class TestFetchPois:
             with patch("app.services.poi_enricher._save_to_cache"):
                 result = fetch_pois(pauses=pauses)
             assert len(result) >= 1
-            assert result[0]["name"] == "Berggipfel"
+            assert result[0].name == "Berggipfel"
 
     def test_handles_overpass_failure(self):
         pauses = [{

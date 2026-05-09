@@ -39,13 +39,12 @@ class TestPlan:
             poi_list=[],
             model="test-model",
         )
-        assert "pages" in result
-        assert len(result["pages"]) == 14
-        assert "dramatic_arc" in result
-        page0 = result["pages"][0]
-        assert page0["position"] == 0
-        assert page0["preset_id"] == "cover_hero"
-        assert isinstance(page0["image_indices"], list)
+        assert len(result.pages) > 0
+        assert len(result.pages) == 14
+        page0 = result.pages[0]
+        assert page0.position == 0
+        assert page0.preset_id == "cover_hero"
+        assert isinstance(page0.image_indices, list)
 
     @patch("app.photobook.plan.call_ollama")
     def test_fallback_on_llm_error(self, mock_call):
@@ -58,9 +57,9 @@ class TestPlan:
             poi_list=[],
             model="test-model",
         )
-        assert "pages" in result
-        assert len(result["pages"]) > 0
-        assert result["pages"][0]["preset_id"] == "cover_hero"
+        assert len(result.pages) > 0
+        assert len(result.pages) > 0
+        assert result.pages[0].preset_id == "cover_hero"
 
     def test_fallback_plan_uses_presets(self):
         """Fallback-Planung muss preset_id (nicht template_category) produzieren."""
@@ -73,6 +72,6 @@ class TestPlan:
             model="test-model",
             base_url="http://invalid:99999",
         )
-        for page in result["pages"]:
-            assert "preset_id" in page, f"Seite {page.get('position')} hat kein preset_id"
-            assert page["preset_id"] != "", f"Seite {page.get('position')} hat leeres preset_id"
+        for page in result.pages:
+            assert page.preset_id, f"Seite {page.position} hat kein preset_id"
+            assert page.preset_id != "", f"Seite {page.position} hat leeres preset_id"

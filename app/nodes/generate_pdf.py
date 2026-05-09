@@ -13,12 +13,12 @@ def generate_pdf_node(state: AppState) -> AppState:
     """Generiert ein PDF aus dem generierten HTML-Blogpost (nur wenn pdf_export=True)."""
     logger.info("Generating PDF from blogpost...")
 
-    if not state.blog_post or not state.blog_post.get("html"):
+    if not state.blog_post or not state.blog_post.html:
         logger.warning("No HTML content available for PDF generation.")
         return state
 
-    html_content = state.blog_post["html"]
-    file_paths = state.blog_post.get("file_paths", {})
+    html_content = state.blog_post.html
+    file_paths = state.blog_post.file_paths
     html_path = file_paths.get("html", "")
 
     # Output-Verzeichnis aus html_path ableiten
@@ -39,11 +39,11 @@ def generate_pdf_node(state: AppState) -> AppState:
         with open(pdf_path, "wb") as f:
             f.write(pdf_bytes)
 
-        state.blog_post["pdf_bytes"] = pdf_bytes
-        state.blog_post.setdefault("file_paths", {})["pdf"] = pdf_path
+        state.blog_post.pdf_bytes = pdf_bytes
+        state.blog_post.file_paths["pdf"] = pdf_path
         logger.info("PDF saved (%s bytes) -> %s", len(pdf_bytes), pdf_path)
     except Exception as e:
         logger.error("PDF generation failed: %s", e)
-        state.blog_post["pdf_error"] = str(e)
+        state.blog_post.pdf_error = str(e)
 
     return state

@@ -1,15 +1,13 @@
 """Tests fuer LLM Pass 2: Slot-Zuweisung mit Preset-Constraints."""
 import json
 from unittest.mock import patch, MagicMock
-from app.state import ImageData, PageDescription
+from app.state import ImageData, PageDescription, PhotobookPlan, PagePlan
 from app.photobook.generate import generate_photobook_pages
 
-MOCK_PLAN = {
-    "pages": [
-        {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
-        {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2], "purpose": "Aufstieg"},
-    ]
-}
+MOCK_PLAN = PhotobookPlan(pages=[
+    PagePlan(position=0, preset_id="cover_hero", image_indices=[0], purpose="Cover"),
+    PagePlan(position=1, preset_id="double_stacked", image_indices=[1, 2], purpose="Aufstieg"),
+])
 
 MOCK_GENERATE_CONTENT = json.dumps([
     {"preset_id": "cover_hero", "slots": [
@@ -39,7 +37,7 @@ class TestGenerate:
 
     def test_fallback_on_empty_plan(self):
         result = generate_photobook_pages(
-            plan={"pages": []}, images=SAMPLE_IMAGES[:4], gpx_stats={}, notes=None, model="test-model",
+            plan=PhotobookPlan(pages=[]), images=SAMPLE_IMAGES[:4], gpx_stats={}, notes=None, model="test-model",
         )
         assert len(result) == 0
 
@@ -55,12 +53,10 @@ class TestGenerate:
 
     def test_fallback_uses_preset_from_plan(self):
         """Fallback soll das im Plan gewählte Preset respektieren."""
-        plan = {
-            "pages": [
-                {"position": 0, "preset_id": "cover_hero", "image_indices": [0]},
-                {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2]},
-            ]
-        }
+        plan = PhotobookPlan(pages=[
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0]),
+            PagePlan(position=1, preset_id="double_stacked", image_indices=[1, 2]),
+        ])
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(3)]
         with patch("app.photobook.generate.call_ollama", return_value=None):
             pages = generate_photobook_pages(plan, images, None, None, model="test")
@@ -70,7 +66,7 @@ class TestGenerate:
 
     def test_generate_includes_titles_and_captions(self):
         """LLM-Response mit 'title' und 'text' Feldern muss korrekt geparst werden."""
-        plan = {"pages": [{"position": 0, "preset_id": "cover_hero", "image_indices": [0]}]}
+        plan = PhotobookPlan(pages=[PagePlan(position=0, preset_id="cover_hero", image_indices=[0])])
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(1)]
         mock_content = json.dumps([
             {"preset_id": "cover_hero", "slots": [
@@ -81,13 +77,13 @@ class TestGenerate:
         with patch("app.photobook.generate.call_ollama", return_value=mock_content):
             pages = generate_photobook_pages(plan, images, None, None, model="test")
         assert len(pages) == 1
-        title_slot = next((s for s in pages[0].slots if s.get("slot_id") == "title"), None)
+        title_slot = next((s for s in pages[0].slots if s.slot_id == "title"), None)
         assert title_slot is not None
-        assert title_slot["text"] == "Aufbruch"
+        assert title_slot.text == "Aufbruch"
 
     def test_fallback_unknown_preset_uses_fallback_count(self):
         """Fallback mit unbekanntem Preset wählt passendes nach Bildanzahl."""
-        plan = {"pages": [{"position": 0, "preset_id": "nonexistent", "image_indices": [0, 1]}]}
+        plan = PhotobookPlan(pages=[PagePlan(position=0, preset_id="nonexistent", image_indices=[0, 1])])
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(2)]
         with patch("app.photobook.generate.call_ollama", return_value=None):
             pages = generate_photobook_pages(plan, images, None, None, model="test")

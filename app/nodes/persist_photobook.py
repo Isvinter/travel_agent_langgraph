@@ -30,9 +30,9 @@ def persist_photobook_node(state: AppState) -> AppState:
 
     if photobook_id:
         logger.info("Photobook persisted with ID: %s", photobook_id)
-        state.metadata["photobook_id"] = photobook_id
+        state.photobook_id = photobook_id
     else:
         logger.warning("Photobook was not persisted (DB error).")
-        state.metadata["photobook_id"] = None
+        state.photobook_id = None
 
     return state

@@ -94,7 +94,7 @@ class TestEnforceFallback:
         result = enforce_fallback(page)
         assert result.template_id == "quad_grid"
         # quad_grid hat keine Text-Slots → nur title
-        assert result.slots == [] or all(s.get("slot_id") == "title" for s in result.slots)
+        assert result.slots == [] or all(s.slot_id == "title" for s in result.slots)
 
     def test_handles_negative_indices(self):
         from app.photobook.validator import enforce_fallback
@@ -109,7 +109,7 @@ class TestEnforceFallback:
             ],
         )
         result = enforce_fallback(page)
-        assert result.slots[0]["image_index"] == 3  # 1 gültiges Bild
+        assert result.slots[0].image_index == 3  # 1 gültiges Bild
         assert len(result.slots) >= 1
 
     def test_enforce_fallback_truncates_long_text(self):
@@ -126,9 +126,9 @@ class TestEnforceFallback:
             ],
         )
         result = enforce_fallback(page)
-        caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
+        caption_slot = next((s for s in result.slots if s.slot_id == "caption"), None)
         if caption_slot:
-            assert len(caption_slot.get("text", "")) <= 500
+            assert len(caption_slot.text or "") <= 500
 
 
 class TestValidateAllPages:
@@ -172,9 +172,9 @@ class TestValidateAllPages:
         ]
         validated, _ = validate_all_pages(pages)
         assert len(validated) == 1
-        title_slot = next((s for s in validated[0].slots if s.get("slot_id") == "title"), None)
+        title_slot = next((s for s in validated[0].slots if s.slot_id == "title"), None)
         assert title_slot is not None, "Title-Slot muss nach enforce_fallback vorhanden sein"
-        assert title_slot.get("text", "").strip() != "", "Title-Text darf nicht leer sein"
+        assert (title_slot.text or "").strip() != "", "Title-Text darf nicht leer sein"
 
     def test_text_preserved_when_already_present(self):
         """Vorhandener LLM-Text bleibt durch enforce_fallback erhalten."""
@@ -195,9 +195,9 @@ class TestValidateAllPages:
                           ]),
         ]
         validated, _ = validate_all_pages(pages)
-        caption_slot = next((s for s in validated[1].slots if s.get("slot_id") == "caption"), None)
+        caption_slot = next((s for s in validated[1].slots if s.slot_id == "caption"), None)
         assert caption_slot is not None
-        assert caption_slot["text"] == "Gipfelblick 2026"
+        assert caption_slot.text == "Gipfelblick 2026"
 
     def test_replace_preset_fills_text_slots(self):
         """_replace_preset befüllt Text-Slots im neuen Preset mit Platzhaltern."""
@@ -211,11 +211,11 @@ class TestValidateAllPages:
             slots=[{"slot_id": "main", "image_index": 0}],
         )
         result = _replace_preset(page, "single_text_below")
-        caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
+        caption_slot = next((s for s in result.slots if s.slot_id == "caption"), None)
         assert caption_slot is not None, "Caption-Slot muss nach Ersetzung vorhanden sein"
-        assert caption_slot.get("text", "").strip() != "", "Caption-Text darf nicht leer sein"
+        assert (caption_slot.text or "").strip() != "", "Caption-Text darf nicht leer sein"
         # Bild muss erhalten bleiben
-        assert any(s.get("slot_id") == "main" for s in result.slots)
+        assert any(s.slot_id == "main" for s in result.slots)
 
     def test_enforce_fallback_deduplicates_duplicate_slots(self):
         """Doppelte slot_ids (z.B. LLM generiert 2x caption) werden dedupliziert (last wins)."""
@@ -233,11 +233,11 @@ class TestValidateAllPages:
             ],
         )
         result = enforce_fallback(page)
-        caption_slots = [s for s in result.slots if s.get("slot_id") == "caption"]
+        caption_slots = [s for s in result.slots if s.slot_id == "caption"]
         assert len(caption_slots) == 1, (
             f"Erwarte genau 1 caption-Slot, aber {len(caption_slots)} gefunden"
         )
-        assert caption_slots[0]["text"] == "Zweiter Text, der sichtbar sein sollte"
+        assert caption_slots[0].text == "Zweiter Text, der sichtbar sein sollte"
 
     def test_enforce_fallback_deduplicates_multiple_duplicates(self):
         """Mehrfache Duplikate unterschiedlicher slot_ids werden alle dedupliziert."""
@@ -256,11 +256,11 @@ class TestValidateAllPages:
             ],
         )
         result = enforce_fallback(page)
-        text_slots = [s for s in result.slots if s.get("slot_id") == "text"]
+        text_slots = [s for s in result.slots if s.slot_id == "text"]
         assert len(text_slots) == 1, (
             f"Erwarte genau 1 text-Slot, aber {len(text_slots)} gefunden"
         )
-        assert text_slots[0]["text"] == "Text C (last wins)"
+        assert text_slots[0].text == "Text C (last wins)"
 
     def test_replace_preset_deduplicates_duplicate_slots(self):
         """_replace_preset dedupliziert doppelte slot_ids beim Preset-Wechsel."""
@@ -278,11 +278,11 @@ class TestValidateAllPages:
             ],
         )
         result = _replace_preset(page, "double_stacked_text")
-        caption_slots = [s for s in result.slots if s.get("slot_id") == "caption"]
+        caption_slots = [s for s in result.slots if s.slot_id == "caption"]
         assert len(caption_slots) == 1, (
             f"Nach Preset-Wechsel erwarte genau 1 caption-Slot, aber {len(caption_slots)} gefunden"
         )
-        assert caption_slots[0]["text"] == "Text 2 (last wins)"
+        assert caption_slots[0].text == "Text 2 (last wins)"
 
     def test_validate_all_pages_fills_text_for_all_presets_with_text(self):
         """Nach validate_all_pages haben alle text-fähigen Presets Text-Slots."""
@@ -308,10 +308,10 @@ class TestValidateAllPages:
             if preset and preset.has_text:
                 for sd in preset.slots:
                     if sd.type == "text":
-                        slot = next((s for s in page.slots if s.get("slot_id") == sd.id), None)
+                        slot = next((s for s in page.slots if s.slot_id == sd.id), None)
                         assert slot is not None, (
                             f"Text-Slot '{sd.id}' fehlt in Preset '{page.template_id}'"
                         )
-                        assert slot.get("text", "").strip() != "", (
+                        assert (slot.text or "").strip() != "", (
                             f"Text-Slot '{sd.id}' in Preset '{page.template_id}' ist leer"
                         )

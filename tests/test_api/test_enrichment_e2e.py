@@ -98,11 +98,10 @@ class TestEnrichmentE2E:
 
         # Verify state was enriched
         assert result["weather"] is not None
-        assert result["enrichment_context"].get("weather_summary") == "A beautiful sunny day in the Alps."
-        assert result["enrichment_context"].get("coherence_score") == 8
+        assert result["enrichment_context"].weather_summary == "A beautiful sunny day in the Alps."
+        assert result["enrichment_context"].coherence_score == 8
         # Blog generation should have run
         assert result["blog_post"] is not None
-
     def test_pipeline_survives_weather_failure(self):
         """Pipeline sollte weiterlaufen, auch wenn der Wetterdienst ausfällt."""
         state = build_valid_state()

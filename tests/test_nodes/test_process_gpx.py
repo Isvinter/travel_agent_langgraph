@@ -10,16 +10,13 @@ class TestProcessGpxNode:
 
         assert result.gpx_stats is not None
         assert result.gpx_stats.total_distance_m > 0
-        assert "distance_km" in result.metadata
 
     def test_no_gpx_file_returns_unchanged(self):
         state = AppState(gpx_file="")
         result = process_gpx_node(state)
         assert result.gpx_stats is None
-        assert result.metadata == {}
 
     def test_handles_nonexistent_file(self):
         state = AppState(gpx_file="/nonexistent/tour.gpx")
         result = process_gpx_node(state)
         assert result.gpx_stats is None
-        assert result.metadata == {}

@@ -32,7 +32,7 @@ def select_images_node(state: AppState) -> AppState:
         for sel in selected
         if sel.get("path") in img_by_path
     ]
-    state.metadata["selected_image_count"] = len(state.selected_images)
+    state.selected_image_count = len(state.selected_images)
 
     logger.info("Selected %s images for blog post", len(state.selected_images))
     return state

@@ -18,11 +18,11 @@ def design_blogpost_node(state: AppState) -> AppState:
     """
     logger.info("Applying design styling to blog HTML...")
 
-    if not state.blog_post or not state.blog_post.get("success"):
+    if not state.blog_post or not state.blog_post.success:
         logger.warning("Design: Kein erfolgreicher Blog-Post — überspringe")
         return state
 
-    html = state.blog_post.get("html", "")
+    html = state.blog_post.html or ""
     if not html:
         logger.warning("Design: Kein HTML-Inhalt — überspringe")
         return state
@@ -33,9 +33,9 @@ def design_blogpost_node(state: AppState) -> AppState:
         if styled:
             # State zuerst aktualisieren — auch wenn Datei-Schreiben fehlschlägt,
             # wird das gestylte HTML so in die DB persistiert.
-            state.blog_post["html"] = styled
+            state.blog_post.html = styled
 
-            html_path = state.blog_post.get("file_paths", {}).get("html")
+            html_path = state.blog_post.file_paths.get("html")
             if html_path:
                 try:
                     with open(html_path, "w", encoding="utf-8") as f:

@@ -2,13 +2,12 @@
 import json
 from unittest.mock import patch, Mock
 
-
 from app.services.content_reviewer import (
     review_enrichment,
     _build_review_prompt,
     _parse_review_response,
 )
-from app.state import DailyWeather, WeatherInfo, ImageData
+from app.state import DailyWeather, WeatherInfo, ImageData, POI, EnrichmentContext
 
 
 class TestBuildReviewPrompt:
@@ -24,7 +23,7 @@ class TestBuildReviewPrompt:
             ],
             summary="Sunny and mild",
         )
-        pois = [{"name": "Berggipfel", "type": "peak", "distance_km": 1.0}]
+        pois = [POI(name="Berggipfel", type="peak", lat=47.0, lon=11.0, distance_km=1.0)]
         images = [ImageData(path="img1.jpg", timestamp="2025-06-01T10:00:00",
                             latitude=47.3, longitude=11.4)]
 
@@ -94,8 +93,8 @@ class TestReviewEnrichment:
             ],
             summary="Sunny and mild",
         )
-        pois = [{"name": "Berggipfel", "type": "peak", "distance_km": 1.0,
-                 "wiki_extract": "A known peak"}]
+        pois = [POI(name="Berggipfel", type="peak", lat=47.0, lon=11.0, distance_km=1.0,
+                 wiki_extract="A known peak")]
         images = [ImageData(path="img1.jpg", timestamp="2025-06-01T10:00:00",
                             latitude=47.3, longitude=11.4)]
 
@@ -119,8 +118,8 @@ class TestReviewEnrichment:
                 notes=None,
                 model="gemma4:26b-ctx128k",
             )
-        assert isinstance(result, dict)
-        assert result.get("kept_pois") or result.get("weather_summary")
+        assert isinstance(result, EnrichmentContext)
+        assert result.kept_pois or result.weather_summary
 
     def test_fallback_when_ollama_unavailable(self):
         weather = WeatherInfo(
@@ -145,6 +144,6 @@ class TestReviewEnrichment:
                 notes=None,
                 model="gemma4:26b-ctx128k",
             )
-        assert isinstance(result, dict)
-        assert "weather_summary" in result
-        assert "kept_pois" in result
+        assert isinstance(result, EnrichmentContext)
+        assert result.weather_summary
+        assert result.kept_pois is not None

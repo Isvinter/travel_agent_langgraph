@@ -7,7 +7,7 @@ Prueft die LLM-Ausgabe auf Konsistenz VOR dem Rendering:
 """
 
 from typing import List
-from app.state import PageDescription
+from app.state import PageDescription, PageSlot
 from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_any_preset, get_presets_by_image_count
 
@@ -48,32 +48,32 @@ def validate_page(page: PageDescription, presets: dict = None) -> List[str]:
     image_count = 0
 
     for slot in page.slots:
-        slot_id = slot.get("slot_id", "")
+        slot_id = slot.slot_id
         if slot_id not in slot_defs:
             # "title" ist universell (page-header) und wird von enforce_fallback behandelt
             if slot_id == "title":
                 continue
             # Image-Slots die nicht existieren → echter Fehler
-            if slot.get("image_index") is not None:
+            if slot.image_index is not None:
                 errors.append(f"Slot '{slot_id}' existiert nicht im Preset '{page.template_id}'.")
                 continue
             # Text-Slots an Presets ohne Text-Option → Fehler (kann nicht upgraden)
-            if slot.get("text") and not any(s.type == "text" for s in preset.slots):
+            if slot.text and not any(s.type == "text" for s in preset.slots):
                 errors.append(f"Slot '{slot_id}' existiert nicht im Preset '{page.template_id}' (und kein Text-Upgrade möglich).")
             # Andere Text-Slots → enforce_fallback upgraded das Preset → keine Warnung
             continue
 
         slot_def = slot_defs[slot_id]
 
-        if slot.get("image_index") is not None:
-            if slot["image_index"] < 0:
-                errors.append(f"Slot '{slot_id}': image_index {slot['image_index']} ist ungueltig.")
+        if slot.image_index is not None:
+            if slot.image_index < 0:
+                errors.append(f"Slot '{slot_id}': image_index {slot.image_index} ist ungueltig.")
             else:
                 image_count += 1
 
         # Char-Limit-Prüfung für Text-Slots
         if slot_def.type == "text" and slot_def.char_limit is not None:
-            text = slot.get("text", "")
+            text = slot.text or ""
             if len(text) > slot_def.char_limit:
                 errors.append(
                     f"Slot '{slot_id}': Text hat {len(text)} Zeichen (Limit: {slot_def.char_limit})."
@@ -99,8 +99,8 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
     """
     presets = load_all_presets()
     image_indices = [
-        s["image_index"] for s in page.slots
-        if s.get("image_index") is not None and s["image_index"] >= 0
+        s.image_index for s in page.slots
+        if s.image_index is not None and s.image_index >= 0
     ]
 
     # Preset existiert nicht → passendes nach Bildanzahl wählen
@@ -113,8 +113,8 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
     # (z.B. LLM schreibt "caption" für quad_grid, das keine Text-Slots hat)
     llm_text_roles = set()
     for slot in page.slots:
-        sid = slot.get("slot_id", "")
-        text = slot.get("text", "").strip()
+        sid = slot.slot_id
+        text = (slot.text or "").strip()
         if sid == "title" or not text:
             continue
         # Prüfe, ob dieser Text-Slot ins Preset passt
@@ -157,17 +157,17 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
             text_role_map[sd.text_role or sid] = sid
 
     for slot in page.slots:
-        sid = slot.get("slot_id", "")
+        sid = slot.slot_id
         # Titel-Slot wird universell beibehalten (page-header)
-        if sid == "title" and slot.get("text"):
-            repaired_slots.append({"slot_id": sid, "text": _truncate_text(slot["text"], 60)})
-        elif sid in slot_defs and slot_defs[sid].type == "text" and slot.get("text"):
+        if sid == "title" and slot.text:
+            repaired_slots.append({"slot_id": sid, "text": _truncate_text(slot.text, 60)})
+        elif sid in slot_defs and slot_defs[sid].type == "text" and slot.text:
             sd = slot_defs[sid]
-            text = slot["text"]
+            text = slot.text
             if sd.char_limit and len(text) > sd.char_limit:
                 text = _truncate_text(text, sd.char_limit)
             repaired_slots.append({"slot_id": sid, "text": text})
-        elif slot.get("text"):
+        elif slot.text:
             # Fallback: versuche Text zuzuordnen
             matched_sid = text_role_map.get(sid)
             # Wenn slot_id nicht direkt im text_role_map ist, und es gibt
@@ -176,7 +176,7 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
                 matched_sid = list(text_role_map.values())[0]
             if matched_sid:
                 sd = slot_defs[matched_sid]
-                text = slot["text"]
+                text = slot.text
                 if sd.char_limit and len(text) > sd.char_limit:
                     text = _truncate_text(text, sd.char_limit)
                 repaired_slots.append({"slot_id": matched_sid, "text": text})
@@ -207,7 +207,7 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
     return PageDescription(
         template_id=page.template_id,
         page_type="single",
-        slots=deduped_slots,
+        slots=[PageSlot(**s) for s in deduped_slots],
     )
 
 
@@ -327,8 +327,8 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
     new_slots = []
 
     image_indices = [
-        s["image_index"] for s in old_slots
-        if s.get("image_index") is not None and s["image_index"] >= 0
+        s.image_index for s in old_slots
+        if s.image_index is not None and s.image_index >= 0
     ]
 
     image_slot_ids = [s.id for s in preset.slots if s.type == "image"]
@@ -338,12 +338,12 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
         new_slots.append({"slot_id": image_slot_ids[i], "image_index": img_idx})
 
     for slot in old_slots:
-        sid = slot.get("slot_id", "")
+        sid = slot.slot_id
         # Titel-Slot universell beibehalten
-        if sid == "title" and slot.get("text"):
-            new_slots.append({"slot_id": sid, "text": _truncate_text(slot["text"], 60)})
-        elif sid in {s.id for s in preset.slots if s.type == "text"} and slot.get("text"):
-            new_slots.append({"slot_id": sid, "text": slot["text"]})
+        if sid == "title" and slot.text:
+            new_slots.append({"slot_id": sid, "text": _truncate_text(slot.text, 60)})
+        elif sid in {s.id for s in preset.slots if s.type == "text"} and slot.text:
+            new_slots.append({"slot_id": sid, "text": slot.text})
 
     # Stelle sicher, dass ALLE Text-Slots im neuen Preset befüllt sind
     for sd in preset.slots:
@@ -374,7 +374,7 @@ def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescriptio
     return PageDescription(
         template_id=new_preset_id,
         page_type="single",
-        slots=deduped_slots,
+        slots=[PageSlot(**s) for s in deduped_slots],
     )
 
 

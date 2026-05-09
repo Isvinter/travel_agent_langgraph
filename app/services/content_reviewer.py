@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama
-from app.state import ImageData, WeatherInfo
+from app.state import ImageData, WeatherInfo, POI, EnrichmentContext
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ MAX_REVIEW_RESPONSE_TOKENS = 2048
 
 def _build_review_prompt(
     weather: Optional[WeatherInfo],
-    poi_list: List[Dict[str, Any]],
+    poi_list: List[POI],
     selected_images: List[ImageData],
     gpx_stats_d: Optional[Dict[str, Any]],
     notes: Optional[str],
@@ -73,9 +73,9 @@ def _build_review_prompt(
     if poi_list:
         poi_lines = []
         for i, poi in enumerate(poi_list):
-            line = f"{i}. {poi['name']} ({poi.get('type', 'POI')}, {poi.get('distance_km', '?')} km entfernt)"
-            if poi.get("wiki_extract"):
-                line += f"\n   Wikipedia: {poi['wiki_extract'][:200]}"
+            line = f"{i}. {poi.name} ({getattr(poi, 'type', 'POI')}, {getattr(poi, 'distance_km', '?')} km entfernt)"
+            if getattr(poi, "wiki_extract", None):
+                line += f"\n   Wikipedia: {poi.wiki_extract[:200]}"
             poi_lines.append(line)
         poi_text = "\n".join(poi_lines)
     else:
@@ -182,13 +182,13 @@ def _parse_review_response(response: Optional[str]) -> Dict[str, Any]:
 
 def review_enrichment(
     weather: Optional[WeatherInfo],
-    poi_list: List[Dict[str, Any]],
+    poi_list: List[POI],
     selected_images: List[ImageData],
     gpx_stats: Any = None,
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
-) -> Dict[str, Any]:
+) -> EnrichmentContext:
     """Führt die Content-Review durch und gibt kuratierten Kontext zurück.
 
     Args:
@@ -247,32 +247,45 @@ def review_enrichment(
             score = ratings.get(img.path, 3)
             rated.append((score, img))
         rated.sort(key=lambda x: x[0], reverse=True)
-        result["filtered_images"] = [img for _, img in rated]
+        filtered_images = [img for _, img in rated]
         logger.info("Images sorted by quality rating (best first)")
     else:
-        result["filtered_images"] = list(selected_images)
+        filtered_images = list(selected_images)
 
-    kept = len(result.get("kept_pois", []))
+    # LLM-kept_pois auf originale POI-Objekte zurückmappen
+    kept_poi_names = {p.get("name", "") for p in result.get("kept_pois", [])}
+    kept_pois = [p for p in poi_list if p.name in kept_poi_names]
+
+    kept = len(kept_pois)
     logger.info("Review complete: %s POIs kept, coherence %s/10", kept, result['coherence_score'])
-    return result
+
+    return EnrichmentContext(
+        weather_summary=result.get("weather_summary", ""),
+        kept_pois=kept_pois,
+        discarded_weather_fields=result.get("discarded_weather_fields", []),
+        image_ratings=result.get("image_ratings", {}),
+        filtered_images=filtered_images,
+        coherence_score=result.get("coherence_score", 0),
+        flags=result.get("flags", []),
+    )
 
 
 def _build_fallback_context(
     weather: Optional[WeatherInfo],
-    poi_list: List[Dict[str, Any]],
+    poi_list: List[POI],
     selected_images: List[ImageData],
-) -> Dict[str, Any]:
+) -> EnrichmentContext:
     """Baut einen Fallback-Kontext, wenn der Review-LLM nicht verfügbar ist."""
     summary = ""
     if weather:
         summary = weather.summary or "Wetterdaten verfügbar (siehe Details)."
 
-    return {
-        "kept_pois": poi_list,
-        "weather_summary": summary,
-        "discarded_weather_fields": [],
-        "image_ratings": {img.path: 3 for img in selected_images},
-        "filtered_images": list(selected_images),
-        "coherence_score": 0,
-        "flags": ["review_unavailable"],
-    }
+    return EnrichmentContext(
+        kept_pois=poi_list,
+        weather_summary=summary,
+        discarded_weather_fields=[],
+        image_ratings={img.path: 3 for img in selected_images},
+        filtered_images=list(selected_images),
+        coherence_score=0,
+        flags=["review_unavailable"],
+    )

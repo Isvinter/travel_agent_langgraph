@@ -1,7 +1,7 @@
 # app/nodes/generate_blog_post.py
 import logging
 
-from app.state import AppState
+from app.state import AppState, BlogPostResult
 from app.services.blog_generator import generate_blog_post
 
 logger = logging.getLogger(__name__)
@@ -25,15 +25,15 @@ def generate_blog_post_node(state: AppState) -> AppState:
     images = state.selected_images if state.selected_images else state.images
     if not images:
         logger.warning("No images available for blog generation.")
-        state.blog_post = {"success": False, "error": "No images"}
+        state.blog_post = BlogPostResult(success=False, error="No images")
         return state
 
     if not state.gpx_stats:
         logger.warning("No GPX stats available for blog generation.")
-        state.blog_post = {"success": False, "error": "No GPX stats"}
+        state.blog_post = BlogPostResult(success=False, error="No GPX stats")
         return state
 
-    map_image_path = state.metadata.get("enriched_map_image_path")
+    map_image_path = state.map_image_path
     logger.info("Using %s images for blog generation", len(images))
 
     try:
@@ -50,26 +50,26 @@ def generate_blog_post_node(state: AppState) -> AppState:
             output_config=state.output_config,
         )
 
-        state.metadata["selected_images"] = result.get("selected_images", [])
+        state.selected_images_list = result.selected_images
         state.blog_post = result
         
-        if result.get("success"):
+        if result.success:
             logger.info("Blog post generated successfully!")
-            logger.info("   - Markdown length: %s", len(result.get('markdown', '')))
-            logger.info("   - HTML length: %s", len(result.get('html', '')))
-            logger.info("   - Selected images: %s", len(result.get('selected_images', [])))
+            logger.info("   - Markdown length: %s", len(result.markdown or ''))
+            logger.info("   - HTML length: %s", len(result.html or ''))
+            logger.info("   - Selected images: %s", len(result.selected_images))
         else:
-            logger.error("Blog generation failed: %s", result.get('error'))
+            logger.error("Blog generation failed: %s", result.error)
             
     except Exception as e:
         logger.error("Error generating blog post: %s", e)
-        state.blog_post = {
-            "success": False,
-            "error": str(e),
-            "markdown": "",
-            "html": "",
-            "selected_images": [],
-            "descriptions": {}
-        }
+        state.blog_post = BlogPostResult(
+            success=False,
+            error=str(e),
+            markdown="",
+            html="",
+            selected_images=[],
+            descriptions={},
+        )
     
     return state

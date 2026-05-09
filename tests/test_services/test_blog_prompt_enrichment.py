@@ -1,17 +1,18 @@
 """Tests for enrichment integration in blog prompt builder."""
 from app.services.blog_generator import construct_blog_post_prompt
+from app.state import POI, EnrichmentContext
 
 
 class TestBlogPromptEnrichment:
     def test_includes_enrichment_context_when_provided(self):
-        enrichment = {
-            "kept_pois": [
-                {"name": "Berggipfel", "type": "peak", "distance_km": 1.0,
-                 "wiki_extract": "A majestic peak in the Alps."},
+        enrichment = EnrichmentContext(
+            kept_pois=[
+                POI(name="Berggipfel", type="peak", lat=47.3, lon=11.4,
+                    distance_km=1.0, wiki_extract="A majestic peak in the Alps."),
             ],
-            "weather_summary": "Mild alpine weather with clear skies.",
-            "discarded_weather_fields": ["freezing_level_m"],
-        }
+            weather_summary="Mild alpine weather with clear skies.",
+            discarded_weather_fields=["freezing_level_m"],
+        )
         images = [{"path": "img1.jpg", "timestamp": "2025-06-01T10:00:00",
                    "latitude": 47.3, "longitude": 11.4}]
 
@@ -40,9 +41,9 @@ class TestBlogPromptEnrichment:
 
         prompt, img_data = construct_blog_post_prompt(
             images=images,
-            enrichment_context={},
+            enrichment_context=None,
             weather=weather,
-            poi_list=[{"name": "Test Peak", "type": "peak", "distance_km": 0.5}],
+            poi_list=[POI(name="Test Peak", type="peak", lat=47.0, lon=11.0, distance_km=0.5)],
         )
         assert "Test Peak" in prompt
 
@@ -55,5 +56,3 @@ class TestBlogPromptEnrichment:
             poi_list=[],
         )
         assert isinstance(prompt, str)
-        # Should contain the blog prompt but not enrichment headers
-        # when no enrichment data is provided

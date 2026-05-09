@@ -32,7 +32,7 @@ def _generate_map(
     try:
         html_gen_fn(output_html=html_path, **html_kwargs)
         html_to_png(html_path, png_path)
-        state.metadata[state_key] = png_path
+        state.map_image_path = png_path
         logger.info("%s: %s", display_name, png_path)
     except Exception as e:
         logger.error("%s failed: %s — continuing", display_name, e)

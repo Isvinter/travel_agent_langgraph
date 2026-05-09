@@ -47,19 +47,6 @@ def process_gpx_node(state: AppState) -> AppState:
     state.gpx_stats = stats
     state.gpx_pauses = pauses
     state.elevation_profile_path = elevation_path
-    metadata_update = {
-        "file": gpx_file,
-        "distance_km": round(stats.total_distance_m / 1000, 2),
-        "elevation_gain_m": round(stats.elevation_gain_m, 2),
-        "elevation_loss_m": round(stats.elevation_loss_m, 2),
-        "avg_speed_kmh": round(stats.avg_speed_kmh, 2),
-        "max_speed_kmh": round(stats.max_speed_kmh, 2),
-        "total_points": len(stats.points),
-        "pauses_count": len(pauses),
-    }
-    if elevation_profile_saved and elevation_path:
-        metadata_update["elevation_profile"] = elevation_path
-    state.metadata.update(metadata_update)
 
-    logger.info("Returning with metadata")
+    logger.info("Returning with stats")
     return state

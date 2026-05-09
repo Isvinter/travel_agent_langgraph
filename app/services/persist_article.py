@@ -21,8 +21,15 @@ def _extract_title(markdown: str) -> Optional[str]:
     return None
 
 
+def _bp_get(obj, key, default=None):
+    """Holt einen Wert aus BlogPostResult oder Dict."""
+    if hasattr(obj, key):
+        return getattr(obj, key)
+    return obj.get(key, default) if isinstance(obj, dict) else default
+
+
 def persist_article(
-    blog_post: Dict[str, Any],
+    blog_post: Any,
     gpx_stats: Any,
     images: list,
     gpx_file: str,
@@ -45,13 +52,13 @@ def persist_article(
     Returns:
         article_id oder None bei Fehler
     """
-    if not blog_post or not blog_post.get("success"):
+    if not blog_post or not _bp_get(blog_post, "success"):
         return None
 
-    markdown = blog_post.get("markdown", "")
-    html = blog_post.get("html", "")
-    file_paths = blog_post.get("file_paths", {})
-    selected_images = blog_post.get("selected_images", [])
+    markdown = _bp_get(blog_post, "markdown", "")
+    html = _bp_get(blog_post, "html", "")
+    file_paths = _bp_get(blog_post, "file_paths", {})
+    selected_images = _bp_get(blog_post, "selected_images", [])
 
     tour_date, tour_duration_hours, tour_duration_source = compute_tour_date_and_duration(
         gpx_stats, [img.model_dump() for img in images] if images else []

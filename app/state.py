@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from pydantic import BaseModel, Field
 from app.services.gpx_analytics import GPXStats
 
@@ -75,32 +75,104 @@ class OutputConfig(BaseModel):
     ] = "mixed"
 
 
+# ── Neue Modelle für typisierte State-Fields ──
+
+class ImageCluster(BaseModel):
+    """Cluster von geographisch nahen Bildern."""
+    id: int
+    images: List[str]  # Pfade der Bilder im Cluster
+    center_lat: float
+    center_lon: float
+
+
+class POI(BaseModel):
+    """Point of Interest entlang der Route."""
+    name: str
+    type: str
+    lat: float
+    lon: float
+    distance_km: Optional[float] = None
+    wiki_extract: Optional[str] = None
+    wiki_tag: Optional[str] = None
+
+
+class PageSlot(BaseModel):
+    """Ein Slot (Bild oder Text) innerhalb einer Fotobuch-Seite."""
+    slot_id: str
+    text: Optional[str] = None
+    image_index: Optional[int] = None
+
+
+class BlogPostResult(BaseModel):
+    """Ergebnis der Blogpost-Generierung."""
+    success: bool
+    markdown: Optional[str] = None
+    html: Optional[str] = None
+    file_paths: Dict[str, str] = Field(default_factory=dict)
+    selected_images: List[str] = Field(default_factory=list)
+    descriptions: Dict[str, str] = Field(default_factory=dict)
+    pdf_bytes: Optional[bytes] = None
+    pdf_error: Optional[str] = None
+    error: Optional[str] = None
+    html_converted: Optional[bool] = None
+
+
+class EnrichmentContext(BaseModel):
+    """Kuratierter Anreicherungs-Kontext aus dem Content-Review."""
+    weather_summary: str = ""
+    kept_pois: List[POI] = Field(default_factory=list)
+    discarded_weather_fields: List[str] = Field(default_factory=list)
+    image_ratings: Dict[str, Any] = Field(default_factory=dict)
+    filtered_images: List[Any] = Field(default_factory=list)
+    coherence_score: float = 0.0
+    flags: List[str] = Field(default_factory=list)
+
+
+class PagePlan(BaseModel):
+    """Einzelne Seite im Fotobuch-Layout-Plan."""
+    preset_id: str
+    position: int = 0
+    image_indices: List[int] = Field(default_factory=list)
+    purpose: str = ""
+    slots: List[PageSlot] = Field(default_factory=list)
+
+
+class PhotobookPlan(BaseModel):
+    """Vollständiger Fotobuch-Layout-Plan."""
+    pages: List[PagePlan] = Field(default_factory=list)
+
+
 class PageDescription(BaseModel):
     """Seitenbeschreibung — Output des LLM (Pass 2), Input des Renderers."""
     template_id: str
     page_type: str  # "single" | "spread"
-    slots: List[Dict[str, Any]] = Field(default_factory=list)
+    slots: List[PageSlot] = Field(default_factory=list)
 
 
 class AppState(BaseModel):
     images: List[ImageData] = []
     selected_images: List[ImageData] = []
-    image_clusters: List[Dict[str, Any]] = []
+    image_clusters: List[ImageCluster] = Field(default_factory=list)
     gpx_file: str = ""
     gpx_stats: Optional[GPXStats] = None
     gpx_pauses: List[dict] = []
     elevation_profile_path: Optional[str] = None
-    metadata: Dict[str, Any] = {}
-    blog_post: Optional[Dict[str, Any]] = None
+    # Metadaten als flache typisierte Felder (ersetzt Dict[str, Any])
+    article_id: Optional[int] = None
+    photobook_id: Optional[int] = None
+    map_image_path: Optional[str] = None
+    selected_image_count: Optional[int] = None
+    selected_images_list: List[str] = Field(default_factory=list)
+    blog_post: Optional[BlogPostResult] = None
     notes: Optional[str] = None
     weather: Optional[WeatherInfo] = None
-    poi_list: List[Dict[str, Any]] = []
-    enrichment_context: Dict[str, Any] = {}
+    poi_list: List[POI] = Field(default_factory=list)
+    enrichment_context: EnrichmentContext = Field(default_factory=EnrichmentContext)
     model: str = "gemma4:26b-ctx128k"
     output_dir: str = "output"
     output_config: OutputConfig = Field(default_factory=OutputConfig)
     photobook_images: List[ImageData] = []
-    photobook_plan: Optional[Dict[str, Any]] = None
+    photobook_plan: Optional[PhotobookPlan] = None
     photobook_pages: List[PageDescription] = []
     photobook_html: Optional[str] = None
     photobook_html_path: Optional[str] = None  # Pfad zur gespeicherten HTML-Datei

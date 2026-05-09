@@ -26,7 +26,7 @@ def save_draft_node(state: AppState) -> AppState:
         )
 
         if article_id:
-            state.metadata["article_id"] = article_id
+            state.article_id = article_id
     except Exception as e:
         logger.error("Draft-Persistierung fehlgeschlagen: %s", e)
 

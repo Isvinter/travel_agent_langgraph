@@ -73,8 +73,8 @@ class TestGermanCharsInNodeOutput:
         from app.nodes.process_gpx import process_gpx_node
         state = AppState(gpx_file=sample_gpx_path)
         result = process_gpx_node(state)
-        assert "distance_km" in result.metadata
-        assert isinstance(result.metadata["distance_km"], (int, float))
+        assert result.gpx_stats is not None
+        assert result.gpx_stats.total_distance_m > 0
 
     def test_enrich_poi_german_log_output(self):
         from app.nodes.enrich_poi_node import enrich_poi_node

@@ -65,7 +65,7 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
         slot_defs = {s.id: s for s in preset.slots}
 
         for slot_data in page.slots:
-            slot_id = slot_data.get("slot_id", "")
+            slot_id = slot_data.slot_id
             slot_def = slot_defs.get(slot_id)
             if not slot_def:
                 continue
@@ -75,8 +75,8 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
 
             area_style = f'style="grid-area: {slot_def.css_area}"'
 
-            if slot_def.type == "image" and slot_data.get("image_index") is not None:
-                idx = slot_data["image_index"]
+            if slot_def.type == "image" and slot_data.image_index is not None:
+                idx = slot_data.image_index
                 if 0 <= idx < len(images):
                     img_path = _normalize_path(images[idx].path)
                     html_parts.append(
@@ -86,11 +86,11 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
                 else:
                     html_parts.append(
                         f'<div class="slot-image slot-placeholder" {area_style}>'
-                        f'Bild {slot_data["image_index"]} nicht gefunden</div>'
+                        f'Bild {slot_data.image_index} nicht gefunden</div>'
                     )
 
             elif slot_def.type == "text":
-                text = html.escape(slot_data.get("text", ""))
+                text = html.escape(slot_data.text or "")
                 font_size = slot_def.font_size or "11pt"
                 style = f'style="grid-area: {slot_def.css_area}; font-size: {font_size}"'
 
@@ -119,10 +119,10 @@ def _render_cover_page(page: PageDescription, title: str, images: List[ImageData
 
     # Cover-Bild
     for slot_data in page.slots:
-        slot_id = slot_data.get("slot_id", "")
+        slot_id = slot_data.slot_id
         if slot_id == "title":
             continue
-        idx = slot_data.get("image_index", -1)
+        idx = slot_data.image_index if slot_data.image_index is not None else -1
         if 0 <= idx < len(images):
             img_path = _normalize_path(images[idx].path)
             parts.append(
@@ -143,8 +143,8 @@ def _render_cover_page(page: PageDescription, title: str, images: List[ImageData
 def _extract_title(page: PageDescription, page_idx: int) -> str:
     """Extrahiert den Seitentitel aus den Slots oder generiert Fallback."""
     for slot in page.slots:
-        if slot.get("slot_id") == "title" and slot.get("text", "").strip():
-            return slot["text"]
+        if slot.slot_id == "title" and (slot.text or "").strip():
+            return slot.text
     return f"Seite {page_idx + 1}"
 
 

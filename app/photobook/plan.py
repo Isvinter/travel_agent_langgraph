@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
-from app.state import ImageData, WeatherInfo
+from app.state import ImageData, WeatherInfo, PhotobookPlan, PagePlan
 from app.utils.image_utils import encode_image_base64
 from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookPreset, get_photobook_preset
 
@@ -75,7 +75,7 @@ ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
 {{"pages": [{{"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"}}], "dramatic_arc": "kurze Beschreibung"}}"""
 
 
-def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Dict[str, Any]:
+def _generate_fallback_plan(images: List[ImageData], image_count: int) -> PhotobookPlan:
     """Deterministische Fallback-Planung: chronologische Einzelbilder.
     
     Verwendet ueberwiegend single_full-Presets (1 Bild pro Seite), damit alle
@@ -110,7 +110,9 @@ def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Dict[s
                 "purpose": "Einzelbild",
             })
         pos += 1
-    return {"pages": pages, "dramatic_arc": "Fallback: chronologische Einzelbilder"}
+    return PhotobookPlan(
+        pages=[PagePlan(**p) for p in pages],
+    )
 
 
 def _all_images_used(plan: Dict[str, Any], image_count: int) -> bool:
@@ -128,14 +130,14 @@ def plan_photobook_layout(
     gpx_stats: Optional[Dict[str, Any]],
     notes: Optional[str],
     weather: Optional[WeatherInfo],
-    poi_list: List[Dict[str, Any]],
+    poi_list: List[dict],
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
     page_range: str = "",
     preset: Optional[PhotobookPreset] = None,
-) -> Dict[str, Any]:
+) -> PhotobookPlan:
     if not images:
-        return {"pages": [], "dramatic_arc": ""}
+        return PhotobookPlan(pages=[])
 
     if preset is None:
         preset = get_photobook_preset("mixed")
@@ -179,7 +181,9 @@ def plan_photobook_layout(
                 if "pages" in plan and len(plan["pages"]) > 0:
                     # Pruefe, ob alle Bilder verwendet wurden
                     if _all_images_used(plan, len(images)):
-                        return plan
+                        return PhotobookPlan(
+                            pages=[PagePlan(**p) for p in plan["pages"]]
+                        )
                     else:
                         logger.warning("LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
     except Exception as e:

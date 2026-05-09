@@ -17,6 +17,7 @@ from datetime import datetime
 from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
 _strip_thinking_tokens = strip_thinking_tokens  # backward compatibility
+from app.state import BlogPostResult
 from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
 
 logger = logging.getLogger(__name__)
@@ -175,9 +176,9 @@ HIER SIND DIE DATEN ZUR TOUR:
 
     # --- Wetter- und POI-Anreicherung ---
     if enrichment_context:
-        weather_summary = enrichment_context.get("weather_summary", "")
-        kept_pois = enrichment_context.get("kept_pois", [])
-        discarded_fields = enrichment_context.get("discarded_weather_fields", [])
+        weather_summary = getattr(enrichment_context, "weather_summary", "")
+        kept_pois = getattr(enrichment_context, "kept_pois", [])
+        discarded_fields = getattr(enrichment_context, "discarded_weather_fields", [])
 
         if weather_summary:
             text_prompt += f"""
@@ -193,10 +194,10 @@ HIER SIND DIE DATEN ZUR TOUR:
 📍  INTERESSANTE ORTE ENTLANG DER ROUTE:
 """
             for poi in kept_pois:
-                name = poi.get("name", "Unbekannt")
-                ptype = poi.get("type", "POI")
-                dist = poi.get("distance_km", "?")
-                wiki = poi.get("wiki_extract", "")
+                name = getattr(poi, "name", "Unbekannt")
+                ptype = getattr(poi, "type", "POI")
+                dist = getattr(poi, "distance_km", "?")
+                wiki = getattr(poi, "wiki_extract", "")
                 text_prompt += f"- {name} ({ptype}, {dist} km entfernt)"
                 if wiki:
                     text_prompt += f": {wiki[:300]}"
@@ -214,9 +215,9 @@ HIER SIND DIE DATEN ZUR TOUR:
 📍  INTERESSANTE ORTE ENTLANG DER ROUTE:
 """
             for poi in poi_list:
-                name = poi.get("name", "Unbekannt")
-                ptype = poi.get("type", "POI")
-                dist = poi.get("distance_km", "?")
+                name = getattr(poi, "name", "Unbekannt")
+                ptype = getattr(poi, "type", "POI")
+                dist = getattr(poi, "distance_km", "?")
                 text_prompt += f"- {name} ({ptype}, {dist} km entfernt)\n"
     # --- Ende Wetter- und POI-Anreicherung ---
 
@@ -303,7 +304,7 @@ def generate_blog_post(
     weather: Any = None,
     poi_list: Optional[List[Dict[str, Any]]] = None,
     output_config: Any = None,
-) -> Dict[str, Any]:
+) -> BlogPostResult:
     """
     Generiert einen kompletten Blogpost und speichert ihn als .md und .html Datei.
 
@@ -380,15 +381,15 @@ def generate_blog_post(
 
     if not result:
         logger.error("Failed to generate blog post")
-        return {
-            "success": False,
-            "error": "Failed to generate blog post from Ollama",
-            "markdown": "",
-            "html": "",
-            "selected_images": [],
-            "descriptions": {},
-            "file_paths": {},
-        }
+        return BlogPostResult(
+            success=False,
+            error="Failed to generate blog post from Ollama",
+            markdown="",
+            html="",
+            selected_images=[],
+            descriptions={},
+            file_paths={},
+        )
 
     logger.info("Blog post generated successfully!")
 
@@ -460,15 +461,15 @@ def generate_blog_post(
         logger.info("Markdown saved to: %s", md_file_path)
     except Exception as e:
         logger.error("Error saving markdown file: %s", e)
-        return {
-            "success": False,
-            "error": f"Error saving markdown file: {e}",
-            "markdown": result,
-            "html": "",
-            "selected_images": [],
-            "descriptions": {},
-            "file_paths": {},
-        }
+        return BlogPostResult(
+            success=False,
+            error=f"Error saving markdown file: {e}",
+            markdown=result,
+            html="",
+            selected_images=[],
+            descriptions={},
+            file_paths={},
+        )
 
     html_saved = False
     html_return = result
@@ -487,18 +488,18 @@ def generate_blog_post(
 
     logger.info("Extracted %s selected images for blog post", len(selected_images))
 
-    return {
-        "success": True,
-        "markdown": result,
-        "html": html_return,
-        "html_converted": html_saved,
-        "selected_images": selected_images,
-        "descriptions": descriptions,
-        "file_paths": {
+    return BlogPostResult(
+        success=True,
+        markdown=result,
+        html=html_return,
+        html_converted=html_saved,
+        selected_images=selected_images,
+        descriptions=descriptions,
+        file_paths={
             "markdown": md_file_path,
             "html": html_file_path,
         },
-    }
+    )
 
 
 # --- Ende von generate_blog_post ---

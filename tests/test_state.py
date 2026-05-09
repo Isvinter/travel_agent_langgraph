@@ -50,7 +50,8 @@ class TestAppStateEnrichment:
         state = AppState()
         assert state.weather is None
         assert state.poi_list == []
-        assert state.enrichment_context == {}
+        assert state.enrichment_context.weather_summary == ""
+        assert state.enrichment_context.kept_pois == []
 
 
 class TestOutputConfig:
@@ -183,7 +184,7 @@ class TestPageDescription:
             slots=[{"slot_id": "main", "image_index": 0}],
         )
         assert len(pd.slots) == 1
-        assert pd.slots[0]["slot_id"] == "main"
+        assert pd.slots[0].slot_id == "main"
 
 
 class TestAppStatePhotobook:

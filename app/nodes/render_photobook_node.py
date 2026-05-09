@@ -20,10 +20,10 @@ def render_photobook_node(state: AppState) -> AppState:
     # --- Debug: zeige Seiten vor Validierung ---
     logger.info("Seiten vor Validierung: %s", len(state.photobook_pages))
     for i, p in enumerate(state.photobook_pages):
-        text_slots = [s for s in p.slots if "text" in s]
-        title_slot = next((s for s in p.slots if s.get("slot_id") == "title"), None)
-        caption_slots = [s for s in p.slots if s.get("slot_id") != "title" and "text" in s]
-        logger.info("Seite %s (%s): title=%s, %s caption(s)", i+1, p.template_id, title_slot.get('text','')[:40] if title_slot else 'NONE', len(caption_slots))
+        text_slots = [s for s in p.slots if s.text is not None]
+        title_slot = next((s for s in p.slots if s.slot_id == "title"), None)
+        caption_slots = [s for s in p.slots if s.slot_id != "title" and s.text is not None]
+        logger.info("Seite %s (%s): title=%s, %s caption(s)", i+1, p.template_id, title_slot.text[:40] if title_slot else 'NONE', len(caption_slots))
 
     validated_pages, warnings = validate_all_pages(state.photobook_pages)
     # Unterdrücke kosmetische "existiert nicht" Warnungen — enforce_fallback handled das
@@ -35,12 +35,12 @@ def render_photobook_node(state: AppState) -> AppState:
     # --- Debug: zeige Seiten nach Validierung ---
     logger.info("Seiten nach Validierung: %s", len(validated_pages))
     for i, p in enumerate(validated_pages):
-        text_slots = [s for s in p.slots if "text" in s]
-        title_slot = next((s for s in p.slots if s.get("slot_id") == "title"), None)
-        caption_slots = [s for s in p.slots if s.get("slot_id") != "title" and "text" in s]
-        logger.info("Seite %s (%s): title=%s, %s caption(s)", i+1, p.template_id, title_slot.get('text','')[:40] if title_slot else 'NONE', len(caption_slots))
+        text_slots = [s for s in p.slots if s.text is not None]
+        title_slot = next((s for s in p.slots if s.slot_id == "title"), None)
+        caption_slots = [s for s in p.slots if s.slot_id != "title" and s.text is not None]
+        logger.info("Seite %s (%s): title=%s, %s caption(s)", i+1, p.template_id, title_slot.text[:40] if title_slot else 'NONE', len(caption_slots))
         for cs in caption_slots:
-            logger.info("  %s: '%s'", cs.get('slot_id'), cs.get('text','')[:60])
+            logger.info("  %s: '%s'", cs.slot_id, cs.text[:60] if cs.text else '')
 
     state.photobook_pages = validated_pages
 

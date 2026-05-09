@@ -30,9 +30,9 @@ def persist_article_node(state: AppState) -> AppState:
 
     if article_id:
         logger.info("Article persisted with ID: %s", article_id)
-        state.metadata["article_id"] = article_id
+        state.article_id = article_id
     else:
         logger.warning("Article was not persisted (generation failed or DB error).")
-        state.metadata["article_id"] = None
+        state.article_id = None
 
     return state

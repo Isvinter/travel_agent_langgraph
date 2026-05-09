@@ -41,6 +41,6 @@ class TestTextOverflow:
             ],
         )
         result = enforce_fallback(page)
-        caption_slot = next((s for s in result.slots if s.get("slot_id") == "caption"), None)
+        caption_slot = next((s for s in result.slots if s.slot_id == "caption"), None)
         assert caption_slot is not None
-        assert len(caption_slot["text"]) <= 500
+        assert len(caption_slot.text) <= 500

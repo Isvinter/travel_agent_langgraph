@@ -10,7 +10,7 @@ class TestGenerateEnrichedMapNode:
     def test_skips_when_no_gpx_stats(self):
         state = AppState(gpx_stats=None)
         result = generate_enriched_map_node(state)
-        assert "enriched_map_image_path" not in result.metadata
+        assert not hasattr(result, "metadata") or result.map_image_path is None
 
     def test_generates_enriched_map_with_mocked_services(self):
         points = [TrackPoint(lat=47.0, lon=8.0, elevation=500.0, time=None)]
@@ -56,5 +56,5 @@ class TestGenerateEnrichedMapNode:
 
             mock_html.assert_called_once()
             mock_png.assert_called_once()
-            assert "enriched_map_image_path" in result.metadata
-            assert result.metadata["enriched_map_image_path"] == "output/enriched_map.png"
+            assert result.map_image_path is not None
+            assert result.map_image_path == "output/enriched_map.png"

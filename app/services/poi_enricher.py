@@ -11,6 +11,7 @@ import math
 from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional
+from app.state import POI
 
 import requests
 from app.utils.geo_utils import haversine_distance
@@ -276,7 +277,7 @@ def _enrich_with_wikipedia(poi: Dict[str, Any]) -> Dict[str, Any]:
 def fetch_pois(
     pauses: List[dict],
     search_radius_m: int = DEFAULT_SEARCH_RADIUS_M,
-) -> List[Dict[str, Any]]:
+) -> List[POI]:
     """Findet Points of Interest in der Nähe der Pause-Orte.
 
     Args:
@@ -284,7 +285,7 @@ def fetch_pois(
         search_radius_m: Suchradius um jede Pause in Metern
 
     Returns:
-        Liste von POI-Dicts mit name, type, lat, lon, distance_km, wiki_extract
+        Liste von POI-Objekten mit name, type, lat, lon, distance_km, wiki_extract
     """
     if not pauses:
         logger.warning("Keine Pausen-Daten — POI-Suche nicht möglich")
@@ -322,5 +323,8 @@ def fetch_pois(
     # Mit Wikipedia-Texten anreichern (für POIs mit wiki-Tag)
     enriched = [_enrich_with_wikipedia(poi) for poi in all_pois]
 
-    logger.info("Found %s unique POIs near %s pause locations", len(enriched), len(pauses))
-    return enriched
+    # In POI-Modelle konvertieren
+    poi_objects = [POI(**p) for p in enriched]
+
+    logger.info("Found %s unique POIs near %s pause locations", len(poi_objects), len(pauses))
+    return poi_objects

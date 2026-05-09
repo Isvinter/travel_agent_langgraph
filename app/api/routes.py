@@ -423,12 +423,12 @@ async def _run_pipeline_in_background(
         photobook_pdf_path = result.photobook_pdf_path if hasattr(result, "photobook_pdf_path") else None
 
         output_paths = {}
-        if blog_post and isinstance(blog_post, dict):
-            output_paths = blog_post.get("file_paths", {})
+        if blog_post:
+            output_paths = blog_post.file_paths
 
         event_manager.store_result(run_id, {
-            "markdown": blog_post.get("markdown", "") if blog_post else "",
-            "html": blog_post.get("html", "") if blog_post else "",
+            "markdown": blog_post.markdown if blog_post else "",
+            "html": blog_post.html if blog_post else "",
             "file_paths": output_paths,
             "success": True,
             "photobook_pdf_path": photobook_pdf_path,
@@ -440,13 +440,9 @@ async def _run_pipeline_in_background(
         photobook_id = None
         draft_id = None
         pdf_available = False
-        if isinstance(result, dict):
-            metadata = result.get("metadata", {})
-            aid = metadata.get("article_id") if isinstance(metadata, dict) else None
-            photobook_id = result.get("photobook_id")
-        elif hasattr(result, "metadata"):
-            aid = result.metadata.get("article_id")
-            photobook_id = result.metadata.get("photobook_id")
+        if hasattr(result, "article_id"):
+            aid = result.article_id
+            photobook_id = result.photobook_id
         else:
             aid = None
         if aid is not None:
@@ -454,7 +450,7 @@ async def _run_pipeline_in_background(
                 draft_id = aid
             else:
                 article_id = aid
-        if blog_post and isinstance(blog_post, dict) and "pdf_bytes" in blog_post:
+        if blog_post and blog_post.pdf_bytes is not None:
             pdf_available = True
 
         # Fotobuch: PDF verfügbar wenn Pfad gesetzt ist

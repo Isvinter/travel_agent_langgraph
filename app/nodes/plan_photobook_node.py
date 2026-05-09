@@ -31,8 +31,9 @@ def plan_photobook_node(state: AppState) -> AppState:
             preset=preset,
         )
         state.photobook_plan = plan
-        logger.info("Layout-Planung abgeschlossen: %s Seiten geplant.", len(plan.get('pages', [])))
+        logger.info("Layout-Planung abgeschlossen: %s Seiten geplant.", len(plan.pages))
     except Exception as e:
         logger.error("Fotobuch-Planung fehlgeschlagen: %s", e)
-        state.photobook_plan = {"pages": []}
+        from app.state import PhotobookPlan
+        state.photobook_plan = PhotobookPlan(pages=[])
     return state

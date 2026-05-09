@@ -16,12 +16,12 @@ class TestDesignBlogpostNode:
     def test_returns_unchanged_when_blog_post_not_successful(self):
         state = AppState(blog_post={"success": False, "html": "<h1>X</h1>"})
         result = design_blogpost_node(state)
-        assert result.blog_post["html"] == "<h1>X</h1>"
+        assert result.blog_post.html == "<h1>X</h1>"
 
     def test_returns_unchanged_when_html_empty(self):
         state = AppState(blog_post={"success": True, "html": ""})
         result = design_blogpost_node(state)
-        assert result.blog_post["html"] == ""
+        assert result.blog_post.html == ""
 
     def test_updates_html_when_service_succeeds(self):
         state = AppState(blog_post={
@@ -34,8 +34,8 @@ class TestDesignBlogpostNode:
         with patch("app.nodes.design_blogpost.design_blogpost_service",
                    return_value=styled):
             result = design_blogpost_node(state)
-        assert result.blog_post["html"] == styled
-        assert result.blog_post["markdown"] == "# Old"
+        assert result.blog_post.html == styled
+        assert result.blog_post.markdown == "# Old"
 
     def test_keeps_original_html_when_service_raises(self):
         state = AppState(blog_post={
@@ -46,7 +46,7 @@ class TestDesignBlogpostNode:
         with patch("app.nodes.design_blogpost.design_blogpost_service",
                    side_effect=Exception("Ollama not reachable")):
             result = design_blogpost_node(state)
-        assert result.blog_post["html"] == "<h1>Old</h1>"
+        assert result.blog_post.html == "<h1>Old</h1>"
 
     def test_keeps_original_html_when_service_fails(self):
         state = AppState(blog_post={
@@ -57,7 +57,7 @@ class TestDesignBlogpostNode:
         with patch("app.nodes.design_blogpost.design_blogpost_service",
                    return_value=None):
             result = design_blogpost_node(state)
-        assert result.blog_post["html"] == "<h1>Old</h1>"
+        assert result.blog_post.html == "<h1>Old</h1>"
 
     def test_overwrites_html_file_when_service_succeeds(self):
         with tempfile.TemporaryDirectory() as tmpdir:
