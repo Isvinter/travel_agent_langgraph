@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Base
 from app.db.photobook_repository import PhotobookRepository
-from app.state import ImageData
+from app.state import ImageData, PageDescription, PageSlot
 
 
 class FakePoint:
@@ -47,14 +47,14 @@ class TestPersistPhotobookService:
             ImageData(path="/tmp/02_photo.jpg", timestamp="2026-05-01T14:00:00"),
         ]
         page_descriptions = [
-            {"template_id": "cover_hero", "slots": [
-                {"slot_id": "main", "image_index": 0},
-                {"slot_id": "title", "text": "Titel"},
-            ]},
-            {"template_id": "single_full", "slots": [
-                {"slot_id": "main", "image_index": 1},
-                {"slot_id": "title", "text": "Seite 1"},
-            ]},
+            PageDescription(template_id="cover_hero", page_type="single", slots=[
+                PageSlot(slot_id="main", image_index=0),
+                PageSlot(slot_id="title", text="Titel"),
+            ]),
+            PageDescription(template_id="single_full", page_type="single", slots=[
+                PageSlot(slot_id="main", image_index=1),
+                PageSlot(slot_id="title", text="Seite 1"),
+            ]),
         ]
 
         photobook_id = persist_photobook(
@@ -119,10 +119,10 @@ class TestPersistPhotobookService:
         photobook_id = persist_photobook(
             gpx_stats=GPXWithoutTime(),
             photobook_images=photobook_images,
-            photobook_pages=[{"template_id": "single_full", "slots": [
-                {"slot_id": "main", "image_index": 0},
-                {"slot_id": "title", "text": "Titel"},
-            ]}],
+            photobook_pages=[PageDescription(template_id="single_full", page_type="single", slots=[
+                PageSlot(slot_id="main", image_index=0),
+                PageSlot(slot_id="title", text="Titel"),
+            ])],
             photobook_html="<h1>Test</h1>",
             photobook_html_path="output/test.html",
             photobook_pdf_path="output/test.pdf",

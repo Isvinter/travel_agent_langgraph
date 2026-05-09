@@ -14,7 +14,7 @@ def generate_blog_post_node(state: AppState) -> AppState:
     Nutzt:
         - state.gpx_stats: GPX-Statistiken
         - state.images: Liste der Bilder
-        - state.metadata: Metadaten (z.B. map_image_path)
+        - state.map_image_path: Pfad zur Kartenabbildung
     
     Fügt hinzu:
         - state.blog_post: Ergebnis des Blog-Generators (Markdown, HTML, etc.)

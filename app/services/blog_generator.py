@@ -17,7 +17,7 @@ from datetime import datetime
 from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
 _strip_thinking_tokens = strip_thinking_tokens  # backward compatibility
-from app.state import BlogPostResult
+from app.state import BlogPostResult, EnrichmentContext, POI
 from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
 
 logger = logging.getLogger(__name__)
@@ -30,9 +30,9 @@ def construct_blog_post_prompt(
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
     image_path_prefix: str = "",
-    enrichment_context: Optional[Dict[str, Any]] = None,
+    enrichment_context: Optional[EnrichmentContext] = None,
     weather: Any = None,
-    poi_list: Optional[List[Dict[str, Any]]] = None,
+    poi_list: Optional[List[POI]] = None,
     output_config: Any = None,
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
@@ -300,9 +300,9 @@ def generate_blog_post(
     gpx_stats: Optional[Dict[str, Any]] = None,
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
-    enrichment_context: Optional[Dict[str, Any]] = None,
+    enrichment_context: Optional[EnrichmentContext] = None,
     weather: Any = None,
-    poi_list: Optional[List[Dict[str, Any]]] = None,
+    poi_list: Optional[List[POI]] = None,
     output_config: Any = None,
 ) -> BlogPostResult:
     """

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Base
 from app.db.repository import ArticleRepository
-from app.state import ImageData
+from app.state import ImageData, BlogPostResult
 
 
 class FakePoint:
@@ -47,23 +47,23 @@ class TestPersistArticleService:
 
         monkeypatch.setattr(conn_module, "get_session", fake_get_session)
 
-        blog_post = {
-            "success": True,
-            "markdown": "# Unsere große Wanderung\n\nEin toller Tag!",
-            "html": "<h1>Unsere große Wanderung</h1><p>Ein toller Tag!</p>",
-            "file_paths": {
+        blog_post = BlogPostResult(
+            success=True,
+            markdown="# Unsere große Wanderung\n\nEin toller Tag!",
+            html="<h1>Unsere große Wanderung</h1><p>Ein toller Tag!</p>",
+            file_paths={
                 "markdown": "output/test/blogpost.md",
                 "html": "output/test/blogpost.html",
             },
-            "selected_images": [
+            selected_images=[
                 "./images/00_map.png",
                 "./images/01_test.jpg",
             ],
-            "descriptions": {
+            descriptions={
                 "Hier ist die Übersichtskarte der Route": "./images/00_map.png",
                 "Testbild": "./images/01_test.jpg",
             },
-        }
+        )
 
         gpx_stats = FakeGPXStats()
 
@@ -102,7 +102,7 @@ class TestPersistArticleService:
         """Kein Persistieren wenn blog_post nicht erfolgreich war."""
         from app.services.persist_article import persist_article
 
-        blog_post = {"success": False, "error": "Generation failed"}
+        blog_post = BlogPostResult(success=False, error="Generation failed")
         article_id = persist_article(
             blog_post=blog_post,
             gpx_stats=None,
@@ -125,14 +125,14 @@ class TestPersistArticleService:
         monkeypatch.setattr(conn_module, "_SessionLocal", None)
         monkeypatch.setattr(conn_module, "get_session", lambda: session)
 
-        blog_post = {
-            "success": True,
-            "markdown": "# Fotobasierte Wanderung",
-            "html": "",
-            "file_paths": {"markdown": "", "html": ""},
-            "selected_images": [],
-            "descriptions": {},
-        }
+        blog_post = BlogPostResult(
+            success=True,
+            markdown="# Fotobasierte Wanderung",
+            html="",
+            file_paths={"markdown": "", "html": ""},
+            selected_images=[],
+            descriptions={},
+        )
 
         images_with_timestamps = [
             ImageData(path="img1.jpg", timestamp="2026-04-20T08:00:00"),

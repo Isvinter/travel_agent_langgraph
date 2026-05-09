@@ -17,12 +17,9 @@ def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[s
     """Extrahiert den Fotobuch-Titel aus der Titelseite des LLM-Generats."""
     if photobook_pages:
         cover_page = photobook_pages[0]
-        slots = cover_page.slots if hasattr(cover_page, "slots") else cover_page.get("slots", [])
-        for slot in slots:
-            sid = slot.get("slot_id") if isinstance(slot, dict) else getattr(slot, "slot_id", "")
-            text = slot.get("text", "") if isinstance(slot, dict) else getattr(slot, "text", "")
-            if sid == "title" and text.strip():
-                return text
+        for slot in cover_page.slots:
+            if slot.slot_id == "title" and slot.text and slot.text.strip():
+                return slot.text
 
     if gpx_file:
         base = os.path.splitext(os.path.basename(gpx_file))[0].strip()
@@ -36,11 +33,9 @@ def _count_images_in_pages(photobook_pages: List) -> int:
     """Zaehlt die tatsaechlich im Fotobuch verwendeten Bilder (unique image_index)."""
     used = set()
     for page in photobook_pages:
-        slots = page.slots if hasattr(page, "slots") else page.get("slots", []) if isinstance(page, dict) else []
-        for slot in slots:
-            idx = slot.get("image_index") if isinstance(slot, dict) else getattr(slot, "image_index", None)
-            if idx is not None and idx >= 0:
-                used.add(idx)
+        for slot in page.slots:
+            if slot.image_index is not None and slot.image_index >= 0:
+                used.add(slot.image_index)
     return len(used)
 
 

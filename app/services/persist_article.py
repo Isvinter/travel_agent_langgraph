@@ -2,7 +2,7 @@
 """Service zum Persistieren generierter Blogposts in der Datenbank."""
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository
@@ -21,15 +21,8 @@ def _extract_title(markdown: str) -> Optional[str]:
     return None
 
 
-def _bp_get(obj, key, default=None):
-    """Holt einen Wert aus BlogPostResult oder Dict."""
-    if hasattr(obj, key):
-        return getattr(obj, key)
-    return obj.get(key, default) if isinstance(obj, dict) else default
-
-
 def persist_article(
-    blog_post: Any,
+    blog_post: "BlogPostResult",
     gpx_stats: Any,
     images: list,
     gpx_file: str,
@@ -41,7 +34,7 @@ def persist_article(
     Persistiert einen generierten Blogpost in der Datenbank.
 
     Args:
-        blog_post: Das Ergebnis von generate_blog_post (dict mit markdown, html, file_paths, selected_images)
+        blog_post: Das Ergebnis von generate_blog_post (BlogPostResult)
         gpx_stats: GPXStats-Objekt aus dem State
         images: Liste der im Blog verwendeten Bilder (List[ImageData])
         gpx_file: Pfad zur GPX-Datei
@@ -52,13 +45,13 @@ def persist_article(
     Returns:
         article_id oder None bei Fehler
     """
-    if not blog_post or not _bp_get(blog_post, "success"):
+    if not blog_post or not blog_post.success:
         return None
 
-    markdown = _bp_get(blog_post, "markdown", "")
-    html = _bp_get(blog_post, "html", "")
-    file_paths = _bp_get(blog_post, "file_paths", {})
-    selected_images = _bp_get(blog_post, "selected_images", [])
+    markdown = blog_post.markdown or ""
+    html = blog_post.html or ""
+    file_paths = blog_post.file_paths or {}
+    selected_images = blog_post.selected_images or []
 
     tour_date, tour_duration_hours, tour_duration_source = compute_tour_date_and_duration(
         gpx_stats, [img.model_dump() for img in images] if images else []

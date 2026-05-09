@@ -1,18 +1,19 @@
 """Tests für Draft-Persistenz (save_draft Node + status-Feld)."""
 from unittest.mock import MagicMock, patch
 from app.services.persist_article import persist_article
+from app.state import BlogPostResult
 
 
 class TestPersistArticleStatus:
     def test_persist_article_default_status_is_published(self):
         """Bei Aufruf ohne status-Parameter wird 'published' verwendet."""
-        blog_post = {
-            "success": True,
-            "markdown": "# Test\n\nEin Absatz.",
-            "html": "<h1>Test</h1><p>Ein Absatz.</p>",
-            "file_paths": {"markdown": "out/test.md", "html": "out/test.html"},
-            "selected_images": [],
-        }
+        blog_post = BlogPostResult(
+            success=True,
+            markdown="# Test\n\nEin Absatz.",
+            html="<h1>Test</h1><p>Ein Absatz.</p>",
+            file_paths={"markdown": "out/test.md", "html": "out/test.html"},
+            selected_images=[],
+        )
 
         with patch("app.services.persist_article.get_session") as mock_session:
             mock_session.return_value = MagicMock()
@@ -34,13 +35,13 @@ class TestPersistArticleStatus:
 
     def test_persist_article_draft_status(self):
         """Bei Aufruf mit status='draft' wird dieser Status persistiert."""
-        blog_post = {
-            "success": True,
-            "markdown": "# Test\n\nEin Absatz.",
-            "html": "<h1>Test</h1><p>Ein Absatz.</p>",
-            "file_paths": {},
-            "selected_images": [],
-        }
+        blog_post = BlogPostResult(
+            success=True,
+            markdown="# Test\n\nEin Absatz.",
+            html="<h1>Test</h1><p>Ein Absatz.</p>",
+            file_paths={},
+            selected_images=[],
+        )
 
         with patch("app.services.persist_article.get_session") as mock_session:
             mock_session.return_value = MagicMock()
@@ -62,7 +63,7 @@ class TestPersistArticleStatus:
 
     def test_persist_article_unsuccessful_blog_post_returns_none(self):
         result = persist_article(
-            blog_post={"success": False},
+            blog_post=BlogPostResult(success=False),
             gpx_stats=None,
             images=[],
             gpx_file="",
