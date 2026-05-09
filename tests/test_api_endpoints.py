@@ -160,11 +160,11 @@ class TestArticlesList:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             response = client.get("/api/articles")
@@ -196,11 +196,11 @@ class TestArticlesList:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = ArticleRepository(session)
@@ -251,11 +251,11 @@ class TestArticlesList:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = ArticleRepository(session)
@@ -294,11 +294,11 @@ class TestArticleDetail:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = ArticleRepository(session)
@@ -353,11 +353,11 @@ class TestArticleDelete:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = ArticleRepository(session)
@@ -411,11 +411,11 @@ class TestArticlePdf:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = ArticleRepository(session)
@@ -463,11 +463,11 @@ class TestArticlePdf:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = ArticleRepository(session)
@@ -503,11 +503,11 @@ class TestPhotobooksList:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             response = client.get("/api/photobooks")
@@ -538,11 +538,11 @@ class TestPhotobooksList:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = PhotobookRepository(session)
@@ -594,11 +594,11 @@ class TestPhotobookDetail:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = PhotobookRepository(session)
@@ -651,11 +651,11 @@ class TestPhotobookDelete:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = PhotobookRepository(session)
@@ -708,11 +708,11 @@ class TestPhotobookPdf:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = PhotobookRepository(session)
@@ -753,11 +753,11 @@ class TestPhotobookPdf:
             monkeypatch.setattr(conn_module, "_SessionLocal", factory)
             monkeypatch.setattr(conn_module, "get_session", factory)
 
+            import app.api.routes as routes_mod
+            monkeypatch.setattr(routes_mod, "get_session", factory)
             from app.api.server import create_app
             from fastapi.testclient import TestClient
             app = create_app()
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
             client = TestClient(app)
 
             repo = PhotobookRepository(session)

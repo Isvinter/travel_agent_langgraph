@@ -55,13 +55,13 @@ class TestConstructBlogPostPrompt:
         img.save(img_path)
 
         images = [{"path": img_path, "timestamp": "2025-06-01", "latitude": 47.0, "longitude": 8.0}]
-        gpx_stats = {"total_distance_m": 5000, "elevation_gain_m": 200}
+        gpx_stats = {"total_distance": 5.0, "elevation_gain_m": 200}
         prompt, image_data = bg.construct_blog_post_prompt(
             images=images,
             gpx_stats=gpx_stats,
             notes="Test notes here",
         )
-        assert "5000" in prompt or "5" in prompt
+        assert "5.00 km" in prompt
         assert "Test notes" in prompt
         assert len(image_data) >= 1
 

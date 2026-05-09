@@ -7,8 +7,8 @@ Variety-Regeln im Prompt sorgen für Abwechslung.
 import json
 import re
 from typing import Any, Dict, List, Optional
-import requests
 from app.config import OLLAMA_BASE_URL
+from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData, WeatherInfo
 from app.utils.image_utils import encode_image_base64
 from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookPreset, get_photobook_preset
@@ -159,24 +159,17 @@ def plan_photobook_layout(
 
     plan = None
     try:
-        payload = {
-            "model": model,
-            "messages": [{
-                "role": "user",
-                "content": prompt,
-                "images": encoded_images,
-            }],
-            "stream": False,
-            "options": {"temperature": 0.3, "num_predict": 4096},
-            "keep_alive": "10m",
-        }
-        resp = requests.post(
-            f"{base_url.rstrip('/')}/api/chat",
-            json=payload,
+        content = call_ollama(
+            prompt,
+            model=model,
+            base_url=base_url,
+            images=encoded_images,
+            temperature=0.3,
+            num_predict=4096,
             timeout=300,
         )
-        if resp.status_code == 200:
-            content = resp.json().get("message", {}).get("content", "")
+        if content:
+            content = strip_thinking_tokens(content)
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 plan = json.loads(json_match.group())

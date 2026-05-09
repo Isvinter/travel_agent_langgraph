@@ -4,16 +4,16 @@ from unittest.mock import patch, MagicMock
 from app.state import AppState, ImageData, OutputConfig
 from app.graph import build_graph
 
-MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(12))})}}
-MOCK_PLAN = {"message": {"content": json.dumps({
+MOCK_SELECTION_CONTENT = "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
+MOCK_PLAN_CONTENT = json.dumps({
     "pages": [
         {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
         {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2], "purpose": "Split"},
         {"position": 2, "preset_id": "quad_grid", "image_indices": [3, 4, 5, 6], "purpose": "Grid"},
     ],
     "dramatic_arc": "test"
-})}}
-MOCK_GENERATE = {"message": {"content": json.dumps([
+})
+MOCK_GENERATE_CONTENT = json.dumps([
     {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]},
     {"preset_id": "double_stacked", "slots": [
         {"slot_id": "top", "image_index": 1}, {"slot_id": "bottom", "image_index": 2},
@@ -22,11 +22,10 @@ MOCK_GENERATE = {"message": {"content": json.dumps([
         {"slot_id": "tl", "image_index": 3}, {"slot_id": "tr", "image_index": 4},
         {"slot_id": "bl", "image_index": 5}, {"slot_id": "br", "image_index": 6},
     ]},
-])}}
+])
 
 # Mock-Rueckgabe fuer den Blog-Bildselektor
 def _mock_blog_select(images, target_count=8, model=None, base_url=None):
-    # images sind bereits Dicts (via model_dump() in select_images_node)
     return images[:target_count]
 
 # Mock-Rueckgabe fuer den Content-Reviewer
@@ -46,31 +45,19 @@ def make_state(n_images=20):
 def test_full_photobook_pipeline():
     """Durchlauf des gesamten Fotobuch-Pfads mit gemocktem LLM."""
 
-    # Mock: Blog-Pfad-Services (vermeiden Dateizugriff + LLM-Aufrufe)
     with patch("app.nodes.extract_metadata.enrich_images_with_metadata", return_value=None), \
          patch("app.nodes.select_images_node.select_images_for_blog", side_effect=_mock_blog_select), \
-         patch("app.nodes.review_content_node.review_enrichment", side_effect=_mock_review_enrichment):
+         patch("app.nodes.review_content_node.review_enrichment", side_effect=_mock_review_enrichment), \
+         patch("app.photobook.image_selector.encode_image_base64", return_value="bW9jay1iYXNlNjQ="):
 
-        # Mock: Fotobuch-Bildauswahl (Photobook LLM Call 1)
-        with patch("app.photobook.image_selector.requests.post") as mock_sel:
-            mock_sel_resp = MagicMock()
-            mock_sel_resp.status_code = 200
-            mock_sel_resp.json.return_value = MOCK_SELECTION
-            mock_sel.return_value = mock_sel_resp
+        with patch("app.photobook.image_selector.call_ollama") as mock_sel:
+            mock_sel.return_value = MOCK_SELECTION_CONTENT
 
-            # Mock: Fotobuch-Layout-Planung (Photobook LLM Call 2)
-            with patch("app.photobook.plan.requests.post") as mock_plan:
-                mock_plan_resp = MagicMock()
-                mock_plan_resp.status_code = 200
-                mock_plan_resp.json.return_value = MOCK_PLAN
-                mock_plan.return_value = mock_plan_resp
+            with patch("app.photobook.plan.call_ollama") as mock_plan:
+                mock_plan.return_value = MOCK_PLAN_CONTENT
 
-                # Mock: Fotobuch-Seiten-Generierung (Photobook LLM Call 3)
-                with patch("app.photobook.generate.requests.post") as mock_gen:
-                    mock_gen_resp = MagicMock()
-                    mock_gen_resp.status_code = 200
-                    mock_gen_resp.json.return_value = MOCK_GENERATE
-                    mock_gen.return_value = mock_gen_resp
+                with patch("app.photobook.generate.call_ollama") as mock_gen:
+                    mock_gen.return_value = MOCK_GENERATE_CONTENT
 
                     state = make_state()
                     graph = build_graph()
@@ -95,72 +82,56 @@ class TestPresetPipeline:
 
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(8)]
 
-        # Mock Pass 1: Preset-Auswahl
-        mock_plan_resp = MagicMock()
-        mock_plan_resp.status_code = 200
-        mock_plan_resp.json.return_value = {
-            "message": {"content": json.dumps({
-                "pages": [
-                    {"position": 0, "preset_id": "cover_hero", "image_indices": [0]},
-                    {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2]},
-                    {"position": 2, "preset_id": "triple_stacked", "image_indices": [3, 4, 5]},
-                    {"position": 3, "preset_id": "single_text_left", "image_indices": [6]},
-                    {"position": 4, "preset_id": "single_text_below", "image_indices": [7]},
-                ],
-                "dramatic_arc": "cover → buildup → highlight → closing"
-            })}
-        }
+        mock_plan_content = json.dumps({
+            "pages": [
+                {"position": 0, "preset_id": "cover_hero", "image_indices": [0]},
+                {"position": 1, "preset_id": "double_stacked", "image_indices": [1, 2]},
+                {"position": 2, "preset_id": "triple_stacked", "image_indices": [3, 4, 5]},
+                {"position": 3, "preset_id": "single_text_left", "image_indices": [6]},
+                {"position": 4, "preset_id": "single_text_below", "image_indices": [7]},
+            ],
+            "dramatic_arc": "cover → buildup → highlight → closing"
+        })
 
-        # Mock Pass 2: Slot-Befüllung
-        mock_gen_resp = MagicMock()
-        mock_gen_resp.status_code = 200
-        mock_gen_resp.json.return_value = {
-            "message": {"content": json.dumps([
-                {"preset_id": "cover_hero", "slots": [
-                    {"slot_id": "main", "image_index": 0},
-                    {"slot_id": "title", "text": "Bergtour 2026"},
-                ]},
-                {"preset_id": "double_stacked", "slots": [
-                    {"slot_id": "top", "image_index": 1},
-                    {"slot_id": "bottom", "image_index": 2},
-                ]},
-                {"preset_id": "triple_stacked", "slots": [
-                    {"slot_id": "top", "image_index": 3},
-                    {"slot_id": "middle", "image_index": 4},
-                    {"slot_id": "bottom", "image_index": 5},
-                ]},
-                {"preset_id": "single_text_left", "slots": [
-                    {"slot_id": "main", "image_index": 6},
-                    {"slot_id": "text", "text": "Rast am See"},
-                ]},
-                {"preset_id": "single_text_below", "slots": [
-                    {"slot_id": "main", "image_index": 7},
-                    {"slot_id": "caption", "text": "Gipfelblick"},
-                ]},
-            ])}
-        }
+        mock_gen_content = json.dumps([
+            {"preset_id": "cover_hero", "slots": [
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Bergtour 2026"},
+            ]},
+            {"preset_id": "double_stacked", "slots": [
+                {"slot_id": "top", "image_index": 1},
+                {"slot_id": "bottom", "image_index": 2},
+            ]},
+            {"preset_id": "triple_stacked", "slots": [
+                {"slot_id": "top", "image_index": 3},
+                {"slot_id": "middle", "image_index": 4},
+                {"slot_id": "bottom", "image_index": 5},
+            ]},
+            {"preset_id": "single_text_left", "slots": [
+                {"slot_id": "main", "image_index": 6},
+                {"slot_id": "text", "text": "Rast am See"},
+            ]},
+            {"preset_id": "single_text_below", "slots": [
+                {"slot_id": "main", "image_index": 7},
+                {"slot_id": "caption", "text": "Gipfelblick"},
+            ]},
+        ])
 
-        # Geschachtelte with-Blöcke: plan muss im äusseren Block
-        # aufgerufen werden, da beide Module dasselbe requests.post nutzen
-        with patch("app.photobook.plan.requests.post") as mock_plan_post:
-            mock_plan_post.return_value = mock_plan_resp
+        with patch("app.photobook.plan.call_ollama") as mock_plan_post:
+            mock_plan_post.return_value = mock_plan_content
 
-            # Pipeline-Schritt 1: Plan (mit plan-mock aktiv)
             plan = plan_photobook_layout(images, None, None, None, [], model="test")
             assert len(plan["pages"]) == 5
             assert plan["pages"][0]["preset_id"] == "cover_hero"
 
-            with patch("app.photobook.generate.requests.post") as mock_gen_post:
-                mock_gen_post.return_value = mock_gen_resp
+            with patch("app.photobook.generate.call_ollama") as mock_gen_post:
+                mock_gen_post.return_value = mock_gen_content
 
-                # Pipeline-Schritt 2: Generate (mit generate-mock aktiv)
                 pages = generate_photobook_pages(plan, images, None, None, model="test")
                 assert len(pages) == 5
 
-                # Pipeline-Schritt 3+4: Validate und Render (kein LLM-Call mehr)
                 validated, warnings = validate_all_pages(pages)
                 assert len(validated) == 5
-                # Variety-Check: cover_hero muss auf Position 0 sein
                 assert validated[0].template_id == "cover_hero"
 
                 html = render_photobook(validated, images)

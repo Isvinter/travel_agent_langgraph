@@ -3,8 +3,8 @@
 import json
 import re
 from typing import Any, Dict, List, Optional
-import requests
 from app.config import OLLAMA_BASE_URL
+from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData, PageDescription
 from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_constraint_summary, get_any_preset, get_photobook_preset
@@ -119,28 +119,20 @@ def generate_photobook_pages(
             encoded_images.append(b64)
 
     try:
-        payload = {
-            "model": model,
-            "messages": [{
-                "role": "user",
-                "content": prompt,
-                "images": encoded_images,
-            }],
-            "stream": False,
-            "options": {"temperature": 0.3, "num_predict": 16384},
-            "keep_alive": "10m",
-        }
-        resp = requests.post(
-            f"{base_url.rstrip('/')}/api/chat",
-            json=payload,
+        content = call_ollama(
+            prompt,
+            model=model,
+            base_url=base_url,
+            images=encoded_images,
+            temperature=0.3,
+            num_predict=16384,
             timeout=300,
         )
-        if resp.status_code == 200:
-            content = resp.json().get("message", {}).get("content", "")
+        if content:
+            content = strip_thinking_tokens(content)
             # Debug: zeige LLM-Antwort (Anfang)
             print(f"  → LLM Antwort: {len(content)} Zeichen")
-            if content:
-                print(f"    Anfang: {content[:200]}...")
+            print(f"    Anfang: {content[:200]}...")
             array_match = re.search(r'\[.*\]', content, re.DOTALL)
             if not array_match:
                 print("    ⚠️ Kein JSON-Array in LLM-Antwort gefunden!")

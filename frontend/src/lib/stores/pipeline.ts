@@ -53,20 +53,23 @@ const STEP_LABELS: Record<string, string> = {
   persist_photobook: "Fotobuch speichern",
 };
 
-// Regenerate on each page load; set cookie so backend receives it.
-// Cookie lifetime: session only (deleted when browser closes).
-const newSessionId = (() => {
-  const id = crypto.randomUUID();
-  document.cookie = `session_id=${id};path=/;SameSite=Lax`;
-  return id;
-})();
+// Session-ID lazy erzeugen (kein Side-Effect beim Modul-Import).
+let _sessionId: string | null = null;
+
+function getSessionId(): string {
+  if (!_sessionId) {
+    _sessionId = crypto.randomUUID();
+    document.cookie = `session_id=${_sessionId};path=/;SameSite=Lax`;
+  }
+  return _sessionId;
+}
 
 export const logLines = writable<LogLine[]>([]);
 export const pipelineSteps = writable<StepState[]>([]);
 export const runState = writable<RunState>("idle");
 export const currentRunId = writable<string | null>(null);
 export const result = writable<RunResult | null>(null);
-export const sessionId = writable<string>(newSessionId);
+export const sessionId = writable<string>(getSessionId());
 
 // Pipeline form fields — shared via stores (Svelte 5 runes mode:
 // export function creates props, not callable instance methods via bind:this)

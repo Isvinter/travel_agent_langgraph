@@ -7,8 +7,8 @@ from app.nodes.plan_photobook_node import plan_photobook_node
 from app.nodes.generate_photobook_node import generate_photobook_node
 from app.nodes.render_photobook_node import render_photobook_node
 
-MOCK_SELECTION = {"message": {"content": json.dumps({"selected_indices": list(range(16))})}}
-MOCK_PLAN = {"message": {"content": json.dumps({
+MOCK_SELECTION_INDICES = "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
+MOCK_PLAN = json.dumps({
     "pages": [
         {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
         {"position": 1, "preset_id": "single_full", "image_indices": [1], "purpose": "Start"},
@@ -23,8 +23,8 @@ MOCK_PLAN = {"message": {"content": json.dumps({
         {"position": 10, "preset_id": "single_full", "image_indices": [11], "purpose": "Ende"},
     ],
     "dramatic_arc": "intro -> buildup -> climax -> outro"
-})}}
-MOCK_GENERATE = {"message": {"content": json.dumps([{"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]}])}}
+})
+MOCK_GENERATE = json.dumps([{"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]}])
 
 
 def make_state(n_images=20):
@@ -33,38 +33,29 @@ def make_state(n_images=20):
 
 class TestPhotobookNodes:
     @patch("app.photobook.image_selector.encode_image_base64")
-    @patch("app.photobook.image_selector.requests.post")
-    def test_select_images_node(self, mock_post, mock_encode):
+    @patch("app.photobook.image_selector.call_ollama")
+    def test_select_images_node(self, mock_call, mock_encode):
         mock_encode.return_value = "bW9jay1iYXNlNjQ="  # dummy base64
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = MOCK_SELECTION
-        mock_post.return_value = mock_resp
+        mock_call.return_value = MOCK_SELECTION_INDICES
         state = make_state(n_images=30)
         result = select_photobook_images_node(state)
         assert len(result.photobook_images) == 20  # photo_count default = 20
 
-    @patch("app.photobook.plan.requests.post")
-    def test_plan_node(self, mock_post):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = MOCK_PLAN
-        mock_post.return_value = mock_resp
+    @patch("app.photobook.plan.call_ollama")
+    def test_plan_node(self, mock_call):
+        mock_call.return_value = MOCK_PLAN
         state = make_state()
         state.photobook_images = state.images[:12]
         result = plan_photobook_node(state)
         assert result.photobook_plan is not None
         assert len(result.photobook_plan["pages"]) == 11  # 12 Bilder: cover + 10 weitere Seiten
 
-    @patch("app.photobook.generate.requests.post")
-    def test_generate_node(self, mock_post):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = MOCK_GENERATE
-        mock_post.return_value = mock_resp
+    @patch("app.photobook.generate.call_ollama")
+    def test_generate_node(self, mock_call):
+        mock_call.return_value = MOCK_GENERATE
         state = make_state()
         state.photobook_images = state.images[:12]
-        state.photobook_plan = json.loads(MOCK_PLAN["message"]["content"])
+        state.photobook_plan = json.loads(MOCK_PLAN)
         result = generate_photobook_node(state)
         assert len(result.photobook_pages) == 1
 

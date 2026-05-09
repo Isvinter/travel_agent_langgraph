@@ -12,6 +12,7 @@ from pathlib import Path
 import time
 
 import requests
+from app.utils.geo_utils import haversine_distance
 
 
 OVERPASS_INSTANCES = [
@@ -186,12 +187,8 @@ def _parse_overpass_response(
         name = tags.get("name", f"{poi_type} ({el_lat:.3f}, {el_lon:.3f})")
 
         # Distanz berechnen (Haversine-Approximation)
-        dlat = math.radians(el_lat - ref_lat)
-        dlon = math.radians(el_lon - ref_lon)
-        a = (math.sin(dlat / 2) ** 2 +
-             math.cos(math.radians(ref_lat)) * math.cos(math.radians(el_lat)) *
-             math.sin(dlon / 2) ** 2)
-        distance_km = 6371.0 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        distance_m = haversine_distance(ref_lat, ref_lon, el_lat, el_lon)
+        distance_km = distance_m / 1000.0
 
         poi = {
             "name": name,

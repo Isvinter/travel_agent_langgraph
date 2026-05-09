@@ -48,7 +48,7 @@ class TestGenerateEnrichedMapNode:
         with patch(
             "app.nodes.generate_enriched_map.generate_enriched_map_html"
         ) as mock_html, patch(
-            "app.nodes.generate_enriched_map.html_to_png"
+            "app.nodes.generate_map.html_to_png"
         ) as mock_png, patch(
             "os.makedirs"
         ):

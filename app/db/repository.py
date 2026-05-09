@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Optional, List
 
-from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.db.models import Article, ArticleImage
+from app.db.base_repository import BaseRepository
 
 
 @dataclass
@@ -22,28 +22,17 @@ class ArticleFilters:
     offset: int = 0
 
 
-class ArticleRepository:
+class ArticleRepository(BaseRepository[Article, ArticleFilters]):
     """Repository für den Zugriff auf die artikel-Tabelle."""
 
-    def __init__(self, session: Session):
-        self.session = session
+    model = Article
+    image_model = ArticleImage
+    image_fk_name = "article_id"
 
-    def insert(self, article_data: dict, images: list[dict]) -> int:
-        """Fügt einen Artikel mit Bildern ein. Gibt die article_id zurück."""
-        article = Article(**article_data)
-        self.session.add(article)
-        self.session.flush()  # ID generieren
+    def insert(self, article_data: dict = None, images: list[dict] = None, **kwargs) -> int:
+        return super().insert(article_data, images)
 
-        for img in images:
-            self.session.add(ArticleImage(article_id=article.id, **img))
-
-        self.session.commit()
-        return article.id
-
-    def list(self, filters: ArticleFilters) -> tuple[list[Article], int]:
-        """Gibt gefilterte und paginierte Artikel sowie die Gesamtanzahl zurück."""
-        q = select(Article)
-
+    def _apply_filters(self, q, filters: ArticleFilters):
         if filters.tour_date_from:
             q = q.where(Article.tour_date >= filters.tour_date_from)
         if filters.tour_date_to:
@@ -58,49 +47,4 @@ class ArticleRepository:
             q = q.where(Article.generation_timestamp <= filters.generated_to)
         if filters.status:
             q = q.where(Article.status == filters.status)
-
-        # Count total (ohne Limit/Offset)
-        count_q = select(func.count()).select_from(q.subquery())
-        total = self.session.execute(count_q).scalar_one()
-
-        q = q.order_by(Article.generation_timestamp.desc())
-        q = q.offset(filters.offset).limit(filters.limit)
-        articles = self.session.execute(q).scalars().all()
-
-        return articles, total
-
-    def get_by_id(self, article_id: int) -> Optional[Article]:
-        """Holt einen einzelnen Artikel inkl. Bilder."""
-        q = select(Article).where(Article.id == article_id)
-        return self.session.execute(q).scalar_one_or_none()
-
-    def delete(self, article_id: int) -> bool:
-        """Löscht einen Artikel und seine Bilder (CASCADE). Gibt True zurück wenn gelöscht."""
-        article = self.get_by_id(article_id)
-        if article is None:
-            return False
-        self.session.delete(article)
-        self.session.commit()
-        return True
-
-    def delete_batch(self, article_ids: List[int]) -> int:
-        """Löscht mehrere Artikel und ihre Bilder (CASCADE). Gibt Anzahl gelöschter Artikel zurück."""
-        if not article_ids:
-            return 0
-        count = (
-            self.session.query(Article)
-            .where(Article.id.in_(article_ids))
-            .delete(synchronize_session="fetch")
-        )
-        self.session.commit()
-        return count
-
-    def update(self, article_id: int, updates: dict) -> Optional[Article]:
-        """Aktualisiert Felder eines Artikels. Gibt den aktualisierten Artikel zurück."""
-        article = self.get_by_id(article_id)
-        if article is None:
-            return None
-        for key, value in updates.items():
-            setattr(article, key, value)
-        self.session.commit()
-        return article
+        return q

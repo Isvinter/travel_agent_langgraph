@@ -6,22 +6,15 @@ Verarbeitet Bilder in Batches (gleicher Ansatz wie Blog-Selector).
 """
 
 import math
-import re
 from typing import Any, Dict, List, Optional
-import requests
 from app.config import OLLAMA_BASE_URL
 from app.photobook.presets import PhotobookPreset, get_photobook_preset
+from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData
 from app.utils.image_utils import encode_image_base64
-
+from app.services.image_selector import _parse_selection
 
 BATCH_SIZE = 15  # Gleiche Batch-Grösse wie Blog-Selector
-
-
-def _parse_selection(text: str, max_index: int) -> List[int]:
-    """Extrahiert Indizes aus LLM-Antwort — tolerant wie Blog-Selector."""
-    numbers = re.findall(r'\d+', text)
-    return sorted({int(n) for n in numbers if int(n) <= max_index})
 
 
 def _build_batch_prompt(batch_size: int, select_count: int, preset: PhotobookPreset) -> str:
@@ -65,29 +58,22 @@ def _select_batch(
 
     prompt = _build_batch_prompt(len(encoded), select_count, preset)
 
-    try:
-        resp = requests.post(
-            f"{base_url.rstrip('/')}/api/chat",
-            json={
-                "model": model,
-                "messages": [{
-                    "role": "user",
-                    "content": prompt,
-                    "images": encoded,
-                }],
-                "stream": False,
-                "options": {"temperature": 0.0, "top_p": 0.1, "num_predict": 128},
-                "keep_alive": "10m",
-            },
-            timeout=120,
-        )
-        if resp.status_code == 200:
-            content = resp.json().get("message", {}).get("content", "")
-            indices = _parse_selection(content, max_index=len(encoded) - 1)
-            if indices:
-                return [index_map[i] for i in indices[:select_count] if i in index_map]
-    except Exception as e:
-        print(f"  ⚠️ Batch-Auswahl fehlgeschlagen: {e}")
+    response = call_ollama(
+        prompt,
+        model=model,
+        base_url=base_url,
+        images=encoded,
+        temperature=0.0,
+        top_p=0.1,
+        num_predict=128,
+        timeout=120,
+    )
+
+    if response:
+        content = strip_thinking_tokens(response)
+        indices = _parse_selection(content, max_index=len(encoded) - 1)
+        if indices:
+            return [index_map[i] for i in indices[:select_count] if i in index_map]
 
     # Fallback: evenly-spaced
     step = max(1, len(encoded) // select_count)

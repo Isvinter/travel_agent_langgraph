@@ -1,33 +1,49 @@
 # app/nodes/generate_map.py
 
+from typing import Callable
 from app.state import AppState
 from app.services.generate_mapimage import generate_map_html, html_to_png
 import os
 
 
-def generate_map_image_node(state: AppState) -> AppState:
+def _generate_map(
+    state: AppState,
+    html_gen_fn: Callable,
+    html_name: str,
+    png_name: str,
+    state_key: str,
+    display_name: str,
+    **html_kwargs,
+) -> AppState:
+    """Generischer Helper: generiert HTML, konvertiert zu PNG, speichert im State."""
     if state.gpx_stats is None or not state.gpx_stats.points:
-        print("⚠️ No GPX data available for map generation.")
+        print(f"⚠️ No GPX data for {display_name} generation.")
         return state
 
-    # Output-Verzeichnis
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
 
-    html_path = os.path.join(output_dir, "map.html")
-    png_path = os.path.join(output_dir, "map.png")
+    html_path = os.path.join(output_dir, html_name)
+    png_path = os.path.join(output_dir, png_name)
 
     try:
-        # 1. HTML generieren
-        generate_map_html(state.gpx_stats.points, html_path)
-
-        # 2. PNG erzeugen
+        html_gen_fn(output_html=html_path, **html_kwargs)
         html_to_png(html_path, png_path)
-
-        # 3. im State speichern
-        state.metadata["map_image_path"] = png_path
-        print(f"🗺️  Map generated: {png_path}")
+        state.metadata[state_key] = png_path
+        print(f"🗺️  {display_name}: {png_path}")
     except Exception as e:
-        print(f"❌ Map generation failed: {e} — continuing without map")
+        print(f"❌ {display_name} failed: {e} — continuing")
 
     return state
+
+
+def generate_map_image_node(state: AppState) -> AppState:
+    return _generate_map(
+        state,
+        html_gen_fn=generate_map_html,
+        html_name="map.html",
+        png_name="map.png",
+        state_key="map_image_path",
+        display_name="Map generated",
+        points=state.gpx_stats.points if state.gpx_stats else [],
+    )

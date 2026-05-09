@@ -73,6 +73,12 @@ def _wrap_node(node_fn, node_name: str, emitter: Optional[EventEmitter]):
     return wrapped
 
 
+def _add_wrapped(builder: StateGraph, name: str, fn: Callable, emitter: Optional[EventEmitter]):
+    """Fügt einen Node hinzu, optional mit Event-Emitter-Wrapper."""
+    node = _wrap_node(fn, name, emitter) if emitter else fn
+    builder.add_node(name, node)
+
+
 def select_model() -> str:
     """Interaktive Model-Auswahl am Workflow-Start."""
     print("\nVerfügbare Ollama-Modelle:")
@@ -105,57 +111,33 @@ def run_pipeline():
 def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppState]:
     builder = StateGraph(AppState)
 
-    # Wähle Node-Funktionen (ggf. mit Event-Wrapper)
-    pgn = _wrap_node(process_gpx_node, "process_gpx", event_emitter) if event_emitter else process_gpx_node
-    lin = _wrap_node(load_images_node, "load_images", event_emitter) if event_emitter else load_images_node
-    emn = _wrap_node(metadata_node, "extract_metadata", event_emitter) if event_emitter else metadata_node
-    cin = _wrap_node(clustering_image_node, "clustering_images", event_emitter) if event_emitter else clustering_image_node
-    gmi = _wrap_node(generate_map_image_node, "generate_map_image", event_emitter) if event_emitter else generate_map_image_node
-    ltn = _wrap_node(load_tour_notes_node, "load_tour_notes", event_emitter) if event_emitter else load_tour_notes_node
-    sin = _wrap_node(select_images_node, "select_images", event_emitter) if event_emitter else select_images_node
-    gbp = _wrap_node(generate_blog_post_node, "generate_blog_post", event_emitter) if event_emitter else generate_blog_post_node
-    dsn = _wrap_node(design_blogpost_node, "design_blogpost", event_emitter) if event_emitter else design_blogpost_node
+    # Blog/Analysis nodes
+    _add_wrapped(builder, "process_gpx", process_gpx_node, event_emitter)
+    _add_wrapped(builder, "load_images", load_images_node, event_emitter)
+    _add_wrapped(builder, "extract_metadata", metadata_node, event_emitter)
+    _add_wrapped(builder, "clustering_images", clustering_image_node, event_emitter)
+    _add_wrapped(builder, "generate_map_image", generate_map_image_node, event_emitter)
+    _add_wrapped(builder, "load_tour_notes", load_tour_notes_node, event_emitter)
+    _add_wrapped(builder, "select_images", select_images_node, event_emitter)
+    _add_wrapped(builder, "generate_blog_post", generate_blog_post_node, event_emitter)
+    _add_wrapped(builder, "design_blogpost", design_blogpost_node, event_emitter)
 
     # Enrichment nodes
-    ewn = _wrap_node(enrich_weather_node, "enrich_weather", event_emitter) if event_emitter else enrich_weather_node
-    epn = _wrap_node(enrich_poi_node, "enrich_poi", event_emitter) if event_emitter else enrich_poi_node
-    rcn = _wrap_node(review_content_node, "review_content", event_emitter) if event_emitter else review_content_node
-    gem = _wrap_node(generate_enriched_map_node, "generate_enriched_map", event_emitter) if event_emitter else generate_enriched_map_node
-    pan = _wrap_node(persist_article_node, "persist_article", event_emitter) if event_emitter else persist_article_node
-    sdn = _wrap_node(save_draft_node, "save_draft", event_emitter) if event_emitter else save_draft_node
-    gpn = _wrap_node(generate_pdf_node, "generate_pdf", event_emitter) if event_emitter else generate_pdf_node
-
-    builder.add_node("process_gpx", pgn)
-    builder.add_node("load_images", lin)
-    builder.add_node("extract_metadata", emn)
-    builder.add_node("generate_map_image", gmi)
-    builder.add_node("clustering_images", cin)
-    builder.add_node("load_tour_notes", ltn)
-    builder.add_node("select_images", sin)
-    builder.add_node("generate_blog_post", gbp)
-    builder.add_node("design_blogpost", dsn)
-    builder.add_node("enrich_weather", ewn)
-    builder.add_node("enrich_poi", epn)
-    builder.add_node("review_content", rcn)
-    builder.add_node("persist_article", pan)
-    builder.add_node("generate_pdf", gpn)
-    builder.add_node("generate_enriched_map", gem)
-    builder.add_node("save_draft", sdn)
+    _add_wrapped(builder, "enrich_weather", enrich_weather_node, event_emitter)
+    _add_wrapped(builder, "enrich_poi", enrich_poi_node, event_emitter)
+    _add_wrapped(builder, "review_content", review_content_node, event_emitter)
+    _add_wrapped(builder, "generate_enriched_map", generate_enriched_map_node, event_emitter)
+    _add_wrapped(builder, "persist_article", persist_article_node, event_emitter)
+    _add_wrapped(builder, "save_draft", save_draft_node, event_emitter)
+    _add_wrapped(builder, "generate_pdf", generate_pdf_node, event_emitter)
 
     # Photobook nodes
-    spi = _wrap_node(select_photobook_images_node, "select_photobook_images", event_emitter) if event_emitter else select_photobook_images_node
-    ppb = _wrap_node(plan_photobook_node, "plan_photobook", event_emitter) if event_emitter else plan_photobook_node
-    gpb = _wrap_node(generate_photobook_node, "generate_photobook", event_emitter) if event_emitter else generate_photobook_node
-    rpb = _wrap_node(render_photobook_node, "render_photobook", event_emitter) if event_emitter else render_photobook_node
-    gpp = _wrap_node(generate_photobook_pdf_node, "generate_photobook_pdf", event_emitter) if event_emitter else generate_photobook_pdf_node
-    ppb_persist = _wrap_node(persist_photobook_node, "persist_photobook", event_emitter) if event_emitter else persist_photobook_node
-
-    builder.add_node("select_photobook_images", spi)
-    builder.add_node("plan_photobook", ppb)
-    builder.add_node("generate_photobook", gpb)
-    builder.add_node("render_photobook", rpb)
-    builder.add_node("generate_photobook_pdf", gpp)
-    builder.add_node("persist_photobook", ppb_persist)
+    _add_wrapped(builder, "select_photobook_images", select_photobook_images_node, event_emitter)
+    _add_wrapped(builder, "plan_photobook", plan_photobook_node, event_emitter)
+    _add_wrapped(builder, "generate_photobook", generate_photobook_node, event_emitter)
+    _add_wrapped(builder, "render_photobook", render_photobook_node, event_emitter)
+    _add_wrapped(builder, "generate_photobook_pdf", generate_photobook_pdf_node, event_emitter)
+    _add_wrapped(builder, "persist_photobook", persist_photobook_node, event_emitter)
 
     builder.set_entry_point("process_gpx")
 

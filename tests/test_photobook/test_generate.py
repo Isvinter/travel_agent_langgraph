@@ -11,31 +11,24 @@ MOCK_PLAN = {
     ]
 }
 
-MOCK_GENERATE_RESPONSE = {
-    "message": {
-        "content": json.dumps([
-            {"preset_id": "cover_hero", "slots": [
-                {"slot_id": "main", "image_index": 0},
-                {"slot_id": "title", "text": "Gipfelblick"},
-            ]},
-            {"preset_id": "double_stacked", "slots": [
-                {"slot_id": "top", "image_index": 1},
-                {"slot_id": "bottom", "image_index": 2},
-            ]},
-        ])
-    }
-}
+MOCK_GENERATE_CONTENT = json.dumps([
+    {"preset_id": "cover_hero", "slots": [
+        {"slot_id": "main", "image_index": 0},
+        {"slot_id": "title", "text": "Gipfelblick"},
+    ]},
+    {"preset_id": "double_stacked", "slots": [
+        {"slot_id": "top", "image_index": 1},
+        {"slot_id": "bottom", "image_index": 2},
+    ]},
+])
 
 SAMPLE_IMAGES = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(16)]
 
 
 class TestGenerate:
-    @patch("app.photobook.generate.requests.post")
-    def test_generate_returns_page_descriptions(self, mock_post):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = MOCK_GENERATE_RESPONSE
-        mock_post.return_value = mock_resp
+    @patch("app.photobook.generate.call_ollama")
+    def test_generate_returns_page_descriptions(self, mock_call):
+        mock_call.return_value = MOCK_GENERATE_CONTENT
         result = generate_photobook_pages(
             plan=MOCK_PLAN, images=SAMPLE_IMAGES, gpx_stats={}, notes="Test", model="test-model",
         )
@@ -50,17 +43,11 @@ class TestGenerate:
         )
         assert len(result) == 0
 
-    @patch("app.photobook.generate.requests.post")
-    def test_generate_handles_missing_images(self, mock_post):
-        bad_response = {
-            "message": {"content": json.dumps([
-                {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 999}]},
-            ])}
-        }
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = bad_response
-        mock_post.return_value = mock_resp
+    @patch("app.photobook.generate.call_ollama")
+    def test_generate_handles_missing_images(self, mock_call):
+        mock_call.return_value = json.dumps([
+            {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 999}]},
+        ])
         result = generate_photobook_pages(
             plan=MOCK_PLAN, images=SAMPLE_IMAGES[:3], gpx_stats={}, notes="Test", model="test-model",
         )
@@ -75,7 +62,7 @@ class TestGenerate:
             ]
         }
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(3)]
-        with patch("app.photobook.generate.requests.post", side_effect=Exception("LLM down")):
+        with patch("app.photobook.generate.call_ollama", return_value=None):
             pages = generate_photobook_pages(plan, images, None, None, model="test")
         assert len(pages) == 2
         assert pages[0].template_id == "cover_hero"
@@ -85,17 +72,13 @@ class TestGenerate:
         """LLM-Response mit 'title' und 'text' Feldern muss korrekt geparst werden."""
         plan = {"pages": [{"position": 0, "preset_id": "cover_hero", "image_indices": [0]}]}
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(1)]
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "message": {"content": json.dumps([
-                {"preset_id": "cover_hero", "slots": [
-                    {"slot_id": "main", "image_index": 0},
-                    {"slot_id": "title", "text": "Aufbruch"},
-                ]}
-            ])}
-        }
-        with patch("app.photobook.generate.requests.post", return_value=mock_resp):
+        mock_content = json.dumps([
+            {"preset_id": "cover_hero", "slots": [
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Aufbruch"},
+            ]}
+        ])
+        with patch("app.photobook.generate.call_ollama", return_value=mock_content):
             pages = generate_photobook_pages(plan, images, None, None, model="test")
         assert len(pages) == 1
         title_slot = next((s for s in pages[0].slots if s.get("slot_id") == "title"), None)
@@ -106,11 +89,10 @@ class TestGenerate:
         """Fallback mit unbekanntem Preset wählt passendes nach Bildanzahl."""
         plan = {"pages": [{"position": 0, "preset_id": "nonexistent", "image_indices": [0, 1]}]}
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(2)]
-        with patch("app.photobook.generate.requests.post", side_effect=Exception("LLM down")):
+        with patch("app.photobook.generate.call_ollama", return_value=None):
             pages = generate_photobook_pages(plan, images, None, None, model="test")
         assert len(pages) == 1
         assert pages[0].template_id != "nonexistent"
-        # Sollte ein 2-Bild-Preset sein
         from app.photobook.preset_loader import load_preset
         preset = load_preset(pages[0].template_id)
         assert preset.image_count == 2

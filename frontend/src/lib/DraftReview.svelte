@@ -166,7 +166,6 @@
         instruction: "",
       }];
     }
-    markedBlocks = [...markedBlocks];
     markedIndices = new Set(markedIndices);
   }
 
@@ -179,7 +178,6 @@
   function removeMark(index: number) {
     markedIndices.delete(index);
     markedBlocks = markedBlocks.filter(m => m.element_index !== index);
-    markedBlocks = [...markedBlocks];
     markedIndices = new Set(markedIndices);
   }
 
