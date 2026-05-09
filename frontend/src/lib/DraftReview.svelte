@@ -70,6 +70,8 @@
       for (const child of node.children) {
         const tag = child.tagName.toLowerCase();
         if (tag === "p") {
+          const text = child.textContent?.trim() || "";
+          if (text.length === 0) continue;
           blocks.push({ type: "paragraph", content: child.outerHTML, index: idx });
           child.setAttribute("data-block-index", String(idx));
           idx++;
@@ -108,6 +110,8 @@
       for (const child of node.children) {
         const tag = child.tagName.toLowerCase();
         if (tag === "p") {
+          const text = child.textContent?.trim() || "";
+          if (text.length === 0) continue;
           child.setAttribute("data-block-index", String(idx));
           if (markedIndices.has(idx)) {
             child.setAttribute("data-marked", "true");
