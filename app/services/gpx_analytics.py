@@ -217,10 +217,3 @@ def analyze_track(gpx_track: str) -> tuple[GPXStats, List[dict]]:
     pauses = detect_pauses(points)
 
     return stats, pauses
-
-# ---------------------------
-# 3. WRAPPER
-# ---------------------------
-def gpx_analytics(gpx_track: str) -> GPXStats:
-    points = parse_gpx(gpx_track)
-    return compute_gpx_stats(points)

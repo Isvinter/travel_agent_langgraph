@@ -78,9 +78,9 @@ class TestEnrichmentE2E:
              patch("app.nodes.generate_map.html_to_png"), \
              patch("app.nodes.select_images_node.select_images_for_blog",
                    return_value=[]), \
-             patch("app.services.weather_enricher.requests.get",
+             patch("app.services.weather_enricher._session.get",
                    return_value=mock_weather_resp), \
-             patch("app.services.poi_enricher.requests.post",
+             patch("app.services.poi_enricher._session.post",
                    return_value=mock_overpass_resp), \
              patch("app.services.content_reviewer.call_ollama",
                    return_value=json.dumps({
@@ -130,9 +130,9 @@ class TestEnrichmentE2E:
              patch("app.nodes.generate_map.html_to_png"), \
              patch("app.nodes.select_images_node.select_images_for_blog",
                    return_value=[]), \
-             patch("app.services.weather_enricher.requests.get",
+             patch("app.services.weather_enricher._session.get",
                    side_effect=Exception("Connection refused")), \
-             patch("app.services.poi_enricher.requests.post",
+             patch("app.services.poi_enricher._session.post",
                    return_value=mock_overpass_resp), \
              patch("app.services.content_reviewer.call_ollama",
                    return_value=json.dumps({

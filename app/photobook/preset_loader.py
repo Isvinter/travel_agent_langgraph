@@ -1,5 +1,6 @@
 """Preset-Loader — lädt JSON-Presets und parst sie in Pydantic-Modelle."""
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 from pydantic import BaseModel
@@ -40,6 +41,7 @@ def load_preset(preset_id: str) -> Preset:
     return Preset(**data)
 
 
+@lru_cache(maxsize=1)
 def load_all_presets() -> Dict[str, Preset]:
     """Lädt alle Presets aus dem Katalog."""
     presets = {}

@@ -14,6 +14,9 @@ import time
 import requests
 from app.utils.geo_utils import haversine_distance
 
+_session = requests.Session()
+_session.headers.update({"User-Agent": "travel-agent/1.0"})
+
 
 OVERPASS_INSTANCES = [
     "https://overpass-api.de/api/interpreter",
@@ -105,7 +108,7 @@ def _try_overpass_query(query: str) -> Optional[List[Dict[str, Any]]]:
         url = OVERPASS_INSTANCES[instance_idx]
 
         try:
-            resp = requests.post(
+            resp = _session.post(
                 url,
                 data=query.encode("utf-8"),
                 headers=request_headers,
@@ -255,7 +258,7 @@ def _enrich_with_wikipedia(poi: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
-        resp = requests.get(url, timeout=10)
+        resp = _session.get(url, timeout=10)
         if resp.status_code == 200:
             data = resp.json()
             extract = data.get("extract", "")

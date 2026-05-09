@@ -3,9 +3,27 @@
 Wird von routes.py (Auslieferung ans Frontend), persist_article.py und
 persist_photobook.py verwendet. Als defense-in-depth vor XSS durch
 LLM-Halluzinationen oder kompromittierte Ollama-Instanzen.
+
+Verwendet nh3 (ammonia-Nachfolger), einen robusten Rust-basierten HTML-Sanitizer.
 """
 
-import re
+import nh3
+
+_EXTRA_TAGS = {
+    "section", "article", "main", "header", "footer", "figure",
+    "figcaption", "details", "summary", "nav", "dl", "dt", "dd",
+}
+
+_ATTRIBUTES = {
+    "a": {"href", "title", "rel", "target"},
+    "img": {"src", "alt", "width", "height", "loading"},
+    "td": {"colspan", "rowspan"},
+    "th": {"colspan", "rowspan"},
+    "div": {"class"},
+    "span": {"class"},
+    "section": {"class"},
+    "article": {"class"},
+}
 
 
 def sanitize_html(html: str, *, keep_style: bool = False) -> str:
@@ -25,41 +43,19 @@ def sanitize_html(html: str, *, keep_style: bool = False) -> str:
     if not html:
         return html
 
-    html = re.sub(
-        r"<script[^>]*>.*?</script\s*>",
-        "",
+    tags = nh3.ALLOWED_TAGS | _EXTRA_TAGS
+
+    clean_content_tags = set(nh3.CLEAN_CONTENT_TAGS)
+
+    if keep_style:
+        tags.add("style")
+        clean_content_tags.discard("style")
+
+    return nh3.clean(
         html,
-        flags=re.DOTALL | re.IGNORECASE,
+        tags=tags,
+        attributes=_ATTRIBUTES,
+        clean_content_tags=frozenset(clean_content_tags),
+        link_rel=None,
+        strip_comments=True,
     )
-    html = re.sub(r"<script[^>]*/>", "", html, flags=re.IGNORECASE)
-
-    if not keep_style:
-        html = re.sub(
-            r"<style[^>]*>.*?</style\s*>",
-            "",
-            html,
-            flags=re.DOTALL | re.IGNORECASE,
-        )
-
-    html = re.sub(
-        r'\s+on\w+\s*=\s*"[^"]*"', "", html, flags=re.IGNORECASE
-    )
-    html = re.sub(
-        r"\s+on\w+\s*=\s*'[^']*'", "", html, flags=re.IGNORECASE
-    )
-    html = re.sub(r"\s+on\w+\s*=\s*\S+", "", html, flags=re.IGNORECASE)
-
-    html = re.sub(
-        r'(href|src)\s*=\s*"[^"]*javascript:[^"]*"',
-        r'\1="#"',
-        html,
-        flags=re.IGNORECASE,
-    )
-    html = re.sub(
-        r"(href|src)\s*=\s*'[^']*javascript:[^']*'",
-        r"\1='#'",
-        html,
-        flags=re.IGNORECASE,
-    )
-
-    return html

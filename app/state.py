@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Literal, Optional
+from typing import Dict, Any, List, Literal, Optional, Tuple
 from pydantic import BaseModel, Field
 from app.services.gpx_analytics import GPXStats
 
@@ -28,12 +28,12 @@ class WeatherInfo(BaseModel):
     source: str = "open-meteo"
     summary: str = ""
 
-AVAILABLE_MODELS = [
+AVAILABLE_MODELS: Tuple[str, ...] = (
     "gemma4:26b-ctx128k",
     "gemma4:31b-ctx112k",
     "qwen3.6:27b-ctx128k",
     "qwen3.6:35b-ctx128k",
-]
+)
 
 
 class PhotobookConfig(BaseModel):

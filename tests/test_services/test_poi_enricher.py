@@ -161,7 +161,7 @@ class TestEnrichWithWikipedia:
             "extract": "Der Berggipfel ist ein bekannter Aussichtsberg...",
             "title": "Berggipfel",
         }
-        with patch("app.services.poi_enricher.requests.get", return_value=mock_resp):
+        with patch("app.services.poi_enricher._session.get", return_value=mock_resp):
             result = _enrich_with_wikipedia(poi)
             assert result is not poi  # new dict returned
             assert "wiki_extract" in result
@@ -170,7 +170,7 @@ class TestEnrichWithWikipedia:
     def test_handles_wikipedia_failure(self):
         poi = {"name": "Some Place", "lat": 47.3, "lon": 11.4,
                "wiki_tag": "de:Berggipfel"}
-        with patch("app.services.poi_enricher.requests.get",
+        with patch("app.services.poi_enricher._session.get",
                    side_effect=Exception("Timeout")):
             result = _enrich_with_wikipedia(poi)
             assert "wiki_extract" not in result
@@ -207,7 +207,7 @@ class TestOverpassRetry:
             return responses.pop(0)
 
         pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
-        with patch("app.services.poi_enricher.requests.post", side_effect=mock_post):
+        with patch("app.services.poi_enricher._session.post", side_effect=mock_post):
             with patch("app.services.poi_enricher.time.sleep", return_value=None):
                 with patch("app.services.poi_enricher._load_cache", return_value={}):
                     with patch("app.services.poi_enricher._save_to_cache"):
@@ -234,7 +234,7 @@ class TestOverpassRetry:
             sleep_times.append(seconds)
 
         pauses = [{"location": {"lat": 47.3, "lon": 11.4}}]
-        with patch("app.services.poi_enricher.requests.post", side_effect=mock_post):
+        with patch("app.services.poi_enricher._session.post", side_effect=mock_post):
             with patch("app.services.poi_enricher.time.sleep", side_effect=mock_sleep):
                 with patch("app.services.poi_enricher._load_cache", return_value={}):
                     with patch("app.services.poi_enricher._save_to_cache"):
@@ -266,7 +266,7 @@ class TestFetchPois:
             }]
         }
 
-        with patch("app.services.poi_enricher.requests.post",
+        with patch("app.services.poi_enricher._session.post",
                    return_value=mock_overpass_resp):
             with patch("app.services.poi_enricher._save_to_cache"):
                 result = fetch_pois(pauses=pauses)
@@ -277,7 +277,7 @@ class TestFetchPois:
         pauses = [{
             "location": {"lat": 47.3, "lon": 11.4},
         }]
-        with patch("app.services.poi_enricher.requests.post",
+        with patch("app.services.poi_enricher._session.post",
                    side_effect=Exception("Connection refused")):
             with patch("app.services.poi_enricher.time.sleep", return_value=None):
                 with patch("app.services.poi_enricher._load_cache", return_value={}):

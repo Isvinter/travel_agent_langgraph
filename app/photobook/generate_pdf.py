@@ -3,9 +3,11 @@
 import base64
 import os
 import tempfile
-import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def _inject_print_css(html_content: str) -> str:
@@ -48,16 +50,17 @@ def generate_photobook_pdf(html_content: str) -> bytes:
         options = Options()
         options.add_argument("--headless=new")
         options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
         driver = webdriver.Chrome(options=options)
         try:
             abs_path = os.path.abspath(html_path)
             driver.get(f"file:///{abs_path}")
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
             # Erzwinge Print-Media für korrekte @media print und @page Anwendung
             driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {"media": "print"})
-            time.sleep(1)
 
             pdf_result = driver.execute_cdp_cmd("Page.printToPDF", {
                 "printBackground": True,

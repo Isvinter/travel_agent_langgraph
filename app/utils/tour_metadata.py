@@ -45,9 +45,15 @@ def compute_tour_date_and_duration(
             if not ts:
                 continue
             try:
-                timestamps.append(datetime.fromisoformat(str(ts)))
+                ts_str = str(ts)
+                # EXIF-Format: "YYYY:MM:DD HH:MM:SS"
+                timestamps.append(datetime.strptime(ts_str, "%Y:%m:%d %H:%M:%S"))
             except (ValueError, TypeError):
-                continue
+                try:
+                    # Fallback: ISO-8601 Format
+                    timestamps.append(datetime.fromisoformat(str(ts)))
+                except (ValueError, TypeError):
+                    continue
 
         if len(timestamps) >= 2:
             start = min(timestamps)

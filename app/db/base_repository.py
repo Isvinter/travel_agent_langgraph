@@ -27,7 +27,11 @@ class BaseRepository(Generic[T, F]):
             for img in images:
                 self.session.add(self.image_model(**{self.image_fk_name: record.id, **img}))
 
-        self.session.commit()
+        try:
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
         return record.id
 
     def get_by_id(self, record_id: int) -> Optional[T]:
@@ -41,7 +45,11 @@ class BaseRepository(Generic[T, F]):
         if record is None:
             return False
         self.session.delete(record)
-        self.session.commit()
+        try:
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
         return True
 
     def delete_batch(self, record_ids: List[int]) -> int:
@@ -53,7 +61,11 @@ class BaseRepository(Generic[T, F]):
             .where(self.model.id.in_(record_ids))
             .delete(synchronize_session="fetch")
         )
-        self.session.commit()
+        try:
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
         return count
 
     def update(self, record_id: int, updates: dict) -> Optional[T]:
@@ -63,7 +75,11 @@ class BaseRepository(Generic[T, F]):
             return None
         for key, value in updates.items():
             setattr(record, key, value)
-        self.session.commit()
+        try:
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
         return record
 
     def list(self, filters: F) -> Tuple[list[T], int]:

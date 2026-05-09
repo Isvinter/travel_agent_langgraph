@@ -11,9 +11,13 @@ import requests
 
 from app.config import OLLAMA_BASE_URL
 
+_session = requests.Session()
+_session.headers.update({"User-Agent": "travel-agent/1.0"})
+
 
 THINKING_PATTERN = re.compile(
-    r'<(?:think|thinking)[^>]*>.*?</(?:think|thinking)\s*>',
+    r'<(?:think|thinking)\b[^>]*>.*?</(?:think|thinking)\s*>|'
+    r'<(?:think|thinking)\b[^>]*/>',
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -78,7 +82,7 @@ def call_ollama(
     }
 
     try:
-        resp = requests.post(url, json=payload, timeout=timeout)
+        resp = _session.post(url, json=payload, timeout=timeout)
     except requests.exceptions.ConnectionError:
         print(f"❌ Could not connect to Ollama at {base_url}")
         return None

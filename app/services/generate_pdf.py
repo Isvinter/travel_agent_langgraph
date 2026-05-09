@@ -3,10 +3,12 @@ import base64
 import os
 import re
 import tempfile
-import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def _rewrite_html_for_pdf(html_content: str | None, article_output_dir: str | None) -> str | None:
@@ -72,14 +74,15 @@ def generate_pdf(html_content: str, article_output_dir: str | None = None) -> by
         options = Options()
         options.add_argument("--headless")
         options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
 
         driver = None
         try:
             driver = webdriver.Chrome(options=options)
             abs_path = os.path.abspath(html_path)
             driver.get(f"file:///{abs_path}")
-            time.sleep(1)  # Warten bis Bilder geladen sind
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
 
             pdf_result = driver.execute_cdp_cmd("Page.printToPDF", {
                 "printBackground": True,

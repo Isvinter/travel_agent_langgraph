@@ -33,10 +33,10 @@ class TestEnrichImagesWithMetadata:
         state = AppState(images=images)
         with patch("app.pipeline.process_images.extract_metadata",
                    side_effect=OSError("Cannot read file")):
-            with patch("app.pipeline.process_images.extract_metadata",
-                       return_value={"timestamp": None, "latitude": None, "longitude": None}):
-                pass
+            enrich_images_with_metadata(state)
         # Testet dass der Node nicht crasht — die Node-Ebene fängt das via try/except
+        assert state.images[0].path == "broken.jpg"
+        assert state.images[0].timestamp is None
 
     def test_empty_images_list(self):
         state = AppState(images=[])

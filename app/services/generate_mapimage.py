@@ -2,6 +2,9 @@ import folium
 import math
 from datetime import datetime as _dt
 from typing import List
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from app.services.gpx_analytics import TrackPoint
 from app.utils.geo_utils import haversine_distance as _haversine_distance
 
@@ -148,7 +151,6 @@ def html_to_png(html_path: str, output_png: str):
     import os
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
-    import time
 
     options = Options()
     options.add_argument("--headless")
@@ -160,7 +162,9 @@ def html_to_png(html_path: str, output_png: str):
         abs_path = os.path.abspath(html_path)
         driver.get(f"file:///{abs_path}")
 
-        time.sleep(2)  # Karte laden lassen
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
 
         driver.save_screenshot(output_png)
     finally:

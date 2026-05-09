@@ -47,7 +47,6 @@ process_gpx → load_images → extract_metadata → clustering_images → gener
 ## Gotchas
 
 - `main.py` contains a hardcoded GPX path — agents should treat it as a reference, not a runnable script on other machines. Use `run_pipeline()` for interactive model selection or `build_graph()` + `graph.invoke(state)` with your own `AppState`.
-- `app/models.py` is empty and unused — do not add code there.
 
 ## Frontend development
 

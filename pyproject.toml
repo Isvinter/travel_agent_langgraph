@@ -19,6 +19,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "sqlalchemy>=2.0",
     "alembic>=1.14",
+    "nh3>=0.3.5",
 ]
 
 [project.scripts]

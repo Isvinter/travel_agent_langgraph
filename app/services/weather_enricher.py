@@ -10,6 +10,9 @@ from typing import List, Optional, Dict, Any
 
 import requests
 
+_session = requests.Session()
+_session.headers.update({"User-Agent": "travel-agent/1.0"})
+
 from app.services.gpx_analytics import TrackPoint
 from app.state import DailyWeather, WeatherInfo
 
@@ -167,7 +170,7 @@ def fetch_historical_weather(
     for lat, lon in coords:
         url = _build_openmeteo_url(lat, lon, start_date, end_date)
         try:
-            resp = requests.get(url, timeout=30)
+            resp = _session.get(url, timeout=30)
             if resp.status_code == 200:
                 data = resp.json()
                 if "daily" in data:

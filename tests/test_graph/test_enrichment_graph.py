@@ -66,4 +66,5 @@ class TestEnrichmentPipeline:
         try:
             result = graph.invoke(state)
         except Exception as e:
-            assert True, f"Graph triggered expected error: {e}"
+            msg = str(e).lower()
+            assert any(kw in msg for kw in ("ollama", "connection", "refused")), f"Unexpected error: {e}"

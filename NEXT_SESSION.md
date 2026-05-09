@@ -1,108 +1,113 @@
-# NEXT_SESSION.md — Codebase-Härtung Runde 4
+# NEXT_SESSION.md — Codebase-Härtung Runde 5
 
-**Branch:** `main` (HEAD: `fb9a41a`) — 460 Tests grün
-**Gefixt bisher:** Runde 1 (10C+9H), Runde 2 (11H), Runde 3 (4H + 7M)
+**Branch:** `fix/hardening-round-4` (worktree: `.worktrees/hardening-round-4`)
+**Startpunkt:** 464 Tests grün
+**Gefixt in Runde 4:** C1, C2, R1–R15, R17 (19 Issues)
 
 ## Quick-Start
 
 ```bash
-cd ~/Coding/opnecode/travel_agent_langgraph
+cd ~/Coding/opnecode/travel_agent_langgraph/.worktrees/hardening-round-4
 uv sync
-uv run pytest tests/ -m "not e2e" -v    # 460 tests müssen grün sein
+uv run pytest tests/ -m "not e2e" -v    # 464 tests müssen grün sein
 ```
 
-## Verbleibende Issues — priorisiert
+## Verbleibende Issues — empfohlene Reihenfolge
 
-### Must-Fix (Critical/High — Sicherheit, Datenintegrität, Bugs)
+### 1. M2: `print()` → Logger (HIGH Impact, LOW Risk)
 
-| ID | Thema | Datei(en) | Aufwand |
-|----|-------|-----------|---------|
-| C1 | `--no-sandbox` in Chrome (Sicherheit) | `generate_pdf.py:75`, `photobook/generate_pdf.py:51` | 10min |
-| C2 | Regex-HTML-Sanitizer bypassbar | `utils/html_sanitizer.py` — regex durch `bleach`/`nh3` ersetzen | 20min |
-| **R1** | Kein `rollback` bei `commit`-Fehler | `db/base_repository.py` — alle 4 CRUD-Methoden | 15min |
-| **R2** | `requests.get/post` ohne Session-Reuse | `ollama_client.py`, `poi_enricher.py`, `weather_enricher.py` | 20min |
-| **R3** | `datetime.fromisoformat` auf EXIF-Format | `utils/tour_metadata.py:48` — EXIF ist `YYYY:MM:DD HH:MM:SS` | 10min |
-| **R4** | `assert True` (tautologisch) | `tests/test_graph/test_enrichment_graph.py:69` | 10min |
-| **R5** | Dead Test (`pass` ohne Assertions) | `tests/test_pipeline_process_images.py:34-38` | 15min |
-| **R6** | `time.sleep()` statt `WebDriverWait` | `generate_mapimage.py:163`, `generate_pdf.py:82`, `photobook/generate_pdf.py:60` | 20min |
+174 `print()`-Statements auf 34 Dateien. Infrastruktur existiert in `app/logging_setup.py`.
 
-### Should-Fix (Medium — Qualität, Wartbarkeit)
+**Vorgehen:**
+- Pro Datei: `import logging` + `logger = logging.getLogger(__name__)` am Dateianfang
+- Emoji-basierte Heuristik:
+  - `❌` → `logger.error(...)`
+  - `⚠️` → `logger.warning(...)` 
+  - `✅` / `📸` / `📡` / `💾` / `📍` / `🤖` → `logger.info(...)`
+- `print(f"⚠️ ...")` → `logger.warning("...")` (f-string auflösen, Emoji entfernen)
+- Keine `print()` ohne Emoji → `logger.info(...)`
 
-| ID | Thema | Datei(en) | Aufwand |
-|----|-------|-----------|---------|
-| **R7** | `_getexif()` private Pillow-API | `services/metadata_extractor.py:56` → `getexif()` | 5min |
-| **R8** | THINKING_PATTERN matcht keine Self-Closing-Tags | `services/ollama_client.py:15-18` | 5min |
-| **R9** | `load_all_presets()` 5-8× pro Seite (kein Cache) | `photobook/validator.py` + `generate.py` — `@lru_cache` | 10min |
-| **R10** | AVAILABLE_MODELS ist mutable `List` | `state.py:31` → `Tuple[str, ...]` | 5min |
-| **R11** | Leere Dateien (`exif_helper.py`, `models.py`) | Löschen + Referenzen in AGENTS.md updaten | 5min |
+**Dateien nach print()-Häufigkeit (Top 10):**
+| Datei | Count |
+|-------|-------|
+| `nodes/render_photobook_node.py` | 14 |
+| `photobook/generate.py` | 12 |
+| `services/blog_generator.py` | 11 |
+| `nodes/generate_blogpost.py` | 10 |
+| `services/poi_enricher.py` | 9 |
+| `nodes/process_gpx.py` | 8 |
+| `nodes/design_blogpost.py` | 8 |
+| `nodes/load_images.py` | 7 |
+| `api/routes.py` | 6 |
+| `services/weather_enricher.py` | 5 |
 
-### Nice-to-Have (Low — Aufräumen)
+**Gotcha:** `app/logging_setup.py` hat selbst ein `print()` auf Zeile 31 — das ist Absicht (soll loggen BEVOR Logging konfiguriert ist). Nicht anfassen.
 
-| ID | Thema | Datei(en) | Aufwand |
-|----|-------|-----------|---------|
-| **R12** | Dead Code: `gpx_analytics()` nie aufgerufen | `services/gpx_analytics.py:224` | 5min |
-| **R13** | Dead Code: `generate_blog_post_poc()` | `services/blog_generator.py:502` | 5min |
-| **R14** | Double Cleanup in TTL-Handler | `api/events.py:83,97-101` — prüfen ob run_id noch existiert | 5min |
-| **R15** | `except Exception` ohne Logging | `services/metadata_extractor.py:9` | 5min |
-| **R16** | Keine Frontend-Tests | `frontend/` — Vitest + Testing Library aufsetzen | 2h |
-| **R17** | Kein Test für `save_draft` Node | `nodes/save_draft.py` → `tests/test_save_draft.py` | 30min |
+---
 
-### Später (grössere Refactors)
+### 2. M1: 7× `Dict[str, Any]` → Pydantic-Modelle (MEDIUM Risk, MEDIUM Impact)
 
-| ID | Thema | Beschreibung |
-|----|-------|-------------|
-| M1 | 7× `Dict[str, Any]` → Pydantic | `state.py` — `image_clusters`, `metadata`, `blog_post`, `poi_list`, `enrichment_context`, `photobook_plan`, `slots` |
-| H1 | Alembic-Migrations | `alembic.ini` + `migrations/` fehlt — `create_all()` reicht nicht für Schema-Migrationen |
-| H2 | `print()` → Logger | 174× `print()` durch `logging.getLogger()` ersetzen (Framework existiert in `logging_setup.py`) |
-| W24 | Force-Navigation in App.svelte | `$effect` navigiert User weg — Toast statt Redirect |
+Betroffene Felder in `app/state.py` und ihre Pydantic-Ziele:
 
-## Konkrete Fix-Anleitungen
+| Feld | Aktueller Typ | Zieldmodell | Nutzung (# Files) |
+|---|---|---|---|
+| `image_clusters` | `List[Dict[str, Any]]` | `ImageCluster` (id, images, center_lat, center_lon, ...) | 3 |
+| `metadata` | `Dict[str, Any]` | Kein neues Modell — existierende `tour_stats`/`tour_date`/`tour_duration` als flache Felder in AppState | 2 |
+| `blog_post` | `Optional[Dict[str, Any]]` | `BlogPostResult` (success, markdown, html, file_paths, selected_images) | 14 |
+| `poi_list` | `List[Dict[str, Any]]` | `POI` (name, type, lat, lon, distance_km, wiki_extract?) | 4 |
+| `enrichment_context` | `Dict[str, Any]` | `EnrichmentContext` (weather_summary, kept_pois, discarded_weather_fields, image_ratings, coherence_score, flags) | 10 |
+| `photobook_plan` | `Optional[Dict[str, Any]]` | `PhotobookPlan` (pages: List[PagePlan], ...) | 7 |
+| `slots` (in `PageDescription`) | `List[Dict[str, Any]]` | `PageSlot` (slot_id, text?, image_index?) | 14 |
 
-### R1: Rollback bei Commit-Fehlern
+**Vorgehen:**
+1. Neue Pydantic-Modelle in `app/state.py` definieren (hinter die existierenden, z.B. nach `PageDescription`)
+2. Felder in `AppState` und `PageDescription` umstellen
+3. Alle Zugriffe auf Dict-Keys durch Attribut-Zugriffe ersetzen (z.B. `poi["name"]` → `poi.name`)
+4. `metadata`-Dict auflösen: `metadata.get("article_id")` → `state.article_id`, Tour-Stats direkt auf `state` mit `Optional[]`
 
-```python
-# In BaseRepository.insert/delete/delete_batch/update:
-try:
-    self.session.commit()
-except Exception:
-    self.session.rollback()
-    raise
-```
+**Betroffene Dateien (alle brauchen Update):**
+`state.py`, `nodes/clustering_image_node.py`, `nodes/generate_blogpost.py`, `nodes/design_blogpost.py`, `nodes/save_draft.py`, `nodes/persist_article.py`, `nodes/enrich_poi_node.py`, `nodes/review_content_node.py`, `nodes/select_images_node.py`, `nodes/process_gpx.py`, `nodes/generate_map.py`, `nodes/plan_photobook_node.py`, `nodes/generate_photobook_node.py`, `nodes/render_photobook_node.py`, `nodes/persist_photobook.py`, `services/blog_generator.py`, `services/content_reviewer.py`, `services/persist_article.py`, `services/persist_photobook.py`, `photobook/validator.py`, `photobook/generate.py`, `photobook/renderer.py`, `photobook/plan.py`, `photobook/presets.py`, `graph.py`, `api/routes.py`
 
-### R2: requests.Session
+**Achtung:** Tests nutzen Dict-Literale — müssen auf Pydantic-Instanzen umgestellt werden. Ca. 30-40 Testdateien betroffen.
 
-```python
-# Statt requests.get(url):
-_session = requests.Session()
-_session.headers.update({"User-Agent": "travel-agent/1.0"})
-# Dann: _session.get(url) / _session.post(url)
-```
+---
 
-### R3: EXIF-Timestamp-Parsing
+### 3. H1: Alembic-Migrationen (LOW Risk, Infrastructure)
 
-```python
-# Statt datetime.fromisoformat(str(ts)):
-# EXIF ist "YYYY:MM:DD HH:MM:SS", nicht ISO 8601
-datetime.strptime(ts_str, "%Y:%m:%d %H:%M:%S")
-```
+Aktuelles Problem: `Base.metadata.create_all()` in `app/db/connection.py:21` kann Tabellen nur ERSTELLEN, nicht migrieren. Bei Schema-Änderungen (neue Spalten, Constraints) schlägt das fehl.
 
-### R6: WebDriverWait
+**Vorgehen:**
+1. `uv run alembic init migrations` im Projekt-Root
+2. `alembic.ini` anpassen: `sqlalchemy.url = sqlite:///data/travel_agent.db`
+3. `migrations/env.py`: `target_metadata = Base.metadata` (import von `app.db.models`)
+4. `uv run alembic revision --autogenerate -m "initial"` → erzeugt Initial-Migration
+5. `migrations/versions/` committen
+6. `connection.py` anpassen: `create_all()` durch `alembic.command.upgrade()` ersetzen oder beides behalten (Fallback für neue DBs)
 
-```python
-# Statt time.sleep(2):
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-WebDriverWait(driver, 10).until(
-    EC.presence_of_element_located((By.TAG_NAME, "body"))
-)
-```
+**Tabellen (4 Stück):** `articles`, `article_images`, `photobooks`, `photobook_images`
+
+---
+
+### 4. W24: Force-Navigation in App.svelte (LOW Risk, UX)
+
+**Problem:** `$effect` in `frontend/src/App.svelte:24-30` navigiert den User gewaltsam weg:
+- Wenn Pipeline läuft → zwingend zu `/pipeline`
+- Wenn Draft-ID gesetzt → zwingend zu `/draft/:id`
+
+**Fix:** `$effect`-Block durch Toast-Notification ersetzen:
+- Statt `navigateTo(...)` → Toast-Komponente einblenden mit "Pipeline läuft — [Zur Pipeline]" Link
+- Toast nach 8s auto-dismissen
+- User kann selbst entscheiden, ob er navigieren will
+
+**Dateien:** `App.svelte:24-30` (entfernen), neue `Toast.svelte` Komponente, `Toast`-Store
+
+---
 
 ## Wichtige Notizen
 
-- **Tests vor jedem Commit:** `uv run pytest tests/ -m "not e2e" -v`
-- **Minimale, chirurgische Änderungen**
-- **uv ist der einzige Package Manager**
-- **Neuer Shared-Code aus Runde 3:**
-  - `frontend/src/lib/utils/format.ts` — `formatDate`, `formatDuration`
-  - `frontend/src/lib/utils/sort.ts` — `sortItems`
-  - `app/state.py` — Feld `output_dir` im AppState
+- **Tests vor jedem Schritt:** `uv run pytest tests/ -m "not e2e" -v`
+- **uv ist der einzige Package-Manager** (kein pip!)
+- **Minimale, chirurgische Änderungen** — pro Phase committen
+- **Kein Alembic vor M1/M2** — sonst generiert man Migrationen für Änderungen die man gleich wieder umbaut
+- **M2 vor M1** — Logger ist harmlos und reduziert den Diff in M1 (weil man dort sonst `print()` UND neue Felder ändert)
+- **print()-Ersatz-Regel:** Weder Emoji noch f-string-Formatierung ins Log — nur Klartext. Emojis im Log sind redundant weil Log-Level (ERROR/WARNING/INFO) die Semantik tragen.

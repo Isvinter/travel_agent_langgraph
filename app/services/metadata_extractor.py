@@ -1,12 +1,17 @@
+import logging
+
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
+
+logger = logging.getLogger(__name__)
 
 
 def convert_to_decimal_degrees(value, ref):
     def to_float(r):
         try:
             return float(r)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Cannot convert to float: {r}, falling back to division: {e}")
             return r[0] / r[1]
 
     degrees = to_float(value[0])
@@ -53,7 +58,7 @@ def extract_gps(gps_raw):
 
 def extract_metadata(image_path):
     with Image.open(image_path) as image:
-        exif_data = image._getexif()  # _getexif() löst GPSInfo-Sub-IFD korrekt auf
+        exif_data = image.getexif()
 
     metadata = {
         "timestamp": None,
@@ -64,14 +69,18 @@ def extract_metadata(image_path):
     if not exif_data:
         return metadata
 
-    for tag_id, value in exif_data.items():
-        tag = TAGS.get(tag_id, tag_id)
+    # DateTimeOriginal aus ExifIFD (0x8769) holen
+    ifd_exif = exif_data.get_ifd(0x8769)
+    if ifd_exif:
+        for tag_id, value in ifd_exif.items():
+            tag = TAGS.get(tag_id, tag_id)
+            if tag == "DateTimeOriginal":
+                metadata["timestamp"] = value
 
-        if tag == "DateTimeOriginal":
-            metadata["timestamp"] = value
-
-        elif tag == "GPSInfo":
-            gps = extract_gps(value)
-            metadata.update(gps)
+    # GPSInfo aus GPSInfoIFD (0x8825) holen
+    gps_ifd = exif_data.get_ifd(0x8825)
+    if gps_ifd:
+        gps = extract_gps(gps_ifd)
+        metadata.update(gps)
 
     return metadata

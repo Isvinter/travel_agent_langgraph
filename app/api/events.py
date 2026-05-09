@@ -14,6 +14,7 @@ class PipelineEventManager:
         self._runs: dict[str, asyncio.Queue] = {}
         self._results: dict[str, dict] = {}
         self._timestamps: dict[str, float] = {}
+        self._ttl_tasks: dict[str, asyncio.Task] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def set_loop(self, loop: asyncio.AbstractEventLoop):
@@ -84,6 +85,9 @@ class PipelineEventManager:
 
     def _cleanup_run(self, run_id: str):
         """Entfernt alle Daten für einen Run."""
+        ttl_task = self._ttl_tasks.pop(run_id, None)
+        if ttl_task is not None:
+            ttl_task.cancel()
         self._runs.pop(run_id, None)
         self._results.pop(run_id, None)
         self._timestamps.pop(run_id, None)
@@ -98,7 +102,8 @@ class PipelineEventManager:
             if run_id in self._runs:
                 self._cleanup_run(run_id)
 
-        self._loop.create_task(_cleanup_after_ttl())
+        task = self._loop.create_task(_cleanup_after_ttl())
+        self._ttl_tasks[run_id] = task
 
 
 # Singleton instance

@@ -108,7 +108,7 @@ class TestFetchHistoricalWeather:
         mock_resp.status_code = 200
         mock_resp.json.return_value = openmeteo_response
 
-        with patch("app.services.weather_enricher.requests.get", return_value=mock_resp):
+        with patch("app.services.weather_enricher._session.get", return_value=mock_resp):
             result = fetch_historical_weather(
                 track_points=track_points,
                 pauses=[],
@@ -121,7 +121,7 @@ class TestFetchHistoricalWeather:
 
     @pytest.mark.unit
     def test_handles_api_failure_gracefully(self, track_points):
-        with patch("app.services.weather_enricher.requests.get",
+        with patch("app.services.weather_enricher._session.get",
                    side_effect=Exception("Connection refused")):
             result = fetch_historical_weather(
                 track_points=track_points,
@@ -133,7 +133,7 @@ class TestFetchHistoricalWeather:
     def test_handles_non_200_response(self, track_points):
         mock_resp = Mock()
         mock_resp.status_code = 500
-        with patch("app.services.weather_enricher.requests.get", return_value=mock_resp):
+        with patch("app.services.weather_enricher._session.get", return_value=mock_resp):
             result = fetch_historical_weather(
                 track_points=track_points,
                 pauses=[],
@@ -150,7 +150,7 @@ class TestFetchHistoricalWeather:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = openmeteo_response
-        with patch("app.services.weather_enricher.requests.get", return_value=mock_resp):
+        with patch("app.services.weather_enricher._session.get", return_value=mock_resp):
             result = fetch_historical_weather(
                 track_points=track_points,
                 pauses=pauses,
