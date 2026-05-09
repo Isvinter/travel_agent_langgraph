@@ -11,7 +11,7 @@ def convert_to_decimal_degrees(value, ref):
         try:
             return float(r)
         except Exception as e:
-            logger.warning(f"Cannot convert to float: {r}, falling back to division: {e}")
+            logger.warning("Cannot convert to float: %s, falling back to division: %s", r, e)
             return r[0] / r[1]
 
     degrees = to_float(value[0])
