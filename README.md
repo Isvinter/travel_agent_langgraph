@@ -88,10 +88,10 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 | Photobook | `app/photobook/*.py` | Photobook module: plan, generate, render, validate, PDF, image selection, 18 presets |
 | Presets | `app/photobook/preset_data/` | 18 JSON preset definitions with CSS grid areas and text constraints |
 | CSS | `app/photobook/styles.css` | A4-optimized print CSS with 18 preset grid layouts |
-| Database | `app/db/` | SQLAlchemy ORM models (articles, article_images, photobooks, photobook_images), connection, repositories |
+| Database | `app/db/` | SQLAlchemy ORM models (articles, article_images, photobooks, photobook_images), connection, base repository, repositories |
 | API | `app/api/` | FastAPI server, routes, SSE events |
-| Utils | `app/utils/` | EXIF helpers, image compression/base64 encoding |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (20 components, 3 stores) |
+| Utils | `app/utils/` | EXIF helpers, geo utilities (haversine), HTML sanitizer, image compression/base64 encoding, tour metadata |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (20 components, 3 stores, shared format/sort utils) |
 
 ## Tech Stack
 
@@ -192,7 +192,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   └── events.py             # SSE event types and emitter
 │   ├── db/                   # SQLAlchemy persistence layer
 │   │   ├── models.py             # ORM models (Article, ArticleImage, Photobook, PhotobookImage)
-│   │   ├── connection.py         # Engine/session factory + indexes
+│   │   ├── base_repository.py    # Generic BaseRepository[T, F] CRUD abstraction
+│   │   ├── connection.py         # Engine/session factory + WAL pragma + indexes
 │   │   ├── repository.py         # ArticleRepository
 │   │   └── photobook_repository.py # PhotobookRepository
 │   ├── nodes/                # LangGraph pipeline nodes (22 nodes)
@@ -235,6 +236,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── design_blogpost.py         # Persona-aware CSS design
 │   │   ├── persist_article.py         # SQLAlchemy CRUD for articles
 │   │   ├── persist_photobook.py       # SQLAlchemy CRUD for photobooks
+│   │   ├── ollama_client.py          # Shared Ollama API client (all LLM calls)
 │   │   └── generate_pdf.py            # Headless Chrome CDP PDF export
 │   ├── photobook/            # Photobook module
 │   │   ├── preset_data/          # 18 JSON preset definitions
@@ -251,7 +253,10 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   └── process_images.py     # enrich_images_with_metadata helper
 │   ├── utils/                # Utility helpers
 │   │   ├── exif_helper.py        # Low-level EXIF parsing (GPS, timestamps)
-│   │   └── image_utils.py        # Image compression, base64 encoding
+│   │   ├── geo_utils.py          # Haversine distance calculation (deduplicated)
+│   │   ├── html_sanitizer.py     # HTML sanitization for stored content
+│   │   ├── image_utils.py        # Image compression, base64 encoding
+│   │   └── tour_metadata.py      # Tour date/duration/stats extraction
 │   ├── graph.py              # StateGraph builder with mode-dependent branching
 │   ├── state.py              # AppState, ImageData, WeatherInfo, PhotobookConfig, OutputConfig
 │   ├── config.py             # OLLAMA_BASE_URL, OUTPUT_DIR, LENGTH_PRESETS, PERSONAS
@@ -263,6 +268,9 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   │   │   ├── pipeline.ts         # SSE event streaming + pipeline state
 │   │   │   │   ├── router.ts           # Client-side routing
 │   │   │   │   └── theme.ts            # Light/dark theme toggle
+│   │   │   ├── utils/
+│   │   │   │   ├── format.ts           # Shared formatDate, formatDuration helpers
+│   │   │   │   └── sort.ts             # Shared sortItems helper
 │   │   │   ├── ArticleDetail.svelte    # Full article view with images
 │   │   │   ├── ArticleList.svelte      # Filterable article browser
 │   │   │   ├── DraftReview.svelte       # Draft review & revision UI (mark, comment, send, publish, discard)
@@ -290,7 +298,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── tests/                    # pytest suite (~430 tests)
+├── tests/                    # pytest suite (460 tests + 1 e2e)
 │   ├── fixtures/                 # Test data (GPX, images, notes)
 │   ├── conftest.py               # Shared fixtures
 │   ├── test_api/                 # API integration + enrichment e2e
@@ -325,7 +333,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 uv run pytest tests/ -v
 ```
 
-461 tests total. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
+460 tests (plus 1 e2e, 461 total). Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 
