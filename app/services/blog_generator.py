@@ -176,9 +176,9 @@ HIER SIND DIE DATEN ZUR TOUR:
 
     # --- Wetter- und POI-Anreicherung ---
     if enrichment_context:
-        weather_summary = getattr(enrichment_context, "weather_summary", "")
-        kept_pois = getattr(enrichment_context, "kept_pois", [])
-        discarded_fields = getattr(enrichment_context, "discarded_weather_fields", [])
+        weather_summary = enrichment_context.weather_summary
+        kept_pois = enrichment_context.kept_pois
+        discarded_fields = enrichment_context.discarded_weather_fields
 
         if weather_summary:
             text_prompt += f"""
@@ -194,10 +194,10 @@ HIER SIND DIE DATEN ZUR TOUR:
 📍  INTERESSANTE ORTE ENTLANG DER ROUTE:
 """
             for poi in kept_pois:
-                name = getattr(poi, "name", "Unbekannt")
-                ptype = getattr(poi, "type", "POI")
-                dist = getattr(poi, "distance_km", "?")
-                wiki = getattr(poi, "wiki_extract", "")
+                name = poi.name
+                ptype = poi.type
+                dist = poi.distance_km or "?"
+                wiki = poi.wiki_extract or ""
                 text_prompt += f"- {name} ({ptype}, {dist} km entfernt)"
                 if wiki:
                     text_prompt += f": {wiki[:300]}"

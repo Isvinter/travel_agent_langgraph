@@ -123,7 +123,7 @@ class EnrichmentContext(BaseModel):
     kept_pois: List[POI] = Field(default_factory=list)
     discarded_weather_fields: List[str] = Field(default_factory=list)
     image_ratings: Dict[str, Any] = Field(default_factory=dict)
-    filtered_images: List[Any] = Field(default_factory=list)
+    filtered_images: List[ImageData] = Field(default_factory=list)
     coherence_score: float = 0.0
     flags: List[str] = Field(default_factory=list)
 

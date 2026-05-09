@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
-from app.state import ImageData, WeatherInfo, PhotobookPlan, PagePlan
+from app.state import ImageData, WeatherInfo, PhotobookPlan, PagePlan, POI
 from app.utils.image_utils import encode_image_base64
 from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookPreset, get_photobook_preset
 
@@ -130,7 +130,7 @@ def plan_photobook_layout(
     gpx_stats: Optional[Dict[str, Any]],
     notes: Optional[str],
     weather: Optional[WeatherInfo],
-    poi_list: List[dict],
+    poi_list: List[POI],
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
     page_range: str = "",

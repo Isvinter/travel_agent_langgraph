@@ -41,11 +41,11 @@ class TestPipelineE2E:
             graph = build_graph()
             result = graph.invoke(state)
 
-            assert "enriched_map_image_path" in result.get("metadata", {})
+            assert result.get("map_image_path") is not None
 
-            assert result.blog_post is not None
-            blog = result.blog_post
-            assert "markdown" in blog or "html" in blog or "error" in blog
+            assert result["blog_post"] is not None
+            blog = result["blog_post"]
+            assert blog.get("markdown") or blog.get("html") or blog.get("error")
         finally:
             if data_images_dir.exists():
                 shutil.rmtree(data_images_dir)
