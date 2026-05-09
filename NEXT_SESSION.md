@@ -1,84 +1,108 @@
-# NEXT_SESSION.md — Fortsetzung Codebase-Härtung
+# NEXT_SESSION.md — Codebase-Härtung Runde 4
 
-**Branch:** `main` (gemerged: `f2127eb`) — 460 Tests grün
-**Gefixt in Runde 1:** 10 Critical + 9 High Issues (Commits `c16d463`, `1b83faa`)
-**Gefixt in Runde 2:** 11 weitere High Issues (Commit `f2127eb`)
+**Branch:** `main` (HEAD: `fb9a41a`) — 460 Tests grün
+**Gefixt bisher:** Runde 1 (10C+9H), Runde 2 (11H), Runde 3 (4H + 7M)
 
 ## Quick-Start
 
 ```bash
 cd ~/Coding/opnecode/travel_agent_langgraph
-uv sync                                  # deps installieren
+uv sync
 uv run pytest tests/ -m "not e2e" -v    # 460 tests müssen grün sein
 ```
 
-## ✅ Bereits erledigt (Runde 2 — Commit f2127eb)
+## Verbleibende Issues — priorisiert
 
-| ID | Thema | Umsetzung |
-|----|-------|-----------|
-| H1 | Node-Wrapping-Duplizierung | `_add_wrapped()` in `app/graph.py` |
-| H3 | Haversine-Distanz dedup | `haversine_distance()` in `app/utils/geo_utils.py` |
-| H4 | Repository-Duplizierung | `BaseRepository[T]` in `app/db/base_repository.py` |
-| H6/H7/H17 | Blog/Photobook LLM-Call-Dedup | `call_ollama()` in photobook image_selector, plan, generate |
-| H9 | Map-Generatoren dedup | `_generate_map()` Helper in `app/nodes/generate_map.py` |
-| H20 | newSessionId Side-Effect | `getSessionId()` lazy in `frontend/src/lib/stores/pipeline.ts` |
-| H21 | Doppelte Reaktivitäts-Trigger | Redundante `[...markedBlocks]` in DraftReview.svelte entfernt |
-| H23 | monkeypatch nach create_app | 13 Tests korrigiert in `tests/test_api_endpoints.py` |
-| H25 | Lasche Assertion | Strikte `total_distance`-Prüfung in `test_blog_generator.py` |
-
-## Verbleibende High-Issues (4 offen)
+### Must-Fix (Critical/High — Sicherheit, Datenintegrität, Bugs)
 
 | ID | Thema | Datei(en) | Aufwand |
 |----|-------|-----------|---------|
-| H10 | Frontend ArticleList/PhotobookList dedup | `frontend/src/lib/ArticleList.svelte`, `PhotobookList.svelte` | 30min |
-| H18 | Fehlende AbortController Frontend | `frontend/src/lib/DraftReview.svelte` etc. (5+ Komponenten) | 20min |
-| H22 | DB-Boilerplate in API-Tests dupliziert | `tests/test_api_endpoints.py` | 20min |
-| H24 | Fragiler Mock in Draft-Persistence-Tests | `tests/test_draft_persistence.py:22-31` | 15min |
+| C1 | `--no-sandbox` in Chrome (Sicherheit) | `generate_pdf.py:75`, `photobook/generate_pdf.py:51` | 10min |
+| C2 | Regex-HTML-Sanitizer bypassbar | `utils/html_sanitizer.py` — regex durch `bleach`/`nh3` ersetzen | 20min |
+| **R1** | Kein `rollback` bei `commit`-Fehler | `db/base_repository.py` — alle 4 CRUD-Methoden | 15min |
+| **R2** | `requests.get/post` ohne Session-Reuse | `ollama_client.py`, `poi_enricher.py`, `weather_enricher.py` | 20min |
+| **R3** | `datetime.fromisoformat` auf EXIF-Format | `utils/tour_metadata.py:48` — EXIF ist `YYYY:MM:DD HH:MM:SS` | 10min |
+| **R4** | `assert True` (tautologisch) | `tests/test_graph/test_enrichment_graph.py:69` | 10min |
+| **R5** | Dead Test (`pass` ohne Assertions) | `tests/test_pipeline_process_images.py:34-38` | 15min |
+| **R6** | `time.sleep()` statt `WebDriverWait` | `generate_mapimage.py:163`, `generate_pdf.py:82`, `photobook/generate_pdf.py:60` | 20min |
 
-## Verbleibende Medium-Issues
+### Should-Fix (Medium — Qualität, Wartbarkeit)
 
-| ID | Thema | Datei(en) |
-|----|-------|-----------|
-| M1 | 6× `Dict[str, Any]` im AppState → Pydantic-Models | `app/state.py` |
-| M2 | Kein try/except bei fromisoformat | `app/api/routes.py:494-505` |
-| M3 | N+1 Query bei a.images | `app/api/routes.py`, `app/db/repository.py` |
-| M4 | SQLite ohne WAL-Mode | `app/db/connection.py:16` |
-| M5 | Fehlende FK-Indizes | `app/db/models.py:38-47` |
-| M9 | Keine model-Validierung gegen AVAILABLE_MODELS | `app/api/routes.py:285-344` |
-| M11 | Unbounded asyncio.Queue | `app/api/events.py:25` |
-| M14 | Hartcodiertes output_dir | `app/nodes/generate_map.py:_generate_map()` |
-| M17 | ImageData-Feldverlust bei Kompression | `app/nodes/render_photobook_node.py:65-70` |
+| ID | Thema | Datei(en) | Aufwand |
+|----|-------|-----------|---------|
+| **R7** | `_getexif()` private Pillow-API | `services/metadata_extractor.py:56` → `getexif()` | 5min |
+| **R8** | THINKING_PATTERN matcht keine Self-Closing-Tags | `services/ollama_client.py:15-18` | 5min |
+| **R9** | `load_all_presets()` 5-8× pro Seite (kein Cache) | `photobook/validator.py` + `generate.py` — `@lru_cache` | 10min |
+| **R10** | AVAILABLE_MODELS ist mutable `List` | `state.py:31` → `Tuple[str, ...]` | 5min |
+| **R11** | Leere Dateien (`exif_helper.py`, `models.py`) | Löschen + Referenzen in AGENTS.md updaten | 5min |
 
-## Konkrete Fix-Anleitungen für verbleibende High-Issues
+### Nice-to-Have (Low — Aufräumen)
 
-### H18: AbortController Pattern
+| ID | Thema | Datei(en) | Aufwand |
+|----|-------|-----------|---------|
+| **R12** | Dead Code: `gpx_analytics()` nie aufgerufen | `services/gpx_analytics.py:224` | 5min |
+| **R13** | Dead Code: `generate_blog_post_poc()` | `services/blog_generator.py:502` | 5min |
+| **R14** | Double Cleanup in TTL-Handler | `api/events.py:83,97-101` — prüfen ob run_id noch existiert | 5min |
+| **R15** | `except Exception` ohne Logging | `services/metadata_extractor.py:9` | 5min |
+| **R16** | Keine Frontend-Tests | `frontend/` — Vitest + Testing Library aufsetzen | 2h |
+| **R17** | Kein Test für `save_draft` Node | `nodes/save_draft.py` → `tests/test_save_draft.py` | 30min |
 
-```typescript
-// In jeder datenladenden Komponente:
-let aborted = false;
+### Später (grössere Refactors)
 
-$effect(() => {
-    aborted = false;
-    loadData();
-    return () => { aborted = true; };
-});
+| ID | Thema | Beschreibung |
+|----|-------|-------------|
+| M1 | 7× `Dict[str, Any]` → Pydantic | `state.py` — `image_clusters`, `metadata`, `blog_post`, `poi_list`, `enrichment_context`, `photobook_plan`, `slots` |
+| H1 | Alembic-Migrations | `alembic.ini` + `migrations/` fehlt — `create_all()` reicht nicht für Schema-Migrationen |
+| H2 | `print()` → Logger | 174× `print()` durch `logging.getLogger()` ersetzen (Framework existiert in `logging_setup.py`) |
+| W24 | Force-Navigation in App.svelte | `$effect` navigiert User weg — Toast statt Redirect |
 
-async function loadData() {
-    const res = await fetch(url);
-    if (aborted) return;
-    // ... state update
-}
+## Konkrete Fix-Anleitungen
+
+### R1: Rollback bei Commit-Fehlern
+
+```python
+# In BaseRepository.insert/delete/delete_batch/update:
+try:
+    self.session.commit()
+except Exception:
+    self.session.rollback()
+    raise
 ```
 
-Betroffene Komponenten: `DraftReview.svelte`, `ArticleDetail.svelte`, `PhotobookDetail.svelte`, `ArticleList.svelte`, `PhotobookList.svelte`
+### R2: requests.Session
+
+```python
+# Statt requests.get(url):
+_session = requests.Session()
+_session.headers.update({"User-Agent": "travel-agent/1.0"})
+# Dann: _session.get(url) / _session.post(url)
+```
+
+### R3: EXIF-Timestamp-Parsing
+
+```python
+# Statt datetime.fromisoformat(str(ts)):
+# EXIF ist "YYYY:MM:DD HH:MM:SS", nicht ISO 8601
+datetime.strptime(ts_str, "%Y:%m:%d %H:%M:%S")
+```
+
+### R6: WebDriverWait
+
+```python
+# Statt time.sleep(2):
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.TAG_NAME, "body"))
+)
+```
 
 ## Wichtige Notizen
 
 - **Tests vor jedem Commit:** `uv run pytest tests/ -m "not e2e" -v`
-- **Code-Kommentare auf Deutsch**
-- **Minimale, chirurgische Änderungen** — keine großen Refactors in einem Commit
+- **Minimale, chirurgische Änderungen**
 - **uv ist der einzige Package Manager**
-- **Neuer Shared-Code:** `app/services/ollama_client.py` — alle LLM-Calls nutzen `call_ollama()`
-- **Neuer Shared-Code:** `app/db/base_repository.py` — generisches `BaseRepository[T, F]`
-- **Neuer Shared-Code:** `app/utils/geo_utils.py` — `haversine_distance()`
-- **Neue Helper:** `app/utils/tour_metadata.py::build_tour_stats()`, `app/nodes/plan_photobook_node.py::_get_photobook_context()`
+- **Neuer Shared-Code aus Runde 3:**
+  - `frontend/src/lib/utils/format.ts` — `formatDate`, `formatDuration`
+  - `frontend/src/lib/utils/sort.ts` — `sortItems`
+  - `app/state.py` — Feld `output_dir` im AppState
