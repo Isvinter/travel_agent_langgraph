@@ -1,7 +1,7 @@
 # app/db/base_repository.py
 from typing import Generic, Optional, List, TypeVar, Tuple
 from sqlalchemy import select, func
-from sqlalchemy.orm import Session, DeclarativeBase
+from sqlalchemy.orm import Session, DeclarativeBase, selectinload
 
 T = TypeVar("T", bound=DeclarativeBase)
 F = TypeVar("F")
@@ -31,8 +31,8 @@ class BaseRepository(Generic[T, F]):
         return record.id
 
     def get_by_id(self, record_id: int) -> Optional[T]:
-        """Holt einen einzelnen Datensatz."""
-        q = select(self.model).where(self.model.id == record_id)
+        """Holt einen einzelnen Datensatz inkl. Images (eager geladen)."""
+        q = select(self.model).options(selectinload(self.model.images)).where(self.model.id == record_id)
         return self.session.execute(q).scalar_one_or_none()
 
     def delete(self, record_id: int) -> bool:

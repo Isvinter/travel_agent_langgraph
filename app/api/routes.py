@@ -288,6 +288,9 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
     if not body.gpx_file:
         raise HTTPException(status_code=422, detail="gpx_file is required")
 
+    if body.model not in AVAILABLE_MODELS:
+        raise HTTPException(status_code=422, detail=f"Unbekanntes Modell: {body.model}")
+
     run_id = str(uuid.uuid4())
     event_manager.create_run(run_id)
 
@@ -386,6 +389,7 @@ async def _run_pipeline_in_background(
         state = AppState(
             gpx_file=gpx_file,
             model=model or AppState.model_fields["model"].default,
+            output_dir=output_dir or "output",
             notes=combined_notes,
             output_config=OutputConfig(
                 mode=body.mode,
@@ -492,17 +496,29 @@ async def get_articles(
     filters = ArticleFilters(limit=limit, offset=offset, status=status)
 
     if tour_date_from:
-        filters.tour_date_from = date.fromisoformat(tour_date_from)
+        try:
+            filters.tour_date_from = date.fromisoformat(tour_date_from)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiges Datum: {tour_date_from}")
     if tour_date_to:
-        filters.tour_date_to = date.fromisoformat(tour_date_to)
+        try:
+            filters.tour_date_to = date.fromisoformat(tour_date_to)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiges Datum: {tour_date_to}")
     if duration_min is not None:
         filters.duration_min = duration_min
     if duration_max is not None:
         filters.duration_max = duration_max
     if generated_from:
-        filters.generated_from = datetime.fromisoformat(generated_from)
+        try:
+            filters.generated_from = datetime.fromisoformat(generated_from)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiger Zeitstempel: {generated_from}")
     if generated_to:
-        filters.generated_to = datetime.fromisoformat(generated_to)
+        try:
+            filters.generated_to = datetime.fromisoformat(generated_to)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiger Zeitstempel: {generated_to}")
 
     session = get_session()
     try:
@@ -768,17 +784,29 @@ async def get_photobooks(
     filters = PhotobookFilters(limit=limit, offset=offset)
 
     if tour_date_from:
-        filters.tour_date_from = date.fromisoformat(tour_date_from)
+        try:
+            filters.tour_date_from = date.fromisoformat(tour_date_from)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiges Datum: {tour_date_from}")
     if tour_date_to:
-        filters.tour_date_to = date.fromisoformat(tour_date_to)
+        try:
+            filters.tour_date_to = date.fromisoformat(tour_date_to)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiges Datum: {tour_date_to}")
     if duration_min is not None:
         filters.duration_min = duration_min
     if duration_max is not None:
         filters.duration_max = duration_max
     if generated_from:
-        filters.generated_from = datetime.fromisoformat(generated_from)
+        try:
+            filters.generated_from = datetime.fromisoformat(generated_from)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiger Zeitstempel: {generated_from}")
     if generated_to:
-        filters.generated_to = datetime.fromisoformat(generated_to)
+        try:
+            filters.generated_to = datetime.fromisoformat(generated_to)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Ungültiger Zeitstempel: {generated_to}")
 
     session = get_session()
     try:

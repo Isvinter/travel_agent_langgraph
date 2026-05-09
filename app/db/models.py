@@ -39,7 +39,7 @@ class ArticleImage(Base):
     __tablename__ = "article_images"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, index=True)
     image_path = Column(String, nullable=False)
     is_map = Column(Boolean, default=False)
     is_elevation_profile = Column(Boolean, default=False)
@@ -77,7 +77,7 @@ class PhotobookImage(Base):
     __tablename__ = "photobook_images"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    photobook_id = Column(Integer, ForeignKey("photobooks.id", ondelete="CASCADE"), nullable=False)
+    photobook_id = Column(Integer, ForeignKey("photobooks.id", ondelete="CASCADE"), nullable=False, index=True)
     image_path = Column(String, nullable=False)
     is_map = Column(Boolean, default=False)
     is_elevation_profile = Column(Boolean, default=False)

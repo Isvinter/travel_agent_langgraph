@@ -22,7 +22,7 @@ class PipelineEventManager:
 
     def create_run(self, run_id: str):
         """Initialise a queue and result slot for a new pipeline run."""
-        self._runs[run_id] = asyncio.Queue()
+        self._runs[run_id] = asyncio.Queue(maxsize=256)
         self._timestamps[run_id] = time.time()
         self._schedule_cleanup(run_id)
 

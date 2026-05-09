@@ -97,6 +97,7 @@ class AppState(BaseModel):
     poi_list: List[Dict[str, Any]] = []
     enrichment_context: Dict[str, Any] = {}
     model: str = "gemma4:26b-ctx128k"
+    output_dir: str = "output"
     output_config: OutputConfig = Field(default_factory=OutputConfig)
     photobook_images: List[ImageData] = []
     photobook_plan: Optional[Dict[str, Any]] = None

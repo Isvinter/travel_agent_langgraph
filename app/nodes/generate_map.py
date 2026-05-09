@@ -20,7 +20,7 @@ def _generate_map(
         print(f"⚠️ No GPX data for {display_name} generation.")
         return state
 
-    output_dir = "output"
+    output_dir = getattr(state, "output_dir", None) or "output"
     os.makedirs(output_dir, exist_ok=True)
 
     html_path = os.path.join(output_dir, html_name)

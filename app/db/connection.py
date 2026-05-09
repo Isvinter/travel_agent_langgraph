@@ -15,6 +15,13 @@ def _get_engine():
     if _engine is None:
         connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
         _engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=False)
+        if DATABASE_URL.startswith("sqlite"):
+            from sqlalchemy import event
+            @event.listens_for(_engine, "connect")
+            def _set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL;")
+                cursor.close()
         Base.metadata.create_all(_engine)
         _ensure_indexes()
     return _engine
