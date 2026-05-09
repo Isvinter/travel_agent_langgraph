@@ -4,7 +4,7 @@ from datetime import date, datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.db.models import Base, Article
+from app.db.models import Base
 from app.db.repository import ArticleFilters, ArticleRepository
 
 

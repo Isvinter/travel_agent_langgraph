@@ -15,7 +15,7 @@
 </script>
 
 <div class="length">
-  <label>Artikellänge</label>
+  <span class="section-label">Artikellänge</span>
   <div class="options">
     {#each options as opt}
       <label class="option">
@@ -41,7 +41,7 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-  label {
+  .section-label {
     font-size: 0.75rem;
     color: var(--text-muted);
     text-transform: uppercase;

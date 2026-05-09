@@ -2,7 +2,6 @@
 import json
 from unittest.mock import patch, Mock
 
-import pytest
 
 from app.services.content_reviewer import (
     review_enrichment,

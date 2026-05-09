@@ -288,7 +288,11 @@
 </div>
 
 {#if dialogOpen}
-  <div class="dialog-overlay" onclick={closeDialog}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="dialog-overlay" onclick={closeDialog} role="dialog" aria-modal="true" tabindex={-1} onkeydown={(e) => e.key === "Escape" && closeDialog()}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="dialog" onclick={(e: MouseEvent) => e.stopPropagation()}>
       <p>
         {dialogMode === "single"

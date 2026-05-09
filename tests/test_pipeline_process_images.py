@@ -1,5 +1,5 @@
 """Tests für app/pipeline/process_images.py — enrich_images_with_metadata."""
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from app.pipeline.process_images import enrich_images_with_metadata
 from app.state import AppState, ImageData
 

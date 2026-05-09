@@ -1,5 +1,4 @@
 """Tests for app/services/weather_enricher.py"""
-import json
 from unittest.mock import patch, Mock
 from datetime import datetime
 
@@ -12,7 +11,7 @@ from app.services.weather_enricher import (
     _aggregate_weather_results,
 )
 from app.services.gpx_analytics import TrackPoint
-from app.state import DailyWeather, WeatherInfo
+from app.state import WeatherInfo
 
 
 class TestBuildOpenMeteoUrl:

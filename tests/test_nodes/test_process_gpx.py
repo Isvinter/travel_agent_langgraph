@@ -1,5 +1,4 @@
 """Tests for app/nodes/process_gpx.py"""
-import pytest
 from app.nodes.process_gpx import process_gpx_node
 from app.state import AppState
 

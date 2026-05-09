@@ -1,6 +1,5 @@
 # tests/test_persist_service.py
 from datetime import datetime, date
-import os
 
 import pytest
 from sqlalchemy import create_engine

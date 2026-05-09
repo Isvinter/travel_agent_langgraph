@@ -1,7 +1,5 @@
 """Shared pytest fixtures for the travel agent test suite."""
 
-import os
-import tempfile
 from pathlib import Path
 from typing import List
 
@@ -80,13 +78,13 @@ def notes_dir_path() -> str:
 # ── API-Test-Fixtures mit temporärer Datenbank ──────────
 
 @pytest.fixture
-def _test_db(monkeypatch):
+def _test_db(monkeypatch, tmp_path):
     """Temporäre Test-Datenbank für API-Tests."""
     from app.db.models import Base
     import app.db.connection as conn_module
     import app.api.routes as routes_mod
 
-    tmp = tempfile.mktemp(suffix=".db")
+    tmp = str(tmp_path / "test.db")
     engine = create_engine(f"sqlite:///{tmp}", echo=False)
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine)
@@ -97,9 +95,6 @@ def _test_db(monkeypatch):
     monkeypatch.setattr(routes_mod, "get_session", factory)
 
     yield {"engine": engine, "factory": factory, "tmp": tmp}
-
-    if os.path.exists(tmp):
-        os.unlink(tmp)
 
 
 @pytest.fixture

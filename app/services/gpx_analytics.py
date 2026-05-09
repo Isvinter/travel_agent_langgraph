@@ -1,4 +1,5 @@
 import gpxpy
+from gpxpy.gpx import GPXXMLSyntaxException
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
@@ -24,8 +25,11 @@ class GPXStats(BaseModel):
 # 1. PARSING
 # ---------------------------
 def parse_gpx(gpx_track: str) -> List[TrackPoint]:
-    with open(gpx_track, "r", encoding="utf-8") as f:
-        gpx = gpxpy.parse(f)
+    try:
+        with open(gpx_track, "r", encoding="utf-8") as f:
+            gpx = gpxpy.parse(f)
+    except GPXXMLSyntaxException as e:
+        raise ValueError(f"Fehler beim Parsen der GPX-Datei: {e}") from e
 
     points: List[TrackPoint] = []
 
@@ -185,6 +189,21 @@ def detect_pauses(
                 pause_start_point = None
 
         prev_point = point
+
+    # Trailing pause: finalisieren, wenn am Track-Ende noch eine Pause läuft
+    if pause_start_time is not None and prev_point and prev_point.time:
+        duration_sec = (prev_point.time - pause_start_time).total_seconds()
+        duration_min = duration_sec / 60
+        if duration_min >= min_pause_minutes:
+            pauses.append({
+                "start_time": pause_start_time,
+                "end_time": prev_point.time,
+                "duration_minutes": round(duration_min, 2),
+                "location": {
+                    "lat": pause_start_point.lat,
+                    "lon": pause_start_point.lon,
+                },
+            })
 
     return pauses
 

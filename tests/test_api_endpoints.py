@@ -1,13 +1,11 @@
 """Tests for app/api/routes.py and app/api/events.py"""
-import json
 import os
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.server import create_app
-from app.api.events import event_manager, PipelineEventManager
+from app.api.events import PipelineEventManager
 
 
 @pytest.fixture
@@ -146,15 +144,13 @@ class TestEventManager:
 
 
 class TestArticlesList:
-    def test_list_empty_returns_empty_array(self, monkeypatch):
-        import os
-        import tempfile
+    def test_list_empty_returns_empty_array(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -180,10 +176,8 @@ class TestArticlesList:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
-    def test_list_with_filters(self, monkeypatch):
+    def test_list_with_filters(self, monkeypatch, tmp_path):
         """Testet GET /api/articles mit Filtern."""
-        import os
-        import tempfile
         from datetime import date as date_type, datetime as datetime_type
         from app.db import connection as conn_module
         from app.db.models import Base
@@ -191,7 +185,7 @@ class TestArticlesList:
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -239,16 +233,14 @@ class TestArticlesList:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
-    def test_list_no_filters_returns_all(self, monkeypatch):
-        import os
-        import tempfile
+    def test_list_no_filters_returns_all(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.repository import ArticleRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -284,16 +276,14 @@ class TestArticlesList:
 
 
 class TestArticleDetail:
-    def test_get_by_valid_id(self, monkeypatch):
-        import os
-        import tempfile
+    def test_get_by_valid_id(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.repository import ArticleRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -345,16 +335,14 @@ class TestArticleDetail:
 
 
 class TestArticleDelete:
-    def test_delete_existing_article(self, monkeypatch):
-        import os
-        import tempfile
+    def test_delete_existing_article(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.repository import ArticleRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -402,11 +390,9 @@ class TestArticlePdf:
         response = client.get("/api/articles/99999/pdf")
         assert response.status_code == 404
 
-    def test_pdf_endpoint_with_valid_article(self, monkeypatch):
+    def test_pdf_endpoint_with_valid_article(self, monkeypatch, tmp_path):
         """Testet, dass der Endpunkt einen 200-Status und application/pdf liefert.
         Achtung: Mockt die PDF-Generierung, da Chrome im Test nicht verfügbar ist."""
-        import os
-        import tempfile
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.repository import ArticleRepository
@@ -414,7 +400,7 @@ class TestArticlePdf:
         from sqlalchemy.orm import Session, sessionmaker as sm
         from unittest.mock import patch
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -459,16 +445,14 @@ class TestArticlePdf:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
-    def test_pdf_endpoint_with_no_html_content(self, monkeypatch):
-        import os
-        import tempfile
+    def test_pdf_endpoint_with_no_html_content(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.repository import ArticleRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -503,15 +487,13 @@ class TestArticlePdf:
 
 
 class TestPhotobooksList:
-    def test_list_empty_returns_empty_array(self, monkeypatch):
-        import os
-        import tempfile
+    def test_list_empty_returns_empty_array(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -537,9 +519,7 @@ class TestPhotobooksList:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
-    def test_list_with_filters(self, monkeypatch):
-        import os
-        import tempfile
+    def test_list_with_filters(self, monkeypatch, tmp_path):
         from datetime import date as date_type, datetime as datetime_type
         from app.db import connection as conn_module
         from app.db.models import Base
@@ -547,7 +527,7 @@ class TestPhotobooksList:
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -596,16 +576,14 @@ class TestPhotobooksList:
 
 
 class TestPhotobookDetail:
-    def test_get_by_valid_id(self, monkeypatch):
-        import os
-        import tempfile
+    def test_get_by_valid_id(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.photobook_repository import PhotobookRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -655,16 +633,14 @@ class TestPhotobookDetail:
 
 
 class TestPhotobookDelete:
-    def test_delete_existing(self, monkeypatch):
-        import os
-        import tempfile
+    def test_delete_existing(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.photobook_repository import PhotobookRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -712,8 +688,6 @@ class TestPhotobookPdf:
         assert response.status_code == 404
 
     def test_pdf_endpoint_with_valid_photobook(self, monkeypatch, tmp_path):
-        import os
-        import tempfile
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.photobook_repository import PhotobookRepository
@@ -723,7 +697,7 @@ class TestPhotobookPdf:
         pdf_file = tmp_path / "test.pdf"
         pdf_file.write_bytes(b"%PDF-1.4 mock")
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)
@@ -761,16 +735,14 @@ class TestPhotobookPdf:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
-    def test_pdf_endpoint_with_no_pdf_returns_400(self, monkeypatch):
-        import os
-        import tempfile
+    def test_pdf_endpoint_with_no_pdf_returns_400(self, monkeypatch, tmp_path):
         from app.db import connection as conn_module
         from app.db.models import Base
         from app.db.photobook_repository import PhotobookRepository
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = tempfile.mktemp(suffix=".db")
+        tmp = str(tmp_path / "test.db")
         try:
             engine = create_engine(f"sqlite:///{tmp}", echo=False)
             Base.metadata.create_all(engine)

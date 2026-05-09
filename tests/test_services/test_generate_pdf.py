@@ -1,5 +1,4 @@
 """Tests for app/services/generate_pdf.py"""
-import pytest
 
 
 class TestRewriteImagePaths:

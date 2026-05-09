@@ -22,7 +22,7 @@
 </script>
 
 <div class="style">
-  <label>Schreibstil</label>
+  <span class="section-label">Schreibstil</span>
   <div class="options">
     {#each options as opt}
       <label class="option">
@@ -48,7 +48,7 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-  label {
+  .section-label {
     font-size: 0.75rem;
     color: var(--text-muted);
     text-transform: uppercase;

@@ -1,5 +1,4 @@
 """Tests for app/services/design_blogpost.py (template-based redesign)."""
-import pytest
 
 from app.services.design_blogpost import (
     _extract_title,

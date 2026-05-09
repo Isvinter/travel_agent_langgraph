@@ -57,6 +57,23 @@ def create_app() -> FastAPI:
                 )
         return await call_next(request)
 
+    # Security-Headers Middleware
+    @app.middleware("http")
+    async def security_headers_middleware(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "0"
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), "
+            "gyroscope=(), magnetometer=(), microphone=(), "
+            "payment=(), usb=()"
+        )
+        if request.url.scheme == "https" or request.headers.get("X-Forwarded-Proto") == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
     app.include_router(router)
 
     # In production, serve the built Svelte frontend

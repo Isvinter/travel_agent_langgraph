@@ -1,9 +1,8 @@
 """Tests für app/db/connection.py"""
 import importlib
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 from sqlalchemy.engine import Engine
 
 

@@ -290,14 +290,15 @@
     <div class="draft-body">
       <!-- LINKS: Artikel -->
       <div class="article-preview">
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="article-content"
-          onclick={handleBlockClick}
-          role="region"
-          aria-label="Artikelvorschau"
-        >
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="article-content"
+        onclick={handleBlockClick}
+        role="region"
+        aria-label="Artikelvorschau"
+      >
           {@html sanitize(getRenderedHtml())}
         </div>
       </div>
@@ -361,7 +362,7 @@
 {#if showDeleteConfirm}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="dialog-overlay" onclick={() => showDeleteConfirm = false} role="dialog" aria-modal="true">
+  <div class="dialog-overlay" onclick={() => showDeleteConfirm = false} role="dialog" aria-modal="true" tabindex={-1}>
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="dialog-box" onclick={(e: MouseEvent) => e.stopPropagation()}>

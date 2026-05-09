@@ -1,5 +1,6 @@
 """FastAPI route definitions for the travel agent pipeline API."""
 import asyncio
+import logging
 import os
 import uuid
 from datetime import date, datetime
@@ -13,6 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.api.events import event_manager
 from app.state import AVAILABLE_MODELS, OutputConfig
+from app.utils.html_sanitizer import sanitize_html
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository, ArticleFilters
 from app.db.models import Article
@@ -37,9 +39,6 @@ def _article_to_summary(a: Article) -> dict:
         "model_used": a.model_used,
         "notes": a.notes,
     }
-
-
-from app.utils.html_sanitizer import sanitize_html
 
 
 def _rewrite_html_content(html_content: str | None, article_id: int) -> str | None:
@@ -196,6 +195,13 @@ async def get_models():
 
 # ── File Management ───────────────────────────────────
 
+ALLOWED_EXTENSIONS = {
+    ".gpx", ".txt", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif",
+    ".csv", ".json", ".md",
+}
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
+
+
 @router.post("/files/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -207,10 +213,23 @@ async def upload_file(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Dateityp {ext} nicht erlaubt. Erlaubt: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Datei zu gross ({len(content) / (1024*1024):.1f} MB). Maximum: {MAX_UPLOAD_SIZE / (1024*1024):.0f} MB",
+        )
+
     session_dir = _get_session_dir(session_id)
     file_path = _safe_join(session_dir, file.filename)
     with open(file_path, "wb") as f:
-        content = await file.read()
         f.write(content)
 
     return {"filename": file.filename, "path": str(file_path.absolute())}

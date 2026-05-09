@@ -1,6 +1,5 @@
 """Edge-Case-Tests für den Metadata Extractor."""
 import io
-import struct
 
 import pytest
 from PIL import Image

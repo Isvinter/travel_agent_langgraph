@@ -1,5 +1,4 @@
 """Tests for app/services/image_selector.py"""
-import pytest
 from app.services.image_selector import _parse_selection, select_images_for_blog
 
 

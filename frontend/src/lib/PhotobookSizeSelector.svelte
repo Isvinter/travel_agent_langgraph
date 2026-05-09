@@ -21,7 +21,7 @@
 </script>
 
 <div class="size">
-  <label>Umfang</label>
+  <span class="section-label">Umfang</span>
   <div class="options-compact">
     {#each options as opt}
       <label class="option-compact">
@@ -47,7 +47,7 @@
     flex-direction: column;
     gap: 0.4rem;
   }
-  label:first-child {
+  .section-label {
     font-size: 0.7rem;
     color: var(--text-muted);
     text-transform: uppercase;

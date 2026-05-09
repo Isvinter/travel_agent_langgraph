@@ -1,5 +1,4 @@
 """Minimal test to verify conftest.py fixtures work before building full test suite."""
-import pytest
 from pathlib import Path
 
 

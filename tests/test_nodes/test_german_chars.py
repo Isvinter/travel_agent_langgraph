@@ -1,7 +1,7 @@
 """Tests für Umlaute und Sonderzeichen in verschiedenen Pipeline-Komponenten."""
 from datetime import datetime
 
-from app.state import AppState, ImageData, WeatherInfo
+from app.state import AppState, ImageData
 from app.services.gpx_analytics import GPXStats, TrackPoint
 
 
