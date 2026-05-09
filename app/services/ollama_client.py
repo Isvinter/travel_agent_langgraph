@@ -4,12 +4,15 @@ Verwendet von: blog_generator, content_reviewer, revise_blogpost, image_selector
 sowie photobook/plan, photobook/generate, photobook/image_selector.
 """
 
+import logging
 import re
 from typing import Optional
 
 import requests
 
 from app.config import OLLAMA_BASE_URL
+
+logger = logging.getLogger(__name__)
 
 _session = requests.Session()
 _session.headers.update({"User-Agent": "travel-agent/1.0"})
@@ -84,17 +87,17 @@ def call_ollama(
     try:
         resp = _session.post(url, json=payload, timeout=timeout)
     except requests.exceptions.ConnectionError:
-        print(f"❌ Could not connect to Ollama at {base_url}")
+        logger.error("Could not connect to Ollama at %s", base_url)
         return None
     except requests.exceptions.Timeout:
-        print(f"❌ Ollama request timed out after {timeout}s")
+        logger.error("Ollama request timed out after %ss", timeout)
         return None
     except Exception as e:
-        print(f"❌ Ollama request failed: {e}")
+        logger.error("Ollama request failed: %s", e)
         return None
 
     if resp.status_code != 200:
-        print(f"❌ Ollama returned HTTP {resp.status_code}: {resp.text[:500]}")
+        logger.error("Ollama returned HTTP %s: %s", resp.status_code, resp.text[:500])
         return None
 
     content = resp.json().get("message", {}).get("content", "")

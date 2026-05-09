@@ -1,7 +1,11 @@
 # app/nodes/save_draft.py
 """Node: Speichert den generierten Blogpost als Draft in der Datenbank."""
+import logging
+
 from app.state import AppState
 from app.services.persist_article import persist_article
+
+logger = logging.getLogger(__name__)
 
 
 def save_draft_node(state: AppState) -> AppState:
@@ -24,6 +28,6 @@ def save_draft_node(state: AppState) -> AppState:
         if article_id:
             state.metadata["article_id"] = article_id
     except Exception as e:
-        print(f"❌ Draft-Persistierung fehlgeschlagen: {e}")
+        logger.error("Draft-Persistierung fehlgeschlagen: %s", e)
 
     return state

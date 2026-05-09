@@ -378,9 +378,9 @@ async def _run_pipeline_in_background(
                         combined_notes = f.read()
                     emit_fn("load_tour_notes", "info", f"Notizen aus {os.path.basename(txt_file)} geladen")
                 except Exception as e:
-                    print(f"⚠️  Konnte txt_file nicht lesen: {e}")
+                    logging.getLogger("api").warning("Konnte txt_file nicht lesen: %s", e)
             else:
-                print(f"⚠️  txt_file nicht gefunden: {txt_file}")
+                logging.getLogger("api").warning("txt_file nicht gefunden: %s", txt_file)
 
         # Fotobuch-Konfiguration aus Grössenstufe ableiten
         from app.state import apply_photobook_size
@@ -563,7 +563,7 @@ async def delete_article(article_id: int):
             try:
                 shutil.rmtree(output_dir)
             except OSError as e:
-                print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+                logging.getLogger("api").warning("Konnte Output-Verzeichnis nicht löschen: %s", e)
 
         return {"deleted": article_id}
     finally:
@@ -601,7 +601,7 @@ async def delete_articles_batch(body: DeleteBatchRequest):
                 try:
                     shutil.rmtree(d)
                 except OSError as e:
-                    print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+                    logging.getLogger("api").warning("Konnte Output-Verzeichnis nicht löschen: %s", e)
 
         return {"deleted": deleted}
     finally:
@@ -851,7 +851,7 @@ async def delete_photobook(photobook_id: int):
             try:
                 shutil.rmtree(output_dir)
             except OSError as e:
-                print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+                logging.getLogger("api").warning("Konnte Output-Verzeichnis nicht löschen: %s", e)
 
         return {"deleted": photobook_id}
     finally:
@@ -883,7 +883,7 @@ async def delete_photobooks_batch(body: DeleteBatchRequest):
                 try:
                     shutil.rmtree(d)
                 except OSError as e:
-                    print(f"⚠️ Konnte Output-Verzeichnis nicht löschen: {e}")
+                    logging.getLogger("api").warning("Konnte Output-Verzeichnis nicht löschen: %s", e)
 
         return {"deleted": deleted}
     finally:

@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -7,37 +8,39 @@ from app.photobook.validator import validate_all_pages
 from app.utils.image_utils import compress_image_to_jpeg
 from app.config import OUTPUT_DIR
 
+logger = logging.getLogger(__name__)
+
 
 def render_photobook_node(state: AppState) -> AppState:
-    print("🖨️ Rendere Fotobuch als HTML...")
+    logger.info("Rendere Fotobuch als HTML...")
     if not state.photobook_pages:
-        print("⚠️ Keine Seiten zum Rendern vorhanden.")
+        logger.warning("Keine Seiten zum Rendern vorhanden.")
         return state
 
     # --- Debug: zeige Seiten vor Validierung ---
-    print(f"  Seiten vor Validierung: {len(state.photobook_pages)}")
+    logger.info("Seiten vor Validierung: %s", len(state.photobook_pages))
     for i, p in enumerate(state.photobook_pages):
         text_slots = [s for s in p.slots if "text" in s]
         title_slot = next((s for s in p.slots if s.get("slot_id") == "title"), None)
         caption_slots = [s for s in p.slots if s.get("slot_id") != "title" and "text" in s]
-        print(f"  Seite {i+1} ({p.template_id}): title={title_slot.get('text','')[:40] if title_slot else 'NONE'}, {len(caption_slots)} caption(s)")
+        logger.info("Seite %s (%s): title=%s, %s caption(s)", i+1, p.template_id, title_slot.get('text','')[:40] if title_slot else 'NONE', len(caption_slots))
 
     validated_pages, warnings = validate_all_pages(state.photobook_pages)
     # Unterdrücke kosmetische "existiert nicht" Warnungen — enforce_fallback handled das
     real_warnings = [w for w in warnings if "existiert nicht im Preset" not in w]
     if real_warnings:
         for w in real_warnings:
-            print(f"⚠️ Validator: {w}")
+            logger.warning("Validator: %s", w)
 
     # --- Debug: zeige Seiten nach Validierung ---
-    print(f"  Seiten nach Validierung: {len(validated_pages)}")
+    logger.info("Seiten nach Validierung: %s", len(validated_pages))
     for i, p in enumerate(validated_pages):
         text_slots = [s for s in p.slots if "text" in s]
         title_slot = next((s for s in p.slots if s.get("slot_id") == "title"), None)
         caption_slots = [s for s in p.slots if s.get("slot_id") != "title" and "text" in s]
-        print(f"  Seite {i+1} ({p.template_id}): title={title_slot.get('text','')[:40] if title_slot else 'NONE'}, {len(caption_slots)} caption(s)")
+        logger.info("Seite %s (%s): title=%s, %s caption(s)", i+1, p.template_id, title_slot.get('text','')[:40] if title_slot else 'NONE', len(caption_slots))
         for cs in caption_slots:
-            print(f"    {cs.get('slot_id')}: '{cs.get('text','')[:60]}'")
+            logger.info("  %s: '%s'", cs.get('slot_id'), cs.get('text','')[:60])
 
     state.photobook_pages = validated_pages
 
@@ -52,7 +55,7 @@ def render_photobook_node(state: AppState) -> AppState:
     for idx, img in enumerate(state.photobook_images):
         orig = img.path
         if not orig or not os.path.isfile(orig):
-            print(f"⚠️ Bild nicht gefunden, überspringe: {orig}")
+            logger.warning("Bild nicht gefunden, überspringe: %s", orig)
             compressed_images.append(img)
             continue
 
@@ -68,9 +71,9 @@ def render_photobook_node(state: AppState) -> AppState:
                 latitude=img.latitude,
                 longitude=img.longitude,
             ))
-            print(f"  ✅ Bild {idx + 1}/{len(state.photobook_images)} komprimiert: {out_name}")
+            logger.info("Bild %s/%s komprimiert: %s", idx + 1, len(state.photobook_images), out_name)
         else:
-            print(f"  ⚠️ Kompression fehlgeschlagen für {orig}, verwende Original")
+            logger.warning("Kompression fehlgeschlagen für %s, verwende Original", orig)
             compressed_images.append(img)
 
     # --- Status updaten mit komprimierten Bildpfaden ---
@@ -88,8 +91,8 @@ def render_photobook_node(state: AppState) -> AppState:
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html)
         state.photobook_html_path = str(html_path)
-        print(f"✅ Fotobuch-HTML gerendert ({len(html)} Zeichen).")
-        print(f"📄 HTML gespeichert: {html_path}")
+        logger.info("Fotobuch-HTML gerendert (%s Zeichen).", len(html))
+        logger.info("HTML gespeichert: %s", html_path)
     except Exception as e:
-        print(f"❌ Fehler beim Rendern: {e}")
+        logger.error("Fehler beim Rendern: %s", e)
     return state

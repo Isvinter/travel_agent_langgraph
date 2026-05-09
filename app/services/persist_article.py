@@ -1,5 +1,6 @@
 # app/services/persist_article.py
 """Service zum Persistieren generierter Blogposts in der Datenbank."""
+import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -7,6 +8,8 @@ from app.db.connection import get_session
 from app.db.repository import ArticleRepository
 from app.utils.html_sanitizer import sanitize_html
 from app.utils.tour_metadata import compute_tour_date_and_duration, build_tour_stats
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_title(markdown: str) -> Optional[str]:
@@ -94,5 +97,5 @@ def persist_article(
         finally:
             session.close()
     except Exception as e:
-        print(f"❌ Fehler beim Persistieren des Artikels: {e}")
+        logger.error("Fehler beim Persistieren des Artikels: %s", e)
         return None

@@ -1,6 +1,10 @@
 # app/nodes/review_content_node.py
+import logging
+
 from app.state import AppState
 from app.services.content_reviewer import review_enrichment
+
+logger = logging.getLogger(__name__)
 
 
 def review_content_node(state: AppState) -> AppState:
@@ -9,7 +13,7 @@ def review_content_node(state: AppState) -> AppState:
     Filtert zudem überzählige Bilder anhand der LLM-Qualitätsbewertung
     auf maximal wildcard_max (≥33% der oversampled Bilder werden verworfen).
     """
-    print("🔍 Running content quality review...")
+    logger.info("Running content quality review...")
 
     try:
         ctx = review_enrichment(
@@ -21,7 +25,7 @@ def review_content_node(state: AppState) -> AppState:
             model=state.model,
         )
     except Exception as e:
-        print(f"❌ Content review failed: {e} — skipping review")
+        logger.error("Content review failed: %s — skipping review", e)
         ctx = {"filtered_images": state.selected_images, "coherence_score": 0}
 
     # Auf wildcard_max kappen — die ≥33% Discard-Quote ist automatisch
@@ -34,6 +38,6 @@ def review_content_node(state: AppState) -> AppState:
 
     score = ctx.get("coherence_score", 0)
     discarded = before - after
-    print(f"✅ Content review complete (coherence: {score}/10, images: {after} kept, {discarded} discarded)")
+    logger.info("Content review complete (coherence: %s/10, images: %s kept, %s discarded)", score, after, discarded)
 
     return state

@@ -5,6 +5,7 @@ visuelle Varianz und narrative Verwendbarkeit.
 Verarbeitet Bilder in Batches (gleicher Ansatz wie Blog-Selector).
 """
 
+import logging
 import math
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
@@ -13,6 +14,8 @@ from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData
 from app.utils.image_utils import encode_image_base64
 from app.services.image_selector import _parse_selection
+
+logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 15  # Gleiche Batch-Grösse wie Blog-Selector
 
@@ -105,7 +108,7 @@ def select_photobook_images(
     num_batches = math.ceil(len(images) / BATCH_SIZE)
     per_batch = math.ceil(target / num_batches)
 
-    print(f"📸 Wähle {target} Bilder aus {len(images)} in {num_batches} Batches...")
+    logger.info("Wähle %s Bilder aus %s in %s Batches...", target, len(images), num_batches)
 
     # Step 1: Per-Batch-Auswahl
     all_indices = []
@@ -126,9 +129,9 @@ def select_photobook_images(
 
     if len(selected) <= target:
         if len(selected) < max(5, target // 2):
-            print(f"⚠️ Nur {len(selected)} via LLM, verwende chronologische Reihenfolge")
+            logger.warning("Nur %s via LLM, verwende chronologische Reihenfolge", len(selected))
             return list(images)[:target]
-        print(f"✅ {len(selected)} Bilder ausgewählt")
+        logger.info("%s Bilder ausgewählt", len(selected))
         return selected[:target]
 
     # Step 2: Finale Reduktion auf target
@@ -137,5 +140,5 @@ def select_photobook_images(
     if len(final) < max(5, target // 2):
         final = selected[:target]
 
-    print(f"✅ {len(final)} Bilder ausgewählt")
+    logger.info("%s Bilder ausgewählt", len(final))
     return final[:target]

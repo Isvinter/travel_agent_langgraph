@@ -1,5 +1,9 @@
+import logging
+
 from app.state import AppState
 from app.services.design_blogpost import design_blogpost_service
+
+logger = logging.getLogger(__name__)
 
 
 def design_blogpost_node(state: AppState) -> AppState:
@@ -12,15 +16,15 @@ def design_blogpost_node(state: AppState) -> AppState:
 
     Best-Effort: Bei Fehlern bleibt das Original-HTML erhalten.
     """
-    print("🎨 Applying design styling to blog HTML...")
+    logger.info("Applying design styling to blog HTML...")
 
     if not state.blog_post or not state.blog_post.get("success"):
-        print("⚠️  Design: Kein erfolgreicher Blog-Post — überspringe")
+        logger.warning("Design: Kein erfolgreicher Blog-Post — überspringe")
         return state
 
     html = state.blog_post.get("html", "")
     if not html:
-        print("⚠️  Design: Kein HTML-Inhalt — überspringe")
+        logger.warning("Design: Kein HTML-Inhalt — überspringe")
         return state
 
     try:
@@ -36,13 +40,13 @@ def design_blogpost_node(state: AppState) -> AppState:
                 try:
                     with open(html_path, "w", encoding="utf-8") as f:
                         f.write(styled)
-                    print(f"💾 Styled HTML written to: {html_path}")
+                    logger.info("Styled HTML written to: %s", html_path)
                 except Exception as e:
-                    print(f"⚠️  Design: Could not write styled HTML file: {e}")
-            print("✅ Design styling applied successfully")
+                    logger.warning("Design: Could not write styled HTML file: %s", e)
+            logger.info("Design styling applied successfully")
         else:
-            print("⚠️  Design: Styling failed — Original-HTML bleibt erhalten")
+            logger.warning("Design: Styling failed — Original-HTML bleibt erhalten")
     except Exception as e:
-        print(f"⚠️  Design: Error during styling: {e} — Original-HTML bleibt erhalten")
+        logger.warning("Design: Error during styling: %s — Original-HTML bleibt erhalten", e)
 
     return state

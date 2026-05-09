@@ -5,6 +5,7 @@ Variety-Regeln im Prompt sorgen für Abwechslung.
 """
 
 import json
+import logging
 import re
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
@@ -12,6 +13,8 @@ from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData, WeatherInfo
 from app.utils.image_utils import encode_image_base64
 from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookPreset, get_photobook_preset
+
+logger = logging.getLogger(__name__)
 
 
 def _build_plan_prompt(
@@ -178,7 +181,7 @@ def plan_photobook_layout(
                     if _all_images_used(plan, len(images)):
                         return plan
                     else:
-                        print("⚠️ LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
+                        logger.warning("LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
     except Exception as e:
-        print(f"⚠️ Pass 1 (Planung) fehlgeschlagen: {e}")
+        logger.warning("Pass 1 (Planung) fehlgeschlagen: %s", e)
     return _generate_fallback_plan(images, len(images))

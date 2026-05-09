@@ -1,6 +1,7 @@
 """LLM Pass 2: Slot-Zuweisung + Text innerhalb von Preset-Constraints."""
 
 import json
+import logging
 import re
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
@@ -10,6 +11,8 @@ from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_constraint_summary, get_any_preset, get_photobook_preset
 from app.photobook.presets import PhotobookPreset
 from app.utils.image_utils import encode_image_base64
+
+logger = logging.getLogger(__name__)
 
 
 def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
@@ -131,17 +134,17 @@ def generate_photobook_pages(
         if content:
             content = strip_thinking_tokens(content)
             # Debug: zeige LLM-Antwort (Anfang)
-            print(f"  → LLM Antwort: {len(content)} Zeichen")
-            print(f"    Anfang: {content[:200]}...")
+            logger.info("LLM Antwort: %s Zeichen", len(content))
+            logger.info("Anfang: %s...", content[:200])
             array_match = re.search(r'\[.*\]', content, re.DOTALL)
             if not array_match:
-                print("    ⚠️ Kein JSON-Array in LLM-Antwort gefunden!")
+                logger.warning("Kein JSON-Array in LLM-Antwort gefunden!")
             else:
                 raw_json = array_match.group()
                 try:
                     pages_data = json.loads(raw_json)
                 except json.JSONDecodeError as je:
-                    print(f"  ⚠️ JSON-Parse-Fehler: {je}. Versuche Recovery...")
+                    logger.warning("JSON-Parse-Fehler: %s. Versuche Recovery...", je)
                     # Versuche, das JSON zu reparieren: schneide beim Fehler ab
                     # und versuche, mit dem bis dahin gültigen Teil zu arbeiten
                     error_pos = je.pos
@@ -153,7 +156,7 @@ def generate_photobook_pages(
                         partial = truncated[:last_close + 2] + ']'
                         try:
                             pages_data = json.loads(partial)
-                            print(f"  → Recovery: {len(pages_data)} von {len(raw_json)} Zeichen verwendet")
+                            logger.info("Recovery: %s von %s Zeichen verwendet", len(pages_data), len(raw_json))
                         except json.JSONDecodeError:
                             # Nochmal mit nur einem schließenden }
                             last_obj = truncated.rfind('},')
@@ -161,19 +164,19 @@ def generate_photobook_pages(
                                 partial = truncated[:last_obj + 1] + ']'
                                 try:
                                     pages_data = json.loads(partial)
-                                    print(f"  → Recovery (2): {len(pages_data)} von {len(raw_json)} Zeichen verwendet")
+                                    logger.info("Recovery (2): %s von %s Zeichen verwendet", len(pages_data), len(raw_json))
                                 except json.JSONDecodeError:
-                                    print("  → Recovery fehlgeschlagen, verwende Fallback")
+                                    logger.warning("Recovery fehlgeschlagen, verwende Fallback")
                                     pages_data = None
                     else:
-                        print("  → Recovery fehlgeschlagen, verwende Fallback")
+                        logger.warning("Recovery fehlgeschlagen, verwende Fallback")
                         pages_data = None
                 
                 if pages_data:
                     # Debug: zeige wie viele Text-Slots das LLM gefuellt hat
                     text_slots = sum(1 for pd in pages_data for s in pd.get("slots", []) if "text" in s)
                     total_pages = len(pages_data)
-                    print(f"  → LLM hat {text_slots} Text-Slots gefüllt (von {total_pages} Seiten)")
+                    logger.info("LLM hat %s Text-Slots gefüllt (von %s Seiten)", text_slots, total_pages)
                     text_samples = [
                         (pd.get("preset_id","?"), s.get("slot_id","?"), s.get("text","")[:40])
                         for pd in pages_data
@@ -182,9 +185,9 @@ def generate_photobook_pages(
                     ]
                     if text_samples:
                         for pid, sid, t in text_samples[:5]:
-                            print(f"    {pid}/{sid}: \"{t}...\"")
+                            logger.info("  %s/%s: \"%s...\"", pid, sid, t)
                     elif total_pages > 0:
-                        print("    ⚠️ LLM hat KEINE Text-Inhalte generiert!")
+                        logger.warning("LLM hat KEINE Text-Inhalte generiert!")
                     result = []
                     for pd in pages_data:
                         valid_slots = []
@@ -215,7 +218,7 @@ def generate_photobook_pages(
                     if result:
                         return result
     except Exception as e:
-        print(f"⚠️ Pass 2 (Generierung) fehlgeschlagen: {e}")
+        logger.warning("Pass 2 (Generierung) fehlgeschlagen: %s", e)
 
     # Fallback: verwende das im Plan gewählte Preset mit einfacher Slot-Zuweisung
     return _generate_fallback_pages(pages_plan, images)

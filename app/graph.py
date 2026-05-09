@@ -1,3 +1,4 @@
+import logging
 from typing import Callable, Optional
 from langgraph.graph import StateGraph, END
 from app.state import AppState, AVAILABLE_MODELS
@@ -53,6 +54,9 @@ NODE_NAMES = {
 }
 
 
+logger = logging.getLogger(__name__)
+
+
 def _wrap_node(node_fn, node_name: str, emitter: Optional[EventEmitter]):
     """Wrap a pipeline node with progress event emission."""
     display_name = NODE_NAMES.get(node_name, node_name)
@@ -81,10 +85,10 @@ def _add_wrapped(builder: StateGraph, name: str, fn: Callable, emitter: Optional
 
 def select_model() -> str:
     """Interaktive Model-Auswahl am Workflow-Start."""
-    print("\nVerfügbare Ollama-Modelle:")
+    logger.info("Verfügbare Ollama-Modelle:")
     for i, m in enumerate(AVAILABLE_MODELS, 1):
-        print(f"  {i}. {m}")
-    print(f"  {len(AVAILABLE_MODELS) + 1}. (sonstiges)")
+        logger.info("  %s. %s", i, m)
+    logger.info("  %s. (sonstiges)", len(AVAILABLE_MODELS) + 1)
     while True:
         choice = input("\nModel wählen (1-3, oder 4 für eigenes Modell): ").strip()
         if choice.isdigit() and 1 <= int(choice) <= len(AVAILABLE_MODELS):
@@ -93,14 +97,14 @@ def select_model() -> str:
             model = input("Eigenes Modell eingeben: ").strip()
             if model:
                 return model
-        print("Ungültige Auswahl, bitte versuche es erneut.")
+        logger.info("Ungültige Auswahl, bitte versuche es erneut.")
 
 
 def run_pipeline():
     """Build und ausfuhren des Workflows mit interaktiver Model-Auswahl."""
     state = AppState()
     state.model = select_model()
-    print(f"\nSelected model: {state.model}")
+    logger.info("Selected model: %s", state.model)
     graph = build_graph()
     result = graph.invoke(state)
     if isinstance(result, dict):

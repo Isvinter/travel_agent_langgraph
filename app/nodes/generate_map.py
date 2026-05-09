@@ -1,9 +1,12 @@
 # app/nodes/generate_map.py
 
+import logging
 from typing import Callable
 from app.state import AppState
 from app.services.generate_mapimage import generate_map_html, html_to_png
 import os
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_map(
@@ -17,7 +20,7 @@ def _generate_map(
 ) -> AppState:
     """Generischer Helper: generiert HTML, konvertiert zu PNG, speichert im State."""
     if state.gpx_stats is None or not state.gpx_stats.points:
-        print(f"⚠️ No GPX data for {display_name} generation.")
+        logger.warning("No GPX data for %s generation.", display_name)
         return state
 
     output_dir = getattr(state, "output_dir", None) or "output"
@@ -30,9 +33,9 @@ def _generate_map(
         html_gen_fn(output_html=html_path, **html_kwargs)
         html_to_png(html_path, png_path)
         state.metadata[state_key] = png_path
-        print(f"🗺️  {display_name}: {png_path}")
+        logger.info("%s: %s", display_name, png_path)
     except Exception as e:
-        print(f"❌ {display_name} failed: {e} — continuing")
+        logger.error("%s failed: %s — continuing", display_name, e)
 
     return state
 

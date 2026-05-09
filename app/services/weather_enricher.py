@@ -6,6 +6,7 @@ Ermittelt historisches Wetter für die GPX-Track-Koordinaten und den Zeitraum.
 Schätzt die 0°C-Grenze aus Höhendaten und Temperatur (Lapse-Rate 6.5°C/km).
 """
 
+import logging
 from typing import List, Optional, Dict, Any
 
 import requests
@@ -15,6 +16,8 @@ _session.headers.update({"User-Agent": "travel-agent/1.0"})
 
 from app.services.gpx_analytics import TrackPoint
 from app.state import DailyWeather, WeatherInfo
+
+logger = logging.getLogger(__name__)
 
 
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -132,7 +135,7 @@ def fetch_historical_weather(
     # Zeitraum aus Track-Punkten extrahieren
     timed_points = [p for p in track_points if p.time is not None]
     if not timed_points:
-        print("⚠️ Keine Zeitstempel in Track-Punkten — Wetter nicht abrufbar")
+        logger.warning("Keine Zeitstempel in Track-Punkten — Wetter nicht abrufbar")
         return None
 
     start_time = timed_points[0].time
@@ -154,7 +157,7 @@ def fetch_historical_weather(
             coords.add((round(lat, 2), round(lon, 2)))
 
     if not coords:
-        print("⚠️ Keine gültigen Koordinaten — Wetter nicht abrufbar")
+        logger.warning("Keine gültigen Koordinaten — Wetter nicht abrufbar")
         return None
 
     # Auf maximal N Punkte reduzieren
@@ -176,13 +179,13 @@ def fetch_historical_weather(
                 if "daily" in data:
                     daily_data.append(data["daily"])
             else:
-                print(f"⚠️ Open-Meteo antwortete mit {resp.status_code} für ({lat}, {lon})")
+                logger.warning("Open-Meteo antwortete mit %s für (%s, %s)", resp.status_code, lat, lon)
         except Exception as e:
-            print(f"⚠️ Open-Meteo nicht erreichbar für ({lat}, {lon}): {e}")
+            logger.warning("Open-Meteo nicht erreichbar für (%s, %s): %s", lat, lon, e)
             continue
 
     if not daily_data:
-        print("⚠️ Keine Wetterdaten von Open-Meteo erhalten")
+        logger.warning("Keine Wetterdaten von Open-Meteo erhalten")
         return None
 
     dates = daily_data[0].get("time", [])

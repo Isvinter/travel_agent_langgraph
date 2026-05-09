@@ -1,14 +1,17 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 from app.state import AppState
 from app.photobook.generate_pdf import generate_photobook_pdf
 from app.config import OUTPUT_DIR
 
+logger = logging.getLogger(__name__)
+
 
 def generate_photobook_pdf_node(state: AppState) -> AppState:
-    print("📄 Erzeuge Fotobuch-PDF...")
+    logger.info("Erzeuge Fotobuch-PDF...")
     if not state.photobook_html:
-        print("⚠️ Kein HTML zum PDF-Export vorhanden.")
+        logger.warning("Kein HTML zum PDF-Export vorhanden.")
         return state
     try:
         pdf_bytes = generate_photobook_pdf(state.photobook_html)
@@ -19,7 +22,7 @@ def generate_photobook_pdf_node(state: AppState) -> AppState:
         with open(pdf_path, "wb") as f:
             f.write(pdf_bytes)
         state.photobook_pdf_path = str(pdf_path)
-        print(f"✅ PDF gespeichert: {pdf_path} ({len(pdf_bytes)} Bytes)")
+        logger.info("PDF gespeichert: %s (%s Bytes)", pdf_path, len(pdf_bytes))
     except Exception as e:
-        print(f"❌ Fehler bei PDF-Generierung: {e}")
+        logger.error("Fehler bei PDF-Generierung: %s", e)
     return state

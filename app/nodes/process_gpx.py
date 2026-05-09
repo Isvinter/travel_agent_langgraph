@@ -1,3 +1,4 @@
+import logging
 import os
 
 from app.config import OUTPUT_DIR
@@ -5,38 +6,40 @@ from app.services.gpx_analytics import analyze_track
 from app.services.generate_elevation_profile import generate_elevation_profile
 from app.state import AppState
 
+logger = logging.getLogger(__name__)
+
 
 def process_gpx_node(state: AppState) -> AppState:
     """Process GPX file using existing services."""
 
     gpx_file = state.gpx_file
-    print(f"DEBUG: GPX file = {gpx_file}")
+    logger.info("GPX file = %s", gpx_file)
 
     if not gpx_file:
-        print("DEBUG: No GPX file provided, returning early")
+        logger.info("No GPX file provided, returning early")
         return state
 
-    print("DEBUG: Starting GPX analysis...")
+    logger.info("Starting GPX analysis...")
     try:
         stats, pauses = analyze_track(gpx_file)
     except Exception as e:
-        print(f"❌ GPX analysis failed: {e} — aborting GPX processing")
+        logger.error("GPX analysis failed: %s — aborting GPX processing", e)
         return state
 
-    print(f"DEBUG: Analysis complete - distance: {stats.total_distance_m}m")
+    logger.info("Analysis complete - distance: %sm", stats.total_distance_m)
 
     # Sicherstellen, dass das Ausgabeverzeichnis existiert
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Elevation-Profil generieren (nicht kritisch — bei Fehler weitermachen)
     elevation_path = os.path.join(OUTPUT_DIR, "elevation_profile.png")
-    print(f"DEBUG: Generating elevation profile to {elevation_path}")
+    logger.info("Generating elevation profile to %s", elevation_path)
     try:
         generate_elevation_profile(stats.points, elevation_path)
         state.elevation_profile_path = elevation_path
         elevation_profile_saved = True
     except Exception as e:
-        print(f"⚠️  Elevation profile generation failed: {e} — continuing without it")
+        logger.warning("Elevation profile generation failed: %s — continuing without it", e)
         elevation_path = None
         elevation_profile_saved = False
 
@@ -58,5 +61,5 @@ def process_gpx_node(state: AppState) -> AppState:
         metadata_update["elevation_profile"] = elevation_path
     state.metadata.update(metadata_update)
 
-    print("DEBUG: Returning with metadata")
+    logger.info("Returning with metadata")
     return state

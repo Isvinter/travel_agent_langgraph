@@ -6,7 +6,10 @@ Wird sowohl von der Blog- als auch der Photobuch-Pipeline verwendet.
 import base64 as _b64
 import io
 import io as _io
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 def compress_image_to_jpeg(
@@ -75,7 +78,7 @@ def compress_image_to_jpeg(
             return output_path
 
     except Exception as e:
-        print(f"⚠️ Error compressing image {image_path}: {e}")
+        logger.warning("Error compressing image %s: %s", image_path, e)
         return None
 
 
@@ -107,5 +110,5 @@ def encode_image_base64(image_path: str, max_size: int = 800, quality: int = 85)
             img.convert("RGB").save(buf, format="JPEG", quality=quality)
             return _b64.b64encode(buf.getvalue()).decode("utf-8")
     except Exception as e:
-        print(f"⚠️ Error encoding image {image_path}: {e}")
+        logger.warning("Error encoding image %s: %s", image_path, e)
         return None

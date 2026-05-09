@@ -6,6 +6,7 @@ Generiert Blogposts basierend auf Bildern, Geodaten und Metadaten
 unter Verwendung von Ollama (wählbar) multimodalem Modell.
 """
 
+import logging
 import os
 import re
 import shutil
@@ -17,6 +18,8 @@ from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
 _strip_thinking_tokens = strip_thinking_tokens  # backward compatibility
 from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
+
+logger = logging.getLogger(__name__)
 
 
 def construct_blog_post_prompt(
@@ -349,7 +352,7 @@ def generate_blog_post(
         else:
             images_for_prompt.append(img)
 
-    print("🤖 Constructing blog post prompt...")
+    logger.info("Constructing blog post prompt...")
     # Absolute Pfade für map/elevation für os.path.exists-Checks im Prompt-Builder
     abs_map = None
     if final_map_path:
@@ -368,15 +371,15 @@ def generate_blog_post(
         poi_list=poi_list,
         output_config=output_config,
     )
-    print(f"🗺️  Map: {final_map_path or 'N/A'}, Elevation: {final_elevation_path or 'N/A'}")
+    logger.info("Map: %s, Elevation: %s", final_map_path or 'N/A', final_elevation_path or 'N/A')
 
-    print(f"📸 Including {len(image_data)} images in prompt")
+    logger.info("Including %s images in prompt", len(image_data))
 
-    print("📡 Sending to Ollama...")
+    logger.info("Sending to Ollama...")
     result = call_ollama_multimodal(prompt, image_data, model=model)
 
     if not result:
-        print("❌ Failed to generate blog post")
+        logger.error("Failed to generate blog post")
         return {
             "success": False,
             "error": "Failed to generate blog post from Ollama",
@@ -387,7 +390,7 @@ def generate_blog_post(
             "file_paths": {},
         }
 
-    print("✅ Blog post generated successfully!")
+    logger.info("Blog post generated successfully!")
 
     # Thinking-Tokens entfernen
     result = strip_thinking_tokens(result)
@@ -454,9 +457,9 @@ def generate_blog_post(
     try:
         with open(md_file_path, "w", encoding="utf-8") as f:
             f.write(result)
-        print(f"💾 Markdown saved to: {md_file_path}")
+        logger.info("Markdown saved to: %s", md_file_path)
     except Exception as e:
-        print(f"❌ Error saving markdown file: {e}")
+        logger.error("Error saving markdown file: %s", e)
         return {
             "success": False,
             "error": f"Error saving markdown file: {e}",
@@ -475,14 +478,14 @@ def generate_blog_post(
         with open(html_file_path, "w", encoding="utf-8") as f:
             f.write(html_return)
         html_saved = True
-        print(f"💾 HTML saved to: {html_file_path}")
+        logger.info("HTML saved to: %s", html_file_path)
     except Exception as e:
-        print(f"❌ Error saving HTML file: {e}")
+        logger.error("Error saving HTML file: %s", e)
 
     selected_images = [resolve_path(p) for _, p in md_images if re.search(r'\.(jpg|jpeg|png)', p, re.IGNORECASE)]
     descriptions = {d: resolve_path(p) for d, p in md_images if re.search(r'\.(jpg|jpeg|png)', p, re.IGNORECASE)}
 
-    print(f"📸 Extracted {len(selected_images)} selected images for blog post")
+    logger.info("Extracted %s selected images for blog post", len(selected_images))
 
     return {
         "success": True,

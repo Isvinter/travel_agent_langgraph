@@ -1,14 +1,18 @@
 # app/nodes/persist_article.py
+import logging
+
 from app.state import AppState
 from app.services.persist_article import persist_article
+
+logger = logging.getLogger(__name__)
 
 
 def persist_article_node(state: AppState) -> AppState:
     """Persistiert den generierten Blogpost in der Datenbank."""
-    print("💾 Persisting article to database...")
+    logger.info("Persisting article to database...")
 
     if not state.blog_post:
-        print("⚠️ No blog post to persist.")
+        logger.warning("No blog post to persist.")
         return state
 
     try:
@@ -21,14 +25,14 @@ def persist_article_node(state: AppState) -> AppState:
             notes=state.notes,
         )
     except Exception as e:
-        print(f"❌ Article persistence failed: {e}")
+        logger.error("Article persistence failed: %s", e)
         article_id = None
 
     if article_id:
-        print(f"✅ Article persisted with ID: {article_id}")
+        logger.info("Article persisted with ID: %s", article_id)
         state.metadata["article_id"] = article_id
     else:
-        print("⚠️ Article was not persisted (generation failed or DB error).")
+        logger.warning("Article was not persisted (generation failed or DB error).")
         state.metadata["article_id"] = None
 
     return state

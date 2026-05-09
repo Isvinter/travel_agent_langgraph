@@ -1,6 +1,10 @@
 # app/nodes/enrich_weather_node.py
+import logging
+
 from app.state import AppState
 from app.services.weather_enricher import fetch_historical_weather
+
+logger = logging.getLogger(__name__)
 
 
 def enrich_weather_node(state: AppState) -> AppState:
@@ -8,10 +12,10 @@ def enrich_weather_node(state: AppState) -> AppState:
 
     Nutzt Open-Meteo zum Abruf der Daten für den Track-Zeitraum.
     """
-    print("☀️  Fetching historical weather data...")
+    logger.info("Fetching historical weather data...")
 
     if not state.gpx_stats:
-        print("⚠️ No GPX stats available — skipping weather enrichment")
+        logger.warning("No GPX stats available — skipping weather enrichment")
         return state
 
     try:
@@ -20,12 +24,12 @@ def enrich_weather_node(state: AppState) -> AppState:
             pauses=state.gpx_pauses,
         )
     except Exception as e:
-        print(f"❌ Weather enrichment failed: {e} — continuing without weather data")
+        logger.error("Weather enrichment failed: %s — continuing without weather data", e)
         state.weather = None
 
     if state.weather:
-        print(f"✅ Weather data fetched: {len(state.weather.daily)} days from {state.weather.source}")
+        logger.info("Weather data fetched: %s days from %s", len(state.weather.daily), state.weather.source)
     else:
-        print("⚠️ Weather enrichment failed — continuing without weather data")
+        logger.warning("Weather enrichment failed — continuing without weather data")
 
     return state

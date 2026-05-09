@@ -5,14 +5,17 @@ Kostenlos, kein API-Key, keine Registrierung.
 Findet Points of Interest in der Nähe von Pause-Orten entlang der Route.
 """
 
-from typing import Any, Dict, List, Optional
 import json
+import logging
 import math
 from pathlib import Path
 import time
+from typing import Any, Dict, List, Optional
 
 import requests
 from app.utils.geo_utils import haversine_distance
+
+logger = logging.getLogger(__name__)
 
 _session = requests.Session()
 _session.headers.update({"User-Agent": "travel-agent/1.0"})
@@ -75,7 +78,7 @@ def _load_cache(cache_path: Path = POI_CACHE_PATH) -> Dict[str, Any]:
             with open(cache_path, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
-        print(f"⚠️ Cache-Datei konnte nicht geladen werden: {e}")
+        logger.warning("Cache-Datei konnte nicht geladen werden: %s", e)
     return {}
 
 
@@ -88,7 +91,7 @@ def _save_to_cache(key: str, pois: List[Dict[str, Any]], cache_path: Path = POI_
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(cache, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"⚠️ Cache konnte nicht gespeichert werden: {e}")
+        logger.warning("Cache konnte nicht gespeichert werden: %s", e)
 
 
 def _try_overpass_query(query: str) -> Optional[List[Dict[str, Any]]]:
@@ -115,7 +118,7 @@ def _try_overpass_query(query: str) -> Optional[List[Dict[str, Any]]]:
                 timeout=30,
             )
         except Exception as e:
-            print(f"⚠️ Overpass {url} nicht erreichbar: {e}")
+            logger.warning("Overpass %s nicht erreichbar: %s", url, e)
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)])
             continue
@@ -124,12 +127,12 @@ def _try_overpass_query(query: str) -> Optional[List[Dict[str, Any]]]:
             try:
                 return resp.json().get("elements", [])
             except Exception:
-                print(f"⚠️ Ungültiges JSON von {url}")
+                logger.warning("Ungültiges JSON von %s", url)
                 if attempt < MAX_RETRIES:
                     time.sleep(RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)])
                 continue
 
-        print(f"⚠️ Overpass {url} antwortete mit {resp.status_code}")
+        logger.warning("Overpass %s antwortete mit %s", url, resp.status_code)
         if attempt < MAX_RETRIES:
             time.sleep(RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)])
 
@@ -266,7 +269,7 @@ def _enrich_with_wikipedia(poi: Dict[str, Any]) -> Dict[str, Any]:
                 result = {**poi, "wiki_extract": extract[:500]}
                 return result
     except Exception as e:
-        print(f"⚠️ Wikipedia fetch failed for {wiki_tag}: {e}")
+        logger.warning("Wikipedia fetch failed for %s: %s", wiki_tag, e)
     return poi
 
 
@@ -284,7 +287,7 @@ def fetch_pois(
         Liste von POI-Dicts mit name, type, lat, lon, distance_km, wiki_extract
     """
     if not pauses:
-        print("⚠️ Keine Pausen-Daten — POI-Suche nicht möglich")
+        logger.warning("Keine Pausen-Daten — POI-Suche nicht möglich")
         return []
 
     all_pois: List[Dict[str, Any]] = []
@@ -311,7 +314,7 @@ def fetch_pois(
             cache[cache_key] = pois
             all_pois.extend(pois)
         else:
-            print(f"⚠️ Keine POI-Daten für ({lat}, {lon})")
+            logger.warning("Keine POI-Daten für (%s, %s)", lat, lon)
 
     # Deduplizieren
     all_pois = _deduplicate_pois_by_name_and_proximity(all_pois)
@@ -319,5 +322,5 @@ def fetch_pois(
     # Mit Wikipedia-Texten anreichern (für POIs mit wiki-Tag)
     enriched = [_enrich_with_wikipedia(poi) for poi in all_pois]
 
-    print(f"📍 Found {len(enriched)} unique POIs near {len(pauses)} pause locations")
+    logger.info("Found %s unique POIs near %s pause locations", len(enriched), len(pauses))
     return enriched

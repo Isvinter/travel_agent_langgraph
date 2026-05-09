@@ -1,17 +1,20 @@
 """Pipeline-Node zur PDF-Generierung aus dem fertigen Blogpost."""
+import logging
 import os
 from pathlib import Path
 
 from app.state import AppState
 from app.services.generate_pdf import generate_pdf
 
+logger = logging.getLogger(__name__)
+
 
 def generate_pdf_node(state: AppState) -> AppState:
     """Generiert ein PDF aus dem generierten HTML-Blogpost (nur wenn pdf_export=True)."""
-    print("📄 Generating PDF from blogpost...")
+    logger.info("Generating PDF from blogpost...")
 
     if not state.blog_post or not state.blog_post.get("html"):
-        print("⚠️ No HTML content available for PDF generation.")
+        logger.warning("No HTML content available for PDF generation.")
         return state
 
     html_content = state.blog_post["html"]
@@ -38,9 +41,9 @@ def generate_pdf_node(state: AppState) -> AppState:
 
         state.blog_post["pdf_bytes"] = pdf_bytes
         state.blog_post.setdefault("file_paths", {})["pdf"] = pdf_path
-        print(f"✅ PDF saved ({len(pdf_bytes)} bytes) → {pdf_path}")
+        logger.info("PDF saved (%s bytes) -> %s", len(pdf_bytes), pdf_path)
     except Exception as e:
-        print(f"❌ PDF generation failed: {e}")
+        logger.error("PDF generation failed: %s", e)
         state.blog_post["pdf_error"] = str(e)
 
     return state

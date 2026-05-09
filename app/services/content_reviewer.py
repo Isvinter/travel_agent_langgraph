@@ -5,12 +5,15 @@ und erstellt einen kuratierten Enrichment-Kontext für den Blog-Prompt.
 """
 
 import json
+import logging
 import re
 from typing import Any, Dict, List, Optional
 
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama
 from app.state import ImageData, WeatherInfo
+
+logger = logging.getLogger(__name__)
 
 
 OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
@@ -217,7 +220,7 @@ def review_enrichment(
         notes=notes,
     )
 
-    print("🔍 Reviewing enriched content with LLM...")
+    logger.info("Reviewing enriched content with LLM...")
 
     content = call_ollama(
         prompt,
@@ -234,7 +237,7 @@ def review_enrichment(
     result = _parse_review_response(content)
 
     if result["coherence_score"] < 3 and result["coherence_score"] > 0:
-        print(f"⚠️ Low coherence score ({result['coherence_score']}/10) — continuing anyway")
+        logger.warning("Low coherence score (%s/10) — continuing anyway", result['coherence_score'])
 
     # Bilder nach Qualitätsbewertung filtern
     ratings = result.get("image_ratings", {})
@@ -245,12 +248,12 @@ def review_enrichment(
             rated.append((score, img))
         rated.sort(key=lambda x: x[0], reverse=True)
         result["filtered_images"] = [img for _, img in rated]
-        print("🖼️  Images sorted by quality rating (best first)")
+        logger.info("Images sorted by quality rating (best first)")
     else:
         result["filtered_images"] = list(selected_images)
 
     kept = len(result.get("kept_pois", []))
-    print(f"✅ Review complete: {kept} POIs kept, coherence {result['coherence_score']}/10")
+    logger.info("Review complete: %s POIs kept, coherence %s/10", kept, result['coherence_score'])
     return result
 
 

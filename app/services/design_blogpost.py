@@ -5,9 +5,12 @@ Wraps raw HTML body fragments in a complete, self-contained HTML document
 with embedded CSS. Template-based — no LLM dependency, deterministic output.
 """
 
+import logging
 import re
 from html import unescape
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 _PAGE_TEMPLATE = """\
@@ -212,10 +215,10 @@ def design_blogpost_service(
         Complete styled HTML document, or None if body is empty.
     """
     if not html_body or not html_body.strip():
-        print("⚠️  Design: Kein HTML-Body zum Stylen vorhanden")
+        logger.warning("Design: Kein HTML-Body zum Stylen vorhanden")
         return None
 
     body_with_captions = _add_image_captions(html_body)
     title = _extract_title(html_body)
-    print(f"🎨 Applying template-based design (title: {title})")
+    logger.info("Applying template-based design (title: %s)", title)
     return _PAGE_TEMPLATE.format(title=title, body=body_with_captions)

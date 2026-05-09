@@ -1,11 +1,15 @@
 # app/nodes/persist_photobook.py
+import logging
+
 from app.state import AppState
 from app.services.persist_photobook import persist_photobook
+
+logger = logging.getLogger(__name__)
 
 
 def persist_photobook_node(state: AppState) -> AppState:
     """Persistiert das generierte Fotobuch in der Datenbank."""
-    print("💾 Persisting photobook to database...")
+    logger.info("Persisting photobook to database...")
 
     try:
         photobook_id = persist_photobook(
@@ -21,14 +25,14 @@ def persist_photobook_node(state: AppState) -> AppState:
             notes=state.notes,
         )
     except Exception as e:
-        print(f"❌ Photobook persistence failed: {e}")
+        logger.error("Photobook persistence failed: %s", e)
         photobook_id = None
 
     if photobook_id:
-        print(f"✅ Photobook persisted with ID: {photobook_id}")
+        logger.info("Photobook persisted with ID: %s", photobook_id)
         state.metadata["photobook_id"] = photobook_id
     else:
-        print("⚠️ Photobook was not persisted (DB error).")
+        logger.warning("Photobook was not persisted (DB error).")
         state.metadata["photobook_id"] = None
 
     return state

@@ -1,8 +1,11 @@
 # app/nodes/select_images_node.py
+import logging
 import math
 
 from app.state import AppState
 from app.services.image_selector import select_images_for_blog
+
+logger = logging.getLogger(__name__)
 
 
 def select_images_node(state: AppState) -> AppState:
@@ -10,7 +13,7 @@ def select_images_node(state: AppState) -> AppState:
     n = len(state.images)
     target = math.ceil(state.output_config.wildcard_max * 1.5)
     target = min(target, n)  # nicht mehr als verfügbar
-    print(f"📸 Oversampling: selecting {target} images (max {state.output_config.wildcard_max}) from {n} images...")
+    logger.info("Oversampling: selecting %s images (max %s) from %s images...", target, state.output_config.wildcard_max, n)
 
     try:
         selected = select_images_for_blog(
@@ -19,7 +22,7 @@ def select_images_node(state: AppState) -> AppState:
             model=state.model,
         )
     except Exception as e:
-        print(f"❌ Image selection failed: {e} — using all images as fallback")
+        logger.error("Image selection failed: %s — using all images as fallback", e)
         selected = [{"path": img.path} for img in state.images[:target]]
 
     # Vom LLM ausgewählte Bild-Dicts zurück auf die originalen ImageData-Objekte abbilden
@@ -31,5 +34,5 @@ def select_images_node(state: AppState) -> AppState:
     ]
     state.metadata["selected_image_count"] = len(state.selected_images)
 
-    print(f"✅ Selected {len(state.selected_images)} images for blog post")
+    logger.info("Selected %s images for blog post", len(state.selected_images))
     return state

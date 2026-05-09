@@ -1,6 +1,10 @@
 # app/nodes/enrich_poi_node.py
+import logging
+
 from app.state import AppState
 from app.services.poi_enricher import fetch_pois
+
+logger = logging.getLogger(__name__)
 
 
 def enrich_poi_node(state: AppState) -> AppState:
@@ -9,21 +13,21 @@ def enrich_poi_node(state: AppState) -> AppState:
     Nutzt Overpass API zum Finden von POIs in der Nähe von Pause-Orten.
     Optional angereichert mit Wikipedia-Lead-Paragraphs.
     """
-    print("📍 Searching for Points of Interest near pause locations...")
+    logger.info("Searching for Points of Interest near pause locations...")
 
     if not state.gpx_pauses:
-        print("⚠️ No pause data available — skipping POI enrichment")
+        logger.warning("No pause data available — skipping POI enrichment")
         return state
 
     try:
         state.poi_list = fetch_pois(pauses=state.gpx_pauses)
     except Exception as e:
-        print(f"❌ POI enrichment failed: {e} — continuing without POI data")
+        logger.error("POI enrichment failed: %s — continuing without POI data", e)
         state.poi_list = []
 
     if state.poi_list:
-        print(f"✅ Found {len(state.poi_list)} POIs along the route")
+        logger.info("Found %s POIs along the route", len(state.poi_list))
     else:
-        print("⚠️ No POIs found — continuing without POI data")
+        logger.warning("No POIs found — continuing without POI data")
 
     return state
