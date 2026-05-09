@@ -22,6 +22,8 @@
   let loading: boolean = $state(false);
 
   async function handleRun() {
+    resetPipeline();
+
     const mode = get(pipelineMode);
     const model = get(selectedModel);
     const { gpxFile, imageFiles, txtFile } = get(pipelineFiles);
@@ -33,7 +35,6 @@
       return;
     }
 
-    resetPipeline();
     loading = true;
 
     try {

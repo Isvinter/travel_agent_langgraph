@@ -410,6 +410,10 @@ async def _run_pipeline_in_background(
         graph = build_graph(event_emitter=emit_fn)
         result = await loop.run_in_executor(None, graph.invoke, state)
 
+        # "start" und "pipeline" als abgeschlossen markieren
+        emit_fn("start", "done", "Pipeline gestartet.")
+        emit_fn("pipeline", "done", "LangGraph-Pipeline abgeschlossen.")
+
         # Extract output paths
         blog_post = result.blog_post if hasattr(result, "blog_post") else None
         photobook_pdf_path = result.photobook_pdf_path if hasattr(result, "photobook_pdf_path") else None
