@@ -17,15 +17,29 @@
   import PhotobookList from "./lib/PhotobookList.svelte";
   import PhotobookDetail from "./lib/PhotobookDetail.svelte";
   import DraftReview from "./lib/DraftReview.svelte";
+  import Toast from "./lib/components/Toast.svelte";
+  import { showToast } from "./lib/stores/toast";
 
   let rt = $derived($route);
   let showSidebar = $derived(rt.page === "pipeline");
 
+  let notifiedPipeline = $state(false);
+  let notifiedDraft = $state<number | null>(null);
+
   $effect(() => {
-    if ($runState === "running" && rt.page !== "pipeline") {
-      navigateTo({ page: "pipeline" });
-    } else if ($currentDraftId !== null && rt.page !== "draft") {
-      navigateTo({ page: "draft", id: $currentDraftId });
+    if ($runState === "idle") {
+      notifiedPipeline = false;
+      notifiedDraft = null;
+    }
+
+    if ($runState === "running" && !notifiedPipeline && rt.page !== "pipeline") {
+      notifiedPipeline = true;
+      showToast("Pipeline läuft", "#/", "Zur Pipeline");
+    }
+
+    if ($currentDraftId !== null && notifiedDraft !== $currentDraftId && rt.page !== "draft") {
+      notifiedDraft = $currentDraftId;
+      showToast("Entwurf verfügbar", `#/draft/${$currentDraftId}`, "Zum Entwurf");
     }
   });
 </script>
@@ -128,6 +142,8 @@
       {/if}
     </div>
   </main>
+
+  <Toast />
 </div>
 
 <style>
