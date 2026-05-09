@@ -81,8 +81,8 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 |-------|--------|---------|
 | State | `app/state.py` | `AppState`, `ImageData`, `WeatherInfo`, `DailyWeather`, `PageDescription`, `PhotobookConfig`, `OutputConfig` |
 | Config | `app/config.py` | `OLLAMA_BASE_URL`, `OUTPUT_DIR`, `LENGTH_PRESETS`, `PERSONAS`, blog styles |
-| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 21 nodes |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`), 21 nodes |
+| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 22 nodes |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`), 22 nodes |
 | Services | `app/services/*.py` | Blog + photobook business logic (GPX, images, clustering, maps, weather, POI, review, blog, design, PDF, persistence) |
 | Pipeline | `app/pipeline/*.py` | Higher-level orchestration helper (`enrich_images_with_metadata`) |
 | Photobook | `app/photobook/*.py` | Photobook module: plan, generate, render, validate, PDF, image selection, 18 presets |
@@ -91,7 +91,7 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 | Database | `app/db/` | SQLAlchemy ORM models (articles, article_images, photobooks, photobook_images), connection, repositories |
 | API | `app/api/` | FastAPI server, routes, SSE events |
 | Utils | `app/utils/` | EXIF helpers, image compression/base64 encoding |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (15 components, 2 stores) |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (20 components, 3 stores) |
 
 ## Tech Stack
 
@@ -262,7 +262,8 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── lib/
 │   │   │   ├── stores/
 │   │   │   │   ├── pipeline.ts         # SSE event streaming + pipeline state
-│   │   │   │   └── router.ts           # Client-side routing
+│   │   │   │   ├── router.ts           # Client-side routing
+│   │   │   │   └── theme.ts            # Light/dark theme toggle
 │   │   │   ├── ArticleDetail.svelte    # Full article view with images
 │   │   │   ├── ArticleList.svelte      # Filterable article browser
 │   │   │   ├── DraftReview.svelte       # Draft review & revision UI (mark, comment, send, publish, discard)
@@ -276,6 +277,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   │   ├── PdfExportCheckbox.svelte # PDF export toggle
 │   │   │   ├── PhotobookSizeSelector.svelte # Photobook size picker
 │   │   │   ├── PhotobookPresetSelector.svelte # Photobook preset picker
+│   │   │   ├── PipelineTimeline.svelte  # Visual pipeline step timeline with live status
 │   │   │   ├── PhotobookList.svelte    # Filterable photobook browser
 │   │   │   ├── PhotobookDetail.svelte  # Full photobook view (iframe)
 │   │   │   ├── ReviewCheckbox.svelte    # "Entwurf vor Veröffentlichung prüfen" checkbox
@@ -305,6 +307,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── test_state.py             # AppState model tests
 │   ├── test_repository.py        # Article repository tests
 │   ├── test_photobook_repository.py  # Photobook repository tests
+│   ├── test_photobook_presets.py     # Photobook preset validation tests
 │   ├── test_persist_service.py       # Article persist service tests
 │   ├── test_persist_photobook_service.py # Photobook persist service tests
 │   ├── test_draft_persistence.py     # Draft persistence and status tests
@@ -323,7 +326,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 uv run pytest tests/ -v
 ```
 
-433 tests total. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
+461 tests total. Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 
