@@ -511,7 +511,12 @@
   .article-preview {
     flex: 6;
     overflow-y: auto;
+    overflow-x: clip;
     padding: 1.5rem 2rem;
+  }
+
+  .article-content {
+    overflow-wrap: break-word;
   }
 
   .article-content :global(p[data-block-index]) {
@@ -519,7 +524,8 @@
     transition: background 0.15s, border-color 0.15s;
     border-left: 3px solid transparent;
     padding-left: 0.75rem;
-    border-radius: 2px;
+    border-radius: 4px;
+    margin-bottom: 1rem;
   }
   .article-content :global(p[data-block-index]:hover) {
     background: var(--panel-2);
@@ -533,6 +539,8 @@
     transition: outline 0.15s;
     outline: 2px solid transparent;
     border-radius: 4px;
+    padding: 1rem;
+    margin: 0.5rem 0;
   }
   .article-content :global(figure[data-block-index]:hover) {
     outline-color: var(--border);
@@ -540,6 +548,11 @@
   .article-content :global(figure[data-marked="true"]) {
     outline-color: var(--accent);
     background: rgba(52, 152, 219, 0.05);
+  }
+  .article-content :global(p[data-block-index]:nth-child(even):not([data-marked="true"])),
+  .article-content :global(figure[data-block-index]:nth-child(even):not([data-marked="true"])) {
+    background: var(--panel-2);
+    border-radius: 4px;
   }
   .article-content :global(h1),
   .article-content :global(h2),
