@@ -111,6 +111,13 @@ def generate_photobook_pages(
         if b64:
             encoded_images.append(b64)
 
+    # Bilder als Base64 encodieren
+    encoded_images = []
+    for img in images:
+        b64 = encode_image_base64(img.path)
+        if b64:
+            encoded_images.append(b64)
+
     try:
         payload = {
             "model": model,
@@ -219,6 +226,11 @@ def generate_photobook_pages(
         print(f"⚠️ Pass 2 (Generierung) fehlgeschlagen: {e}")
 
     # Fallback: verwende das im Plan gewählte Preset mit einfacher Slot-Zuweisung
+    return _generate_fallback_pages(pages_plan, images)
+
+
+def _generate_fallback_pages(pages_plan: List[Dict[str, Any]], images: List[ImageData]) -> List[PageDescription]:
+    """Deterministische Fallback-Generierung wenn LLM fehlschlägt."""
     all_presets = load_all_presets()
     fallback = []
     for plan_page in pages_plan:

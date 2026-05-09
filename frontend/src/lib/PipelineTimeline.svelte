@@ -59,6 +59,9 @@
           </div>
           <div class="t-body" class:pending={step.status === "pending"} class:error={step.status === "error"}>
             <div class="t-label">{step.label}</div>
+            {#if step.status === "error" && step.message}
+              <div class="t-error-msg">{step.message}</div>
+            {/if}
           </div>
         </div>
       {/each}
@@ -154,6 +157,7 @@
 
   .t-body { flex: 1; padding-bottom: 14px; min-width: 0; }
   .t-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; }
+  .t-error-msg { font-size: 0.72rem; color: var(--error); margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
 
   @keyframes spin-timeline { to { transform: rotate(360deg); } }
 </style>

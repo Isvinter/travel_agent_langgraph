@@ -24,8 +24,7 @@
   $effect(() => {
     if ($runState === "running" && rt.page !== "pipeline") {
       navigateTo({ page: "pipeline" });
-    }
-    if ($currentDraftId !== null && rt.page !== "draft") {
+    } else if ($currentDraftId !== null && rt.page !== "draft") {
       navigateTo({ page: "draft", id: $currentDraftId });
     }
   });

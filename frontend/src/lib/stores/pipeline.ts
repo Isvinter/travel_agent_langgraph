@@ -173,9 +173,12 @@ export function startStream(runId: string) {
   });
 
   eventSource.onerror = () => {
-    if (eventSource?.readyState === EventSource.CLOSED && get(runState) !== "done") {
-      addLine("connection", "error", "Verbindung zum Server verloren.");
-      runState.set("failed");
+    if (eventSource?.readyState === EventSource.CLOSED) {
+      const state = get(runState);
+      if (state !== "done" && state !== "failed" && state !== "idle") {
+        addLine("connection", "error", "Verbindung zum Server verloren.");
+        runState.set("failed");
+      }
     }
   };
 }

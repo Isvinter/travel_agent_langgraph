@@ -406,8 +406,12 @@ def generate_blog_post(
             images_for_prompt.append(img)
 
     print("🤖 Constructing blog post prompt...")
-    # Absolute Pfade für map/elevation (construct_blog_post_prompt prüft os.path.exists)
-    abs_map = final_map_path or (map_image_path if map_image_path and os.path.exists(map_image_path) else None)
+    # Absolute Pfade für map/elevation für os.path.exists-Checks im Prompt-Builder
+    abs_map = None
+    if final_map_path:
+        abs_map = os.path.join(images_dir, os.path.basename(final_map_path))
+    elif map_image_path and os.path.exists(map_image_path):
+        abs_map = map_image_path
     prompt, image_data = construct_blog_post_prompt(
         images=images_for_prompt,
         map_image_path=abs_map,
@@ -519,6 +523,7 @@ def generate_blog_post(
             "file_paths": {},
         }
 
+    html_return = result
     try:
         import markdown
         html_return = markdown.markdown(result, extensions=["fenced_code", "tables", "sane_lists"])
@@ -527,7 +532,6 @@ def generate_blog_post(
         print(f"💾 HTML saved to: {html_file_path}")
     except Exception as e:
         print(f"❌ Error saving HTML file: {e}")
-        html_return = result
 
     selected_images = [resolve_path(p) for _, p in md_images if re.search(r'\.(jpg|jpeg|png)', p, re.IGNORECASE)]
     descriptions = {d: resolve_path(p) for d, p in md_images if re.search(r'\.(jpg|jpeg|png)', p, re.IGNORECASE)}

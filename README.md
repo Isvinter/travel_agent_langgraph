@@ -160,7 +160,7 @@ uv run uvicorn app.api.server:app --reload --host 0.0.0.0 --port 8000
 **Terminal 2** — Svelte dev server (proxies `/api` to `:8000`):
 
 ```bash
-cd frontend && npm run dev
+cd frontend && npm install && npm run dev
 ```
 
 Open `http://localhost:5173`. Upload a GPX file, photos, optionally add notes, select a model, and run the pipeline. Progress streams live via SSE.
@@ -168,9 +168,8 @@ Open `http://localhost:5173`. Upload a GPX file, photos, optionally add notes, s
 ### Web UI (production)
 
 ```bash
-cd frontend && npm run build
-travel-agent-api --host 0.0.0.0 --port 8000
-# or: uv run uvicorn app.api.server:app --host 0.0.0.0 --port 8000
+cd frontend && npm install && npm run build
+uv run uvicorn app.api.server:app --host 0.0.0.0 --port 8000
 ```
 
 FastAPI serves both the API and the built Svelte static files from `frontend/dist/`.

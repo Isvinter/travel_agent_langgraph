@@ -165,8 +165,9 @@ def html_to_png(html_path: str, output_png: str):
     options.add_argument("--headless")
     options.add_argument("--window-size=1200,800")
 
-    driver = webdriver.Chrome(options=options)
+    driver = None
     try:
+        driver = webdriver.Chrome(options=options)
         abs_path = os.path.abspath(html_path)
         driver.get(f"file:///{abs_path}")
 
@@ -174,7 +175,8 @@ def html_to_png(html_path: str, output_png: str):
 
         driver.save_screenshot(output_png)
     finally:
-        driver.quit()
+        if driver:
+            driver.quit()
 def generate_enriched_map_html(
     points: List[TrackPoint],
     pauses: list,

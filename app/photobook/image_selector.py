@@ -49,15 +49,19 @@ def _select_batch(
 ) -> List[int]:
     """Fragt das LLM nach den besten Bildern aus einem Batch.
     Gleicher Ansatz wie Blog-Selector: permissives Parsing, Fallback auf evenly-spaced.
+    Verwendet Index-Mapping um Bild-Drops durch fehlgeschlagene Encodierung zu kompensieren.
     """
+    # Index-Mapping: encoded_index -> original batch_index
     encoded = []
-    for img in batch_images:
+    index_map: Dict[int, int] = {}
+    for i, img in enumerate(batch_images):
         b64 = encode_image_base64(img.path)
         if b64:
+            index_map[len(encoded)] = i
             encoded.append(b64)
 
     if len(encoded) <= select_count:
-        return list(range(len(encoded)))
+        return [index_map[i] for i in range(len(encoded))]
 
     prompt = _build_batch_prompt(len(encoded), select_count, preset)
 
@@ -81,13 +85,13 @@ def _select_batch(
             content = resp.json().get("message", {}).get("content", "")
             indices = _parse_selection(content, max_index=len(encoded) - 1)
             if indices:
-                return indices[:select_count]
+                return [index_map[i] for i in indices[:select_count] if i in index_map]
     except Exception as e:
         print(f"  ⚠️ Batch-Auswahl fehlgeschlagen: {e}")
 
     # Fallback: evenly-spaced
     step = max(1, len(encoded) // select_count)
-    return list(range(0, len(encoded), step))[:select_count]
+    return [index_map[i] for i in range(0, len(encoded), step)][:select_count]
 
 
 def select_photobook_images(

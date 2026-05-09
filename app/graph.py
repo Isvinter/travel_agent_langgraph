@@ -97,6 +97,8 @@ def run_pipeline():
     print(f"\nSelected model: {state.model}")
     graph = build_graph()
     result = graph.invoke(state)
+    if isinstance(result, dict):
+        return AppState(**result)
     return result
 
 

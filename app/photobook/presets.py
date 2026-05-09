@@ -2,39 +2,41 @@
 
 from pydantic import BaseModel
 
-# Jeder Eintrag: (preset_id, image_count, has_text)
-PRESET_CATALOG = [
-    # Cover
-    ("cover_hero", 1, False),
-    # 1-Bild
-    ("single_full", 1, False),
-    ("single_text_below", 1, True),
-    ("single_text_left", 1, True),
-    ("panorama", 1, True),
-    ("image_text_split", 1, True),
-    # 2-Bild
-    ("double_stacked", 2, False),
-    ("double_stacked_text", 2, True),
-    ("double_text_right", 2, True),
-    ("map_focus", 2, True),
-    # 3-Bild
-    ("triple_stacked", 3, False),
-    ("triple_stacked_text", 3, True),
-    ("triple_big_top", 3, False),
-    ("triple_big_text_below", 3, True),
-    # 4-Bild
-    ("quad_grid", 4, False),
-    ("quad_grid_text", 4, True),
-    ("quad_large_plus_3", 4, True),
-    # 5-Bild
-    ("collage_5", 5, False),
-]
+
+def _build_catalog():
+    """Erzeugt Preset-Catalog aus geladenen JSON-Presets (vermeidet Divergenz)."""
+    from app.photobook.preset_loader import load_all_presets
+    presets = load_all_presets()
+    # Sortierung wie im originalen PRESET_CATALOG: nach Bildanzahl,
+    # dann spezifische Reihenfolge (cover zuerst, dann single/double/triple/quad/collage)
+    _IMAGE_COUNT_PRIORITY = {
+        "cover_hero": 0,
+        "single_full": 1, "single_text_below": 2, "single_text_left": 3, "panorama": 4, "image_text_split": 5,
+        "double_stacked": 1, "double_stacked_text": 2, "double_text_right": 3, "map_focus": 4,
+        "triple_stacked": 1, "triple_stacked_text": 2, "triple_big_top": 3, "triple_big_text_below": 4,
+        "quad_grid": 1, "quad_grid_text": 2, "quad_large_plus_3": 3,
+        "collage_5": 1,
+    }
+    catalog = [(p.id, p.image_count, p.has_text) for p in presets.values()]
+    catalog.sort(key=lambda x: (x[1], _IMAGE_COUNT_PRIORITY.get(x[0], 99)))
+    return catalog
+
+
+def _get_catalog() -> list:
+    """Lazy-load den Catalog (einmaliger JSON-I/O)."""
+    global _PRESET_CATALOG
+    if _PRESET_CATALOG is None:
+        _PRESET_CATALOG = _build_catalog()
+    return _PRESET_CATALOG
+
+
+_PRESET_CATALOG = None
 
 
 def get_preset_summary() -> str:
     """Erzeugt kompakte Preset-Übersicht für den LLM-Prompt."""
     lines = []
-    for pid, count, text in PRESET_CATALOG:
+    for pid, count, text in _get_catalog():
         lines.append(f"  {pid}: {count} Bilder, Text={'ja' if text else 'nein'}")
     return "\n".join(lines)
 
@@ -42,7 +44,7 @@ def get_preset_summary() -> str:
 def get_presets_by_image_count(count: int, has_text: bool | None = None) -> list[str]:
     """Filtert Presets nach Bildanzahl und optional Text."""
     result = []
-    for pid, c, t in PRESET_CATALOG:
+    for pid, c, t in _get_catalog():
         if c == count:
             if has_text is None or t == has_text:
                 result.append(pid)
@@ -51,24 +53,55 @@ def get_presets_by_image_count(count: int, has_text: bool | None = None) -> list
 
 def get_any_preset(count: int) -> str:
     """Gibt das erste Preset mit der angegebenen Bildanzahl zurück (Fallback)."""
-    for pid, c, _ in PRESET_CATALOG:
+    for pid, c, _ in _get_catalog():
         if c == count:
             return pid
     return "quad_grid"  # ultimativer Fallback
 
 
-# Constraint-Tabelle für Pass-2-Prompt
-TEXT_CONSTRAINTS = {
-    "title":   {"char_limit": 60,   "font_size": "14pt", "description": "Seitentitel (bold)"},
-    "caption": {"char_limit": 500,  "font_size": "10pt", "description": "Bildunterschrift (italic)"},
-    "intro":   {"char_limit": 1200, "font_size": "11pt", "description": "Einleitungstext"},
-}
+def _build_text_constraints():
+    """Erzeugt TEXT_CONSTRAINTS aus geladenen JSON-Presets (vermeidet Divergenz)."""
+    from app.photobook.preset_loader import load_all_presets
+    presets = load_all_presets()
+    constraints = {}
+    # Title ist universell (page-header), nicht in JSON-Slots definiert
+    constraints["title"] = {"char_limit": 60, "font_size": "14pt", "description": "Seitentitel (bold)"}
+    for preset in presets.values():
+        for slot in preset.slots:
+            if slot.type == "text" and slot.text_role and slot.text_role not in constraints:
+                constraints[slot.text_role] = {
+                    "char_limit": slot.char_limit or 0,
+                    "font_size": slot.font_size or "inherit",
+                    "description": _describe_text_role(slot.text_role),
+                }
+    return constraints
+
+
+def _describe_text_role(role: str) -> str:
+    """Beschreibung für Text-Rollen."""
+    descriptions = {
+        "title": "Seitentitel (bold)",
+        "caption": "Bildunterschrift (italic)",
+        "intro": "Einleitungstext",
+    }
+    return descriptions.get(role, role)
+
+
+def _get_text_constraints():
+    """Lazy-load Text-Constraints aus Presets."""
+    global _TEXT_CONSTRAINTS
+    if _TEXT_CONSTRAINTS is None:
+        _TEXT_CONSTRAINTS = _build_text_constraints()
+    return _TEXT_CONSTRAINTS
+
+
+_TEXT_CONSTRAINTS = None
 
 
 def get_constraint_summary() -> str:
     """Erzeugt Constraint-Text für den LLM-Prompt."""
     lines = ["TEXT-CONSTRAINTS (UNBEDINGT EINHALTEN):"]
-    for role, c in TEXT_CONSTRAINTS.items():
+    for role, c in _get_text_constraints().items():
         lines.append(f"  {role}: max. {c['char_limit']} Zeichen, Schriftgröße {c['font_size']} ({c['description']})")
     return "\n".join(lines)
 

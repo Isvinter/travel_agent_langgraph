@@ -79,7 +79,7 @@ class PageDescription(BaseModel):
     """Seitenbeschreibung — Output des LLM (Pass 2), Input des Renderers."""
     template_id: str
     page_type: str  # "single" | "spread"
-    slots: List[Dict[str, Any]] = []
+    slots: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class AppState(BaseModel):
@@ -97,7 +97,7 @@ class AppState(BaseModel):
     poi_list: List[Dict[str, Any]] = []
     enrichment_context: Dict[str, Any] = {}
     model: str = "gemma4:26b-ctx128k"
-    output_config: OutputConfig = OutputConfig()
+    output_config: OutputConfig = Field(default_factory=OutputConfig)
     photobook_images: List[ImageData] = []
     photobook_plan: Optional[Dict[str, Any]] = None
     photobook_pages: List[PageDescription] = []

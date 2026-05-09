@@ -74,8 +74,9 @@ def generate_pdf(html_content: str, article_output_dir: str | None = None) -> by
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
 
-        driver = webdriver.Chrome(options=options)
+        driver = None
         try:
+            driver = webdriver.Chrome(options=options)
             abs_path = os.path.abspath(html_path)
             driver.get(f"file:///{abs_path}")
             time.sleep(1)  # Warten bis Bilder geladen sind
@@ -93,7 +94,8 @@ def generate_pdf(html_content: str, article_output_dir: str | None = None) -> by
             pdf_bytes = base64.b64decode(pdf_result["data"])
             return pdf_bytes
         finally:
-            driver.quit()
+            if driver:
+                driver.quit()
     finally:
         if os.path.exists(html_path):
             os.unlink(html_path)
