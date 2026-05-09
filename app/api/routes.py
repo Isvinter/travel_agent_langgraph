@@ -440,11 +440,12 @@ async def _run_pipeline_in_background(
         photobook_id = None
         draft_id = None
         pdf_available = False
-        if hasattr(result, "article_id"):
-            aid = result.article_id
-            photobook_id = result.photobook_id
+        if isinstance(result, dict):
+            aid = result.get("article_id")
+            photobook_id = result.get("photobook_id")
         else:
-            aid = None
+            aid = getattr(result, "article_id", None)
+            photobook_id = getattr(result, "photobook_id", None)
         if aid is not None:
             if body.review_enabled:
                 draft_id = aid
