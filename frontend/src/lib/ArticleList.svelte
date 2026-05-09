@@ -2,6 +2,8 @@
 
 <script lang="ts">
   import { navigateTo } from "./stores/router";
+  import { formatDate, formatDuration } from "./utils/format";
+  import { sortItems } from "./utils/sort";
 
   interface ArticleSummary {
     id: number;
@@ -19,6 +21,7 @@
   let total: number = $state(0);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
+  let aborted: boolean = false;
 
   let tourDateFrom: string = $state("");
   let tourDateTo: string = $state("");
@@ -36,21 +39,6 @@
 
   let sortColumn: string | null = $state(null);
   let sortDirection: "asc" | "desc" = $state("asc");
-
-  function sortItems<T extends Record<string, any>>(items: T[], column: string, direction: "asc" | "desc"): T[] {
-    return [...items].sort((a, b) => {
-      const va = a[column];
-      const vb = b[column];
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      const multiplier = direction === "desc" ? -1 : 1;
-      if (typeof va === "string" && typeof vb === "string") {
-        return multiplier * va.localeCompare(vb);
-      }
-      return multiplier * ((va as number) - (vb as number));
-    });
-  }
 
   let displayedArticles = $derived(
     sortColumn ? sortItems(articles, sortColumn, sortDirection) : articles
@@ -96,6 +84,7 @@
       params.set("limit", "50");
 
       const res = await fetch(`/api/articles?${params.toString()}`);
+      if (aborted) return;
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
       articles = data.articles;
@@ -106,18 +95,6 @@
     } finally {
       loading = false;
     }
-  }
-
-  function formatDate(iso: string | null): string {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("de-DE");
-  }
-
-  function formatDuration(hours: number | null): string {
-    if (hours === null || hours === undefined) return "—";
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}h ${m}m`;
   }
 
   function handleView(id: number) {
@@ -166,7 +143,9 @@
   }
 
   $effect(() => {
+    aborted = false;
     fetchArticles();
+    return () => { aborted = true; };
   });
 </script>
 

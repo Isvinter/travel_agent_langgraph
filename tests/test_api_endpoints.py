@@ -21,6 +21,37 @@ def session_cookie():
     return {"session_id": "test-session-abc"}
 
 
+@pytest.fixture
+def db_client(monkeypatch, tmp_path):
+    """Erstellt einen TestClient mit einer frischen SQLite-Testdatenbank."""
+    from app.db import connection as conn_module
+    from app.db.models import Base
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session, sessionmaker as sm
+
+    tmp = str(tmp_path / "test.db")
+    engine = create_engine(f"sqlite:///{tmp}", echo=False)
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+
+    factory = sm(bind=engine)
+    monkeypatch.setattr(conn_module, "_engine", engine)
+    monkeypatch.setattr(conn_module, "_SessionLocal", factory)
+    monkeypatch.setattr(conn_module, "get_session", factory)
+
+    import app.api.routes as routes_mod
+    monkeypatch.setattr(routes_mod, "get_session", factory)
+    from app.api.server import create_app
+    from fastapi.testclient import TestClient
+    app = create_app()
+    test_client = TestClient(app)
+
+    yield test_client, session
+    session.close()
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+
+
 class TestModelsEndpoint:
     def test_returns_model_list(self, client):
         response = client.get("/api/models")
@@ -144,190 +175,87 @@ class TestEventManager:
 
 
 class TestArticlesList:
-    def test_list_empty_returns_empty_array(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker as sm
+    def test_list_empty_returns_empty_array(self, db_client):
+        client, session = db_client
+        response = client.get("/api/articles")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["articles"] == []
+        assert data["total"] == 0
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            response = client.get("/api/articles")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["articles"] == []
-            assert data["total"] == 0
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
-
-    def test_list_with_filters(self, monkeypatch, tmp_path):
-        """Testet GET /api/articles mit Filtern."""
+    def test_list_with_filters(self, db_client):
         from datetime import date as date_type, datetime as datetime_type
-        from app.db import connection as conn_module
-        from app.db.models import Base
         from app.db.repository import ArticleRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = ArticleRepository(session)
+        repo.insert(
+            article_data={
+                "title": "Test Tour",
+                "tour_date": date_type(2026, 4, 15),
+                "tour_duration_hours": 5.0,
+                "generation_timestamp": datetime_type(2026, 4, 30, 12, 0, 0),
+                "markdown_content": "# Test",
+                "html_content": "<h1>Test</h1>",
+                "markdown_path": "output/test/md.md",
+                "html_path": "output/test/html.html",
+            },
+            images=[],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
+        response = client.get("/api/articles?tour_date_from=2026-04-01&tour_date_to=2026-05-01")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["articles"][0]["title"] == "Test Tour"
+        assert data["articles"][0]["tour_duration_hours"] == 5.0
+        assert data["articles"][0]["tour_date"] == "2026-04-15"
+        assert "markdown_content" not in data["articles"][0]
 
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = ArticleRepository(session)
-            repo.insert(
-                article_data={
-                    "title": "Test Tour",
-                    "tour_date": date_type(2026, 4, 15),
-                    "tour_duration_hours": 5.0,
-                    "generation_timestamp": datetime_type(2026, 4, 30, 12, 0, 0),
-                    "markdown_content": "# Test",
-                    "html_content": "<h1>Test</h1>",
-                    "markdown_path": "output/test/md.md",
-                    "html_path": "output/test/html.html",
-                },
-                images=[],
-            )
-            session.commit()
-
-            response = client.get("/api/articles?tour_date_from=2026-04-01&tour_date_to=2026-05-01")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["total"] == 1
-            assert data["articles"][0]["title"] == "Test Tour"
-            assert data["articles"][0]["tour_duration_hours"] == 5.0
-            assert data["articles"][0]["tour_date"] == "2026-04-15"
-            assert "markdown_content" not in data["articles"][0]
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
-
-    def test_list_no_filters_returns_all(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_list_no_filters_returns_all(self, db_client):
         from app.db.repository import ArticleRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = ArticleRepository(session)
+        repo.insert(article_data={"title": "A"}, images=[])
+        repo.insert(article_data={"title": "B"}, images=[])
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = ArticleRepository(session)
-            repo.insert(article_data={"title": "A"}, images=[])
-            repo.insert(article_data={"title": "B"}, images=[])
-            session.commit()
-
-            response = client.get("/api/articles")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["total"] == 2
-            assert len(data["articles"]) == 2
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        response = client.get("/api/articles")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert len(data["articles"]) == 2
 
 
 class TestArticleDetail:
-    def test_get_by_valid_id(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_get_by_valid_id(self, db_client):
         from app.db.repository import ArticleRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = ArticleRepository(session)
+        article_id = repo.insert(
+            article_data={
+                "title": "Detail Test",
+                "markdown_content": "# Detail Test\nContent",
+                "html_content": "<h1>Detail Test</h1><p>Content</p>",
+                "markdown_path": "output/test/md.md",
+                "html_path": "output/test/html.html",
+            },
+            images=[
+                {"image_path": "./images/01.jpg", "is_map": False, "is_elevation_profile": False},
+            ],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = ArticleRepository(session)
-            article_id = repo.insert(
-                article_data={
-                    "title": "Detail Test",
-                    "markdown_content": "# Detail Test\nContent",
-                    "html_content": "<h1>Detail Test</h1><p>Content</p>",
-                    "markdown_path": "output/test/md.md",
-                    "html_path": "output/test/html.html",
-                },
-                images=[
-                    {"image_path": "./images/01.jpg", "is_map": False, "is_elevation_profile": False},
-                ],
-            )
-            session.commit()
-
-            response = client.get(f"/api/articles/{article_id}")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["article"]["id"] == article_id
-            assert data["article"]["title"] == "Detail Test"
-            assert data["article"]["markdown_content"] == "# Detail Test\nContent"
-            assert len(data["article"]["images"]) == 1
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        response = client.get(f"/api/articles/{article_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["article"]["id"] == article_id
+        assert data["article"]["title"] == "Detail Test"
+        assert data["article"]["markdown_content"] == "# Detail Test\nContent"
+        assert len(data["article"]["images"]) == 1
 
     def test_get_by_invalid_id_returns_404(self, client):
         response = client.get("/api/articles/99999")
@@ -335,50 +263,24 @@ class TestArticleDetail:
 
 
 class TestArticleDelete:
-    def test_delete_existing_article(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_delete_existing_article(self, db_client):
         from app.db.repository import ArticleRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = ArticleRepository(session)
+        article_id = repo.insert(
+            article_data={"title": "Delete Me", "markdown_path": "output/test/md.md"},
+            images=[],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
+        response = client.delete(f"/api/articles/{article_id}")
+        assert response.status_code == 200
+        assert response.json()["deleted"] == article_id
 
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = ArticleRepository(session)
-            article_id = repo.insert(
-                article_data={"title": "Delete Me", "markdown_path": "output/test/md.md"},
-                images=[],
-            )
-            session.commit()
-
-            response = client.delete(f"/api/articles/{article_id}")
-            assert response.status_code == 200
-            assert response.json()["deleted"] == article_id
-
-            # Verify it's gone
-            response2 = client.get(f"/api/articles/{article_id}")
-            assert response2.status_code == 404
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        # Verify it's gone
+        response2 = client.get(f"/api/articles/{article_id}")
+        assert response2.status_code == 404
 
     def test_delete_nonexistent_article_returns_404(self, client):
         response = client.delete("/api/articles/99999")
@@ -390,242 +292,114 @@ class TestArticlePdf:
         response = client.get("/api/articles/99999/pdf")
         assert response.status_code == 404
 
-    def test_pdf_endpoint_with_valid_article(self, monkeypatch, tmp_path):
+    def test_pdf_endpoint_with_valid_article(self, db_client):
         """Testet, dass der Endpunkt einen 200-Status und application/pdf liefert.
         Achtung: Mockt die PDF-Generierung, da Chrome im Test nicht verfügbar ist."""
-        from app.db import connection as conn_module
-        from app.db.models import Base
         from app.db.repository import ArticleRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
         from unittest.mock import patch
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = ArticleRepository(session)
+        article_id = repo.insert(
+            article_data={
+                "title": "PDF Test",
+                "markdown_content": "# PDF Test",
+                "html_content": "<h1>PDF Test</h1><p>Content</p>",
+                "markdown_path": "output/test/md.md",
+                "html_path": "output/test/html.html",
+            },
+            images=[],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = ArticleRepository(session)
-            article_id = repo.insert(
-                article_data={
-                    "title": "PDF Test",
-                    "markdown_content": "# PDF Test",
-                    "html_content": "<h1>PDF Test</h1><p>Content</p>",
-                    "markdown_path": "output/test/md.md",
-                    "html_path": "output/test/html.html",
-                },
-                images=[],
-            )
-            session.commit()
-
-            # Mock generate_pdf um Chrome-Aufruf zu vermeiden
-            with patch("app.services.generate_pdf.generate_pdf", return_value=b"%PDF-1.4 mock") as mock_gen:
-                response = client.get(f"/api/articles/{article_id}/pdf")
-                assert response.status_code == 200
-                assert response.headers["content-type"] == "application/pdf"
-                assert "attachment" in response.headers["content-disposition"]
-                assert response.content == b"%PDF-1.4 mock"
-                mock_gen.assert_called_once()
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
-
-    def test_pdf_endpoint_with_no_html_content(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
-        from app.db.repository import ArticleRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
-
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
-
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = ArticleRepository(session)
-            article_id = repo.insert(
-                article_data={"title": "No HTML", "markdown_path": "output/test/md.md"},
-                images=[],
-            )
-            session.commit()
-
+        # Mock generate_pdf um Chrome-Aufruf zu vermeiden
+        with patch("app.services.generate_pdf.generate_pdf", return_value=b"%PDF-1.4 mock") as mock_gen:
             response = client.get(f"/api/articles/{article_id}/pdf")
-            assert response.status_code == 400
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "application/pdf"
+            assert "attachment" in response.headers["content-disposition"]
+            assert response.content == b"%PDF-1.4 mock"
+            mock_gen.assert_called_once()
 
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+    def test_pdf_endpoint_with_no_html_content(self, db_client):
+        from app.db.repository import ArticleRepository
+
+        client, session = db_client
+        repo = ArticleRepository(session)
+        article_id = repo.insert(
+            article_data={"title": "No HTML", "markdown_path": "output/test/md.md"},
+            images=[],
+        )
+        session.commit()
+
+        response = client.get(f"/api/articles/{article_id}/pdf")
+        assert response.status_code == 400
 
 
 class TestPhotobooksList:
-    def test_list_empty_returns_empty_array(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker as sm
+    def test_list_empty_returns_empty_array(self, db_client):
+        client, session = db_client
+        response = client.get("/api/photobooks")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["photobooks"] == []
+        assert data["total"] == 0
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            response = client.get("/api/photobooks")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["photobooks"] == []
-            assert data["total"] == 0
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
-
-    def test_list_with_filters(self, monkeypatch, tmp_path):
+    def test_list_with_filters(self, db_client):
         from datetime import date as date_type, datetime as datetime_type
-        from app.db import connection as conn_module
-        from app.db.models import Base
         from app.db.photobook_repository import PhotobookRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = PhotobookRepository(session)
+        repo.insert(
+            photobook_data={
+                "title": "Test Fotobuch",
+                "tour_date": date_type(2026, 4, 15),
+                "tour_duration_hours": 5.0,
+                "generation_timestamp": datetime_type(2026, 4, 30, 12, 0, 0),
+                "html_content": "<h1>Test</h1>",
+                "html_path": "output/test/html.html",
+                "photobook_size": "normal",
+                "page_count": 10,
+            },
+            images=[],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = PhotobookRepository(session)
-            repo.insert(
-                photobook_data={
-                    "title": "Test Fotobuch",
-                    "tour_date": date_type(2026, 4, 15),
-                    "tour_duration_hours": 5.0,
-                    "generation_timestamp": datetime_type(2026, 4, 30, 12, 0, 0),
-                    "html_content": "<h1>Test</h1>",
-                    "html_path": "output/test/html.html",
-                    "photobook_size": "normal",
-                    "page_count": 10,
-                },
-                images=[],
-            )
-            session.commit()
-
-            response = client.get("/api/photobooks?tour_date_from=2026-04-01&tour_date_to=2026-05-01")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["total"] == 1
-            assert data["photobooks"][0]["photobook_size"] == "normal"
-            assert data["photobooks"][0]["page_count"] == 10
-            assert "html_content" not in data["photobooks"][0]
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        response = client.get("/api/photobooks?tour_date_from=2026-04-01&tour_date_to=2026-05-01")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["photobooks"][0]["photobook_size"] == "normal"
+        assert data["photobooks"][0]["page_count"] == 10
+        assert "html_content" not in data["photobooks"][0]
 
 
 class TestPhotobookDetail:
-    def test_get_by_valid_id(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_get_by_valid_id(self, db_client):
         from app.db.photobook_repository import PhotobookRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = PhotobookRepository(session)
+        pb_id = repo.insert(
+            photobook_data={
+                "title": "Detail Test",
+                "html_content": "<h1>Detail</h1><p>Content</p>",
+                "html_path": "output/test/html.html",
+                "photobook_size": "short",
+            },
+            images=[
+                {"image_path": "./images/01.jpg", "is_map": False, "is_elevation_profile": False},
+            ],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = PhotobookRepository(session)
-            pb_id = repo.insert(
-                photobook_data={
-                    "title": "Detail Test",
-                    "html_content": "<h1>Detail</h1><p>Content</p>",
-                    "html_path": "output/test/html.html",
-                    "photobook_size": "short",
-                },
-                images=[
-                    {"image_path": "./images/01.jpg", "is_map": False, "is_elevation_profile": False},
-                ],
-            )
-            session.commit()
-
-            response = client.get(f"/api/photobooks/{pb_id}")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["photobook"]["id"] == pb_id
-            assert data["photobook"]["photobook_size"] == "short"
-            assert len(data["photobook"]["images"]) == 1
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        response = client.get(f"/api/photobooks/{pb_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["photobook"]["id"] == pb_id
+        assert data["photobook"]["photobook_size"] == "short"
+        assert len(data["photobook"]["images"]) == 1
 
     def test_get_by_invalid_id_returns_404(self, client):
         response = client.get("/api/photobooks/99999")
@@ -633,49 +407,23 @@ class TestPhotobookDetail:
 
 
 class TestPhotobookDelete:
-    def test_delete_existing(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_delete_existing(self, db_client):
         from app.db.photobook_repository import PhotobookRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = PhotobookRepository(session)
+        pb_id = repo.insert(
+            photobook_data={"html_path": "output/test/html.html"},
+            images=[],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
+        response = client.delete(f"/api/photobooks/{pb_id}")
+        assert response.status_code == 200
+        assert response.json()["deleted"] == pb_id
 
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = PhotobookRepository(session)
-            pb_id = repo.insert(
-                photobook_data={"html_path": "output/test/html.html"},
-                images=[],
-            )
-            session.commit()
-
-            response = client.delete(f"/api/photobooks/{pb_id}")
-            assert response.status_code == 200
-            assert response.json()["deleted"] == pb_id
-
-            response2 = client.get(f"/api/photobooks/{pb_id}")
-            assert response2.status_code == 404
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        response2 = client.get(f"/api/photobooks/{pb_id}")
+        assert response2.status_code == 404
 
     def test_delete_nonexistent_returns_404(self, client):
         response = client.delete("/api/photobooks/99999")
@@ -687,87 +435,35 @@ class TestPhotobookPdf:
         response = client.get("/api/photobooks/99999/pdf")
         assert response.status_code == 404
 
-    def test_pdf_endpoint_with_valid_photobook(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_pdf_endpoint_with_valid_photobook(self, db_client, tmp_path):
         from app.db.photobook_repository import PhotobookRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
         pdf_file = tmp_path / "test.pdf"
         pdf_file.write_bytes(b"%PDF-1.4 mock")
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = PhotobookRepository(session)
+        pb_id = repo.insert(
+            photobook_data={
+                "html_path": "output/test/html.html",
+                "pdf_path": str(pdf_file),
+            },
+            images=[],
+        )
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
+        response = client.get(f"/api/photobooks/{pb_id}/pdf")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.content == b"%PDF-1.4 mock"
 
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = PhotobookRepository(session)
-            pb_id = repo.insert(
-                photobook_data={
-                    "html_path": "output/test/html.html",
-                    "pdf_path": str(pdf_file),
-                },
-                images=[],
-            )
-            session.commit()
-
-            response = client.get(f"/api/photobooks/{pb_id}/pdf")
-            assert response.status_code == 200
-            assert response.headers["content-type"] == "application/pdf"
-            assert response.content == b"%PDF-1.4 mock"
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
-
-    def test_pdf_endpoint_with_no_pdf_returns_400(self, monkeypatch, tmp_path):
-        from app.db import connection as conn_module
-        from app.db.models import Base
+    def test_pdf_endpoint_with_no_pdf_returns_400(self, db_client):
         from app.db.photobook_repository import PhotobookRepository
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session, sessionmaker as sm
 
-        tmp = str(tmp_path / "test.db")
-        try:
-            engine = create_engine(f"sqlite:///{tmp}", echo=False)
-            Base.metadata.create_all(engine)
-            session = Session(engine)
+        client, session = db_client
+        repo = PhotobookRepository(session)
+        pb_id = repo.insert(photobook_data={"html_path": "output/test/html.html"}, images=[])
+        session.commit()
 
-            factory = sm(bind=engine)
-            monkeypatch.setattr(conn_module, "_engine", engine)
-            monkeypatch.setattr(conn_module, "_SessionLocal", factory)
-            monkeypatch.setattr(conn_module, "get_session", factory)
-
-            import app.api.routes as routes_mod
-            monkeypatch.setattr(routes_mod, "get_session", factory)
-            from app.api.server import create_app
-            from fastapi.testclient import TestClient
-            app = create_app()
-            client = TestClient(app)
-
-            repo = PhotobookRepository(session)
-            pb_id = repo.insert(photobook_data={"html_path": "output/test/html.html"}, images=[])
-            session.commit()
-
-            response = client.get(f"/api/photobooks/{pb_id}/pdf")
-            assert response.status_code == 400
-
-            session.close()
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        response = client.get(f"/api/photobooks/{pb_id}/pdf")
+        assert response.status_code == 400

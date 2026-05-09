@@ -15,9 +15,9 @@ class TestPersistArticleStatus:
         }
 
         with patch("app.services.persist_article.get_session") as mock_session:
+            mock_session.return_value = MagicMock()
             mock_repo = MagicMock()
             mock_repo.insert.return_value = 42
-            mock_session.return_value.__enter__.return_value = None
             with patch("app.services.persist_article.ArticleRepository", return_value=mock_repo):
                 result = persist_article(
                     blog_post=blog_post,
@@ -43,9 +43,9 @@ class TestPersistArticleStatus:
         }
 
         with patch("app.services.persist_article.get_session") as mock_session:
+            mock_session.return_value = MagicMock()
             mock_repo = MagicMock()
             mock_repo.insert.return_value = 42
-            mock_session.return_value.__enter__.return_value = None
             with patch("app.services.persist_article.ArticleRepository", return_value=mock_repo):
                 result = persist_article(
                     blog_post=blog_post,

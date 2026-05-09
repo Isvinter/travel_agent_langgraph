@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import { navigateTo } from "./stores/router";
+  import { formatDate, formatDuration } from "./utils/format";
 
   let { id }: { id: number } = $props();
 
@@ -28,6 +29,7 @@
   let photobook: PhotobookFull | null = $state(null);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
+  let aborted: boolean = false;
   let deleting: boolean = $state(false);
 
   function iframeHeight(pageCount: number | null): string {
@@ -40,6 +42,7 @@
     error = null;
     try {
       const res = await fetch(`/api/photobooks/${id}`);
+      if (aborted) return;
       if (!res.ok) {
         if (res.status === 404) throw new Error("Fotobuch nicht gefunden.");
         throw new Error(`API error: ${res.status}`);
@@ -70,27 +73,17 @@
     window.open(`/api/photobooks/${id}/pdf`, "_blank");
   }
 
-  function formatDate(iso: string | null): string {
-    if (!iso) return "\u2014";
-    return new Date(iso).toLocaleDateString("de-DE");
-  }
-
-  function formatDuration(hours: number | null): string {
-    if (hours === null || hours === undefined) return "\u2014";
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}h ${m}m`;
-  }
+  $effect(() => {
+    aborted = false;
+    fetchPhotobook();
+    return () => { aborted = true; };
+  });
 
   function formatSize(size: string | null): string {
     if (!size) return "\u2014";
     const map: Record<string, string> = { short: "Klein", normal: "Normal", detailed: "Gross" };
     return map[size] || size;
   }
-
-  $effect(() => {
-    fetchPhotobook();
-  });
 </script>
 
 <div class="photobook-detail">

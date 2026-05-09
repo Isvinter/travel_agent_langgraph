@@ -3,6 +3,7 @@
 <script lang="ts">
   import DOMPurify from "dompurify";
   import { navigateTo } from "./stores/router";
+  import { formatDate, formatDuration } from "./utils/format";
 
   function sanitize(html: string | null): string {
     if (!html) return "";
@@ -33,6 +34,7 @@
   let article: ArticleFull | null = $state(null);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
+  let aborted: boolean = false;
   let deleting: boolean = $state(false);
 
   async function fetchArticle() {
@@ -40,6 +42,7 @@
     error = null;
     try {
       const res = await fetch(`/api/articles/${id}`);
+      if (aborted) return;
       if (!res.ok) {
         if (res.status === 404) throw new Error("Artikel nicht gefunden.");
         throw new Error(`API error: ${res.status}`);
@@ -70,20 +73,10 @@
     window.open(`/api/articles/${id}/pdf`, "_blank");
   }
 
-  function formatDate(iso: string | null): string {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("de-DE");
-  }
-
-  function formatDuration(hours: number | null): string {
-    if (hours === null || hours === undefined) return "—";
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}h ${m}m`;
-  }
-
   $effect(() => {
+    aborted = false;
     fetchArticle();
+    return () => { aborted = true; };
   });
 </script>
 

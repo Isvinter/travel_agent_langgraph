@@ -34,6 +34,7 @@
   let article: ArticleData | null = $state(null);
   let loading: boolean = $state(true);
   let error: string = $state("");
+  let aborted: boolean = false;
   let htmlBlocks: { type: string; content: string; index: number; src?: string; alt?: string }[] = $state([]);
   let markedBlocks: MarkedBlock[] = $state([]);
   let markedIndices: Set<number> = $state(new Set());
@@ -48,6 +49,7 @@
     error = "";
     try {
       const res = await fetch(`/api/articles/${id}`);
+      if (aborted) return;
       if (!res.ok) throw new Error("Artikel nicht gefunden");
       const data = await res.json();
       article = data.article;
@@ -250,7 +252,9 @@
   }
 
   $effect(() => {
+    aborted = false;
     loadArticle();
+    return () => { aborted = true; };
   });
 </script>
 
