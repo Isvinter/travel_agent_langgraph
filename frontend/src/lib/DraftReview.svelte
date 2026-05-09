@@ -552,7 +552,6 @@
   .article-content :global(p[data-block-index]:nth-child(even):not([data-marked="true"])),
   .article-content :global(figure[data-block-index]:nth-child(even):not([data-marked="true"])) {
     background: var(--panel-2);
-    border-radius: 4px;
   }
   .article-content :global(h1),
   .article-content :global(h2),
