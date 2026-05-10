@@ -38,6 +38,7 @@
   let htmlBlocks: { type: string; content: string; index: number; src?: string; alt?: string }[] = $state([]);
   let markedBlocks: MarkedBlock[] = $state([]);
   let markedIndices: Set<number> = $state(new Set());
+  let globalInstruction: string = $state("");
   let revising: boolean = $state(false);
   let publishing: boolean = $state(false);
   let deleting: boolean = $state(false);
@@ -187,11 +188,14 @@
     if (markedBlocks.length === 0) return;
     revising = true;
     revisionResult = "";
+    const changes = globalInstruction.trim()
+      ? markedBlocks.map(m => ({ ...m, instruction: globalInstruction.trim() }))
+      : markedBlocks;
     try {
       const res = await fetch(`/api/articles/${id}/revise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ changes: markedBlocks }),
+        body: JSON.stringify({ changes }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -207,6 +211,7 @@
       }
       markedBlocks = [];
       markedIndices = new Set();
+      globalInstruction = "";
     } catch (e: any) {
       revisionResult = `Fehler: ${e.message}`;
     } finally {
@@ -317,6 +322,23 @@
         {#if markedBlocks.length === 0}
           <p class="no-marks">Keine Elemente markiert.</p>
         {:else}
+          {#if markedBlocks.length >= 2}
+            <div class="global-instruction">
+              <div class="marked-header">
+                <span class="marked-type">Gemeinsame Anweisung</span>
+                {#if globalInstruction}
+                  <button class="remove-btn" onclick={() => globalInstruction = ""} title="Gemeinsame Anweisung löschen">×</button>
+                {/if}
+              </div>
+              <textarea
+                class="instruction-input global-input"
+                placeholder="Anweisung für alle markierten Blöcke..."
+                value={globalInstruction}
+                oninput={(e) => globalInstruction = (e.target as HTMLTextAreaElement).value}
+                rows="2"
+              ></textarea>
+            </div>
+          {/if}
           <div class="marked-list">
             {#each markedBlocks as block (block.element_index)}
               <div class="marked-item">
@@ -333,10 +355,12 @@
                 </div>
                 <textarea
                   class="instruction-input"
+                  class:disabled-input={!!globalInstruction.trim()}
                   placeholder="Anweisung für die Überarbeitung..."
-                  value={block.instruction}
+                  value={globalInstruction.trim() ? globalInstruction : block.instruction}
                   oninput={(e) => updateInstruction(block.element_index, (e.target as HTMLTextAreaElement).value)}
                   rows="3"
+                  disabled={!!globalInstruction.trim()}
                 ></textarea>
               </div>
             {/each}
@@ -681,6 +705,22 @@
   }
   .instruction-input::placeholder {
     color: var(--text-muted);
+  }
+  .disabled-input {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .global-instruction {
+    background: var(--bg);
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .global-input::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
   }
 
   .submit-btn {
