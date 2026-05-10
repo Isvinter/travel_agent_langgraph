@@ -1,13 +1,17 @@
 """PDF-Generierung fuer Fotobuch via Headless Chrome (Selenium CDP)."""
 
 import base64
+import logging
 import os
 import tempfile
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+logger = logging.getLogger(__name__)
 
 
 def _inject_print_css(html_content: str) -> str:
@@ -44,8 +48,12 @@ def generate_photobook_pdf(html_content: str) -> bytes:
 
     fd, html_path = tempfile.mkstemp(suffix=".html")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(processed)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(processed)
+        except Exception:
+            os.close(fd)  # fdopen fehlgeschlagen → fd manuell schließen
+            raise
 
         options = Options()
         options.add_argument("--headless=new")
@@ -77,5 +85,7 @@ def generate_photobook_pdf(html_content: str) -> bytes:
         finally:
             driver.quit()
     finally:
-        if os.path.exists(html_path):
-            os.unlink(html_path)
+        try:
+            Path(html_path).unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning("Konnte temp-Datei nicht löschen %s: %s", html_path, e)

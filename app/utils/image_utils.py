@@ -4,7 +4,6 @@ Wird sowohl von der Blog- als auch der Photobuch-Pipeline verwendet.
 """
 
 import base64 as _b64
-import io
 import io as _io
 import logging
 import os
@@ -38,7 +37,7 @@ def compress_image_to_jpeg(
             if max(img.size) > max_dim:
                 ratio = max_dim / max(img.size)
                 img = img.resize(
-                    (int(img.width * ratio), int(img.height * ratio)),
+                    (round(img.width * ratio), round(img.height * ratio)),
                     Image.LANCZOS,
                 )
 
@@ -47,7 +46,7 @@ def compress_image_to_jpeg(
             # Phase 1: JPEG-Qualität reduzieren
             quality = 85
             while quality >= 10:
-                buf = io.BytesIO()
+                buf = _io.BytesIO()
                 img.save(buf, format="JPEG", quality=quality, optimize=True)
                 if len(buf.getvalue()) <= max_size_bytes:
                     with open(output_path, "wb") as f:
@@ -61,7 +60,7 @@ def compress_image_to_jpeg(
                 h = int(h * 0.75)
                 resized = img.resize((w, h), Image.LANCZOS)
 
-                buf = io.BytesIO()
+                buf = _io.BytesIO()
                 resized.save(buf, format="JPEG", quality=75, optimize=True)
                 if len(buf.getvalue()) <= max_size_bytes:
                     with open(output_path, "wb") as f:
@@ -69,7 +68,7 @@ def compress_image_to_jpeg(
                     return output_path
 
             # Fallback: kleinste mögliche Größe
-            buf = io.BytesIO()
+            buf = _io.BytesIO()
             img.resize((200, int(h * 200 / w))).save(
                 buf, format="JPEG", quality=10, optimize=True
             )
@@ -107,7 +106,7 @@ def encode_image_base64(image_path: str, max_size: int = 800, quality: int = 85)
                 img = img.convert("RGB")
 
             buf = _io.BytesIO()
-            img.convert("RGB").save(buf, format="JPEG", quality=quality)
+            img.save(buf, format="JPEG", quality=quality)
             return _b64.b64encode(buf.getvalue()).decode("utf-8")
     except Exception as e:
         logger.warning("Error encoding image %s: %s", image_path, e)

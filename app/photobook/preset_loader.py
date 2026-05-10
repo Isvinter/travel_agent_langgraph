@@ -3,7 +3,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 _PRESETS_DIR = Path(__file__).parent / "preset_data"
 
@@ -38,7 +38,10 @@ def load_preset(preset_id: str) -> Preset:
         raise FileNotFoundError(f"Preset '{preset_id}' nicht gefunden unter {path}")
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return Preset(**data)
+    try:
+        return Preset(**data)
+    except ValidationError as e:
+        raise ValidationError(f"Preset '{preset_id}' in {path} ist fehlerhaft: {e}") from e
 
 
 @lru_cache(maxsize=1)

@@ -184,13 +184,13 @@ def _add_image_captions(html_body: str) -> str:
     """
     def _wrap(match: re.Match) -> str:
         tag = match.group(0)
-        alt = match.group(1)
+        alt = match.group(2)
         if not alt or not alt.strip():
             return tag
         return f"<figure>{tag}<figcaption>{unescape(alt.strip())}</figcaption></figure>"
 
     return re.sub(
-        r'<img\s[^>]*\balt="([^"]*)"[^>]*>',
+        r'<img\s[^>]*\balt=(["\'])((?:(?!\1).)*)\1[^>]*>',
         _wrap,
         html_body,
         flags=re.IGNORECASE,

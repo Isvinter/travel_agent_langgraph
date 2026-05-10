@@ -8,7 +8,9 @@ Findet Points of Interest in der Nähe von Pause-Orten entlang der Route.
 import json
 import logging
 import math
+import os
 from pathlib import Path
+import tempfile
 import time
 from typing import Any, Dict, List, Optional
 import requests.utils
@@ -85,13 +87,20 @@ def _load_cache(cache_path: Path = POI_CACHE_PATH) -> Dict[str, Any]:
 
 
 def _save_to_cache(key: str, pois: List[Dict[str, Any]], cache_path: Path = POI_CACHE_PATH):
-    """Speichert POIs für einen Key im Cache."""
+    """Speichert POIs für einen Key im Cache (atomarer Write)."""
     try:
         cache = _load_cache(cache_path)
         cache[key] = pois
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w", encoding="utf-8") as f:
-            json.dump(cache, f, ensure_ascii=False, indent=2)
+        # Atomarer Write: erst in Temp-Datei, dann umbenennen
+        fd, tmp_path = tempfile.mkstemp(dir=str(cache_path.parent), suffix=".json")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(cache, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, cache_path)
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
     except Exception as e:
         logger.warning("Cache konnte nicht gespeichert werden: %s", e)
 

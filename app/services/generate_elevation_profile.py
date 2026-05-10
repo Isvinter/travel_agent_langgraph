@@ -35,10 +35,12 @@ def generate_elevation_profile(
 
     # Plot
     plt.figure()
-    plt.plot(distances[1:], elevations)  # skip erstes 0
-    plt.xlabel("Distance (km)")
-    plt.ylabel("Elevation (m)")
-    plt.title("Elevation Profile")
+    try:
+        plt.plot(distances[1:], elevations)  # skip erstes 0
+        plt.xlabel("Distance (km)")
+        plt.ylabel("Elevation (m)")
+        plt.title("Elevation Profile")
 
-    plt.savefig(output_path)
-    plt.close()
+        plt.savefig(output_path)
+    finally:
+        plt.close()

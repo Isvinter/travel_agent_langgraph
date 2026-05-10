@@ -82,7 +82,7 @@ def render_photobook(pages: List[PageDescription], images: List[ImageData]) -> s
                     img_path = _normalize_path(images[idx].path)
                     html_parts.append(
                         f'<img class="slot-image" {area_style} '
-                        f'src="{img_path}" alt="Foto {idx + 1}">'
+                        f'src="{html.escape(img_path)}" alt="Foto {idx + 1}">'
                     )
                 else:
                     html_parts.append(
@@ -128,7 +128,7 @@ def _render_cover_page(page: PageDescription, title: str, images: List[ImageData
             img_path = _normalize_path(images[idx].path)
             parts.append(
                 f'<img class="cover-image" '
-                f'src="{img_path}" alt="Cover">'
+                f'src="{html.escape(img_path)}" alt="Cover">'
             )
 
     # Titel-Overlay

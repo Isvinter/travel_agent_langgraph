@@ -16,7 +16,6 @@ from app.state import ImageData, WeatherInfo, POI, EnrichmentContext
 logger = logging.getLogger(__name__)
 
 
-OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
 MAX_REVIEW_RESPONSE_TOKENS = 2048
 
 
@@ -192,7 +191,6 @@ def _parse_review_response(response: Optional[str]) -> Dict[str, Any]:
 
     # Fallback: gesamte Antwort als Weather Summary
     default["weather_summary"] = response[:500]
-    default["coherence_score"] = 0
     return default
 
 

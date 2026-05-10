@@ -414,7 +414,11 @@ def generate_blog_post(
         basename_to_rel[bn.lower()] = rel
         m_idx = re.match(r'(\d+)_', bn)
         if m_idx:
-            index_to_rel[int(m_idx.group(1))] = rel
+            idx = int(m_idx.group(1))
+            if idx in index_to_rel:
+                logger.warning("Index-Kollision: Bild %s und %s haben beide Prefix %02d_",
+                               os.path.basename(orig), index_to_rel[idx], idx)
+            index_to_rel[idx] = rel
 
     def resolve_path(path: str) -> str:
         # Exact match (full path, basename, relative path)
