@@ -286,7 +286,10 @@ def check_variety(pages: List[PageDescription]) -> List[PageDescription]:
                     non_cover = [pid for pid in alternatives if pid != "cover_hero"]
                     # Bevorzuge text-faehige Presets
                     text_alternatives = [pid for pid in non_cover if presets[pid].has_text]
-                    replacement = (text_alternatives or non_cover)[0]
+                    if text_alternatives or non_cover:
+                        replacement = (text_alternatives or non_cover)[0]
+                    else:
+                        replacement = get_any_preset(new_count)
                     result[i] = _replace_preset(page, replacement)
                     same_count_streak = 0
             else:

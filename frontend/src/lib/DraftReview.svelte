@@ -48,6 +48,10 @@
   async function loadArticle() {
     loading = true;
     error = "";
+    markedBlocks = [];
+    markedIndices = new Set();
+    globalInstruction = "";
+    revisionResult = "";
     try {
       const res = await fetch(`/api/articles/${id}`);
       if (aborted) return;

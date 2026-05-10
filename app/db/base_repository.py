@@ -19,6 +19,8 @@ class BaseRepository(Generic[T, F]):
 
     def insert(self, data: dict, images: list[dict]) -> int:
         """Fügt einen Datensatz mit Bildern ein. Gibt die ID zurück."""
+        if data is None:
+            raise ValueError("data darf nicht None sein")
         record: T = self.model(**data)
         self.session.add(record)
         self.session.flush()

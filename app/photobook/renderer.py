@@ -6,6 +6,7 @@ mit CSS Grid Layouts aus den Preset-Definitionen.
 
 import html
 import os
+import urllib.parse
 from typing import List
 from app.state import PageDescription, ImageData
 from app.photobook.preset_loader import load_preset
@@ -151,4 +152,4 @@ def _extract_title(page: PageDescription, page_idx: int) -> str:
 def _normalize_path(path: str) -> str:
     """Konvertiert Pfade zu file:/// URIs fuer Headless Chrome."""
     abs_path = os.path.abspath(path)
-    return f"file://{abs_path}"
+    return urllib.parse.urljoin("file://", urllib.parse.quote(abs_path))

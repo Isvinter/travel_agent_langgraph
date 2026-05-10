@@ -33,7 +33,10 @@ class PipelineEventManager:
         if queue is None or self._loop is None:
             return
         event = {"stage": stage, "status": status, "message": message}
-        self._loop.call_soon_threadsafe(queue.put_nowait, event)
+        try:
+            self._loop.call_soon_threadsafe(queue.put_nowait, event)
+        except asyncio.QueueFull:
+            pass  # Queue ist voll, Event wird verworfen statt Pipeline-Crash
 
     def complete_run(self, run_id: str, status: str, output_dir: str = "",
                      article_id: int = None, photobook_id: int = None,
@@ -50,7 +53,10 @@ class PipelineEventManager:
         if draft_id is not None:
             event["draft_id"] = draft_id
         event["pdf_available"] = pdf_available
-        self._loop.call_soon_threadsafe(queue.put_nowait, event)
+        try:
+            self._loop.call_soon_threadsafe(queue.put_nowait, event)
+        except asyncio.QueueFull:
+            pass  # Queue ist voll, Event wird verworfen statt Pipeline-Crash
 
     def store_result(self, run_id: str, result: dict):
         """Store the final pipeline result for later retrieval."""

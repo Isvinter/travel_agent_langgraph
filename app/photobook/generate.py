@@ -127,13 +127,6 @@ def generate_photobook_pages(
         if b64:
             encoded_images.append(b64)
 
-    # Bilder als Base64 encodieren
-    encoded_images = []
-    for img in images:
-        b64 = encode_image_base64(img.path)
-        if b64:
-            encoded_images.append(b64)
-
     try:
         content = call_ollama(
             prompt,
