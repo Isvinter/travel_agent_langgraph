@@ -2,12 +2,23 @@
 """Zentrale Konfiguration für die Travel-Agent-Pipeline."""
 
 import os
+from pathlib import Path
 
 # Ollama API (konfigurierbar via Umgebungsvariable)
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
 # Ausgabeverzeichnis für generierte Artikel, Höhenprofile etc.
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output")
+
+
+def get_project_root() -> Path:
+    """Findet das Projekt-Root-Verzeichnis anhand der pyproject.toml."""
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+    raise FileNotFoundError("pyproject.toml nicht gefunden — Projekt-Root unbekannt")
 
 LENGTH_PRESETS = {
     "short": {"label": "Kurz", "min_words": 300, "max_words": 650},

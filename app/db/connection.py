@@ -28,8 +28,11 @@ def _run_migrations():
             alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
             command.upgrade(alembic_cfg, "head")
             return
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("app.db.connection").error(
+            "Alembic-Migration fehlgeschlagen, falle auf create_all zurück: %s", e
+        )
     Base.metadata.create_all(_get_engine())
     _ensure_indexes()
 

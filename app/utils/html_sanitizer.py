@@ -15,7 +15,7 @@ _EXTRA_TAGS = {
 }
 
 _ATTRIBUTES = {
-    "a": {"href", "title", "rel", "target"},
+    "a": {"href", "title", "target"},
     "img": {"src", "alt", "width", "height", "loading"},
     "td": {"colspan", "rowspan"},
     "th": {"colspan", "rowspan"},
@@ -56,6 +56,5 @@ def sanitize_html(html: str, *, keep_style: bool = False) -> str:
         tags=tags,
         attributes=_ATTRIBUTES,
         clean_content_tags=frozenset(clean_content_tags),
-        link_rel=None,
         strip_comments=True,
     )

@@ -11,6 +11,7 @@ import math
 from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional
+import requests.utils
 from app.state import POI
 
 import requests
@@ -261,7 +262,7 @@ def _enrich_with_wikipedia(poi: Dict[str, Any]) -> Dict[str, Any]:
     lang, title = parts
 
     try:
-        url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
+        url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(title)}"
         resp = _session.get(url, timeout=10)
         if resp.status_code == 200:
             data = resp.json()

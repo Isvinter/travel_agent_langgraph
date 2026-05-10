@@ -64,7 +64,6 @@ def create_app() -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["X-XSS-Protection"] = "0"
         response.headers["Permissions-Policy"] = (
             "accelerometer=(), camera=(), geolocation=(), "
             "gyroscope=(), magnetometer=(), microphone=(), "

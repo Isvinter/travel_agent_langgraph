@@ -61,11 +61,13 @@ def _select_from_batch(
     base_url: str,
 ) -> List[Dict[str, Any]]:
     encoded = []
-    for img in batch:
+    encoded_to_original: list[int] = []  # Index in encoded → Index in batch
+    for i, img in enumerate(batch):
         try:
             b64 = _encode_image(img["path"])
             if b64:
                 encoded.append(b64)
+                encoded_to_original.append(i)
         except Exception:
             continue
 
@@ -76,14 +78,14 @@ def _select_from_batch(
     response = _call_ollama(prompt, encoded, model, base_url)
 
     if not response:
-        # Fallback: gleichmäßig verteilen
+        # Fallback: gleichmäßig verteilen (nutze original indices)
         step = max(1, len(encoded) // target_count)
         indices = range(0, len(encoded), step)[:target_count]
-        return [batch[i] for i in indices if i < len(batch)]
+        return [batch[encoded_to_original[i]] for i in indices if i < len(encoded_to_original)]
 
     indices = _parse_selection(response, max_index=len(encoded) - 1)
     if indices:
-        return [batch[i] for i in indices if i < len(batch)]
+        return [batch[encoded_to_original[i]] for i in indices if i < len(encoded_to_original)]
 
     # Fallback: erste target_count Bilder
     return batch[:target_count]
@@ -96,11 +98,13 @@ def _reduce_to_target(
     base_url: str,
 ) -> List[Dict[str, Any]]:
     encoded = []
-    for img in candidates:
+    encoded_to_original: list[int] = []  # Index in encoded → Index in candidates
+    for i, img in enumerate(candidates):
         try:
             b64 = _encode_image(img["path"])
             if b64:
                 encoded.append(b64)
+                encoded_to_original.append(i)
         except Exception:
             continue
 
@@ -111,13 +115,13 @@ def _reduce_to_target(
     response = _call_ollama(prompt, encoded, model, base_url)
 
     if not response:
-        return [candidates[i] for i in range(target_count)]
+        return [candidates[encoded_to_original[i]] for i in range(min(target_count, len(encoded_to_original)))]
 
     indices = _parse_selection(response, max_index=len(encoded) - 1)
     if indices:
-        return [candidates[i] for i in indices if i < len(candidates)]
+        return [candidates[encoded_to_original[i]] for i in indices if i < len(encoded_to_original)]
 
-    return [candidates[i] for i in range(target_count)]
+    return [candidates[encoded_to_original[i]] for i in range(min(target_count, len(encoded_to_original)))]
 
 
 def _make_batch_prompt(images: List[str], target: int) -> str:

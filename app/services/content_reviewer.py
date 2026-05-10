@@ -20,6 +20,22 @@ OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
 MAX_REVIEW_RESPONSE_TOKENS = 2048
 
 
+def _extract_json_object(text: str) -> Optional[str]:
+    """Extrahiert das erste vollständige JSON-Objekt aus Text mit verschachtelten Klammern."""
+    start = text.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
 def _build_review_prompt(
     weather: Optional[WeatherInfo],
     poi_list: List[POI],
@@ -157,11 +173,11 @@ def _parse_review_response(response: Optional[str]) -> Dict[str, Any]:
     if not response:
         return default
 
-    # JSON-Extraktion: alles zwischen { und }
-    json_match = re.search(r'\{.*\}', response, re.DOTALL)
-    if json_match:
+    # JSON-Extraktion: finde das erste { mit passender schließender }
+    json_str = _extract_json_object(response)
+    if json_str:
         try:
-            data = json.loads(json_match.group(0))
+            data = json.loads(json_str)
             result = {
                 "kept_pois": [p for p in data.get("pois", []) if p.get("action") == "KEEP"],
                 "weather_summary": data.get("weather_summary", ""),

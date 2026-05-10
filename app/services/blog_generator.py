@@ -14,9 +14,10 @@ from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
 
-from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR
+import markdown
+
+from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR, get_project_root
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
-_strip_thinking_tokens = strip_thinking_tokens  # backward compatibility
 from app.state import BlogPostResult, EnrichmentContext, POI
 from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
 
@@ -314,7 +315,7 @@ def generate_blog_post(
     """
     # ---- Per-Artikel-Unterverzeichnis ----
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    project_root = str(get_project_root())
     article_dir = os.path.join(project_root, OUTPUT_DIR, timestamp)
     images_dir = os.path.join(article_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
@@ -474,7 +475,6 @@ def generate_blog_post(
     html_saved = False
     html_return = result
     try:
-        import markdown
         html_return = markdown.markdown(result, extensions=["fenced_code", "tables", "sane_lists"])
         with open(html_file_path, "w", encoding="utf-8") as f:
             f.write(html_return)
