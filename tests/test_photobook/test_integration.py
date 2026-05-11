@@ -1,10 +1,10 @@
 """Integrationstest: Vollstaendiger Fotobuch-Graph-Durchlauf mit Mock-LLM."""
 import json
 from unittest.mock import patch, MagicMock
-from app.state import AppState, ImageData, OutputConfig, EnrichmentContext
+from app.state import AppState, ImageData, OutputConfig, PhotobookConfig, EnrichmentContext
 from app.graph import build_graph
 
-MOCK_SELECTION_CONTENT = "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
+MOCK_SELECTION_CONTENT = "0, 1, 2, 3, 4, 5, 6"
 MOCK_PLAN_CONTENT = json.dumps({
     "pages": [
         {"position": 0, "preset_id": "cover_hero", "image_indices": [0], "purpose": "Cover"},
@@ -14,13 +14,18 @@ MOCK_PLAN_CONTENT = json.dumps({
     "dramatic_arc": "test"
 })
 MOCK_GENERATE_CONTENT = json.dumps([
-    {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 0}]},
+    {"preset_id": "cover_hero", "slots": [
+        {"slot_id": "main", "image_index": 0},
+        {"slot_id": "title", "text": "Fotobuch"},
+    ]},
     {"preset_id": "double_stacked", "slots": [
         {"slot_id": "top", "image_index": 1}, {"slot_id": "bottom", "image_index": 2},
+        {"slot_id": "title", "text": "Split"},
     ]},
     {"preset_id": "quad_grid", "slots": [
         {"slot_id": "tl", "image_index": 3}, {"slot_id": "tr", "image_index": 4},
         {"slot_id": "bl", "image_index": 5}, {"slot_id": "br", "image_index": 6},
+        {"slot_id": "title", "text": "Grid"},
     ]},
 ])
 
@@ -37,7 +42,7 @@ def _mock_review_enrichment(weather=None, poi_list=None, selected_images=None,
 def make_state(n_images=20):
     return AppState(
         images=[ImageData(path=f"/tmp/img_{i}.jpg", latitude=47.0 + i * 0.001, longitude=8.0 + i * 0.001) for i in range(n_images)],
-        output_config=OutputConfig(mode="photobook"),
+        output_config=OutputConfig(mode="photobook", photobook=PhotobookConfig(photo_count=7)),
         model="test-model",
     )
 
@@ -101,18 +106,22 @@ class TestPresetPipeline:
             {"preset_id": "double_stacked", "slots": [
                 {"slot_id": "top", "image_index": 1},
                 {"slot_id": "bottom", "image_index": 2},
+                {"slot_id": "title", "text": "Bergtour"},
             ]},
             {"preset_id": "triple_stacked", "slots": [
                 {"slot_id": "top", "image_index": 3},
                 {"slot_id": "middle", "image_index": 4},
                 {"slot_id": "bottom", "image_index": 5},
+                {"slot_id": "title", "text": "Bergtour"},
             ]},
             {"preset_id": "single_text_left", "slots": [
                 {"slot_id": "main", "image_index": 6},
-                {"slot_id": "text", "text": "Rast am See"},
+                {"slot_id": "title", "text": "Rast am See"},
+                {"slot_id": "caption", "text": "Rast am See"},
             ]},
             {"preset_id": "single_text_below", "slots": [
                 {"slot_id": "main", "image_index": 7},
+                {"slot_id": "title", "text": "Gipfelblick"},
                 {"slot_id": "caption", "text": "Gipfelblick"},
             ]},
         ])
@@ -127,7 +136,7 @@ class TestPresetPipeline:
             with patch("app.photobook.generate.call_ollama") as mock_gen_post:
                 mock_gen_post.return_value = mock_gen_content
 
-                pages = generate_photobook_pages(plan, images, None, None, model="test")
+                pages = generate_photobook_pages(plan, images, tour_summary=None, model="test", batch_size=5)
                 assert len(pages) == 5
 
                 validated, warnings = validate_all_pages(pages)

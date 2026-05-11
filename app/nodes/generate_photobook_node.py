@@ -13,10 +13,15 @@ def generate_photobook_node(state: AppState) -> AppState:
         logger.warning("Kein Layout-Plan vorhanden.")
         return state
     gpx_dict, preset = _get_photobook_context(state)
+    dist_m = gpx_dict.get("total_distance_m", 0)
+    elev_m = gpx_dict.get("elevation_gain_m", 0)
+    gpx_distance = f"{dist_m / 1000:.1f}" if dist_m else None
+    gpx_elevation = str(int(elev_m)) if elev_m else None
     try:
         pages = generate_photobook_pages(
             plan=state.photobook_plan, images=state.photobook_images,
-            gpx_stats=gpx_dict, notes=state.notes, model=state.model,
+            tour_summary=state.tour_summary, gpx_distance=gpx_distance,
+            gpx_elevation=gpx_elevation, model=state.model,
             preset=preset,
         )
         state.photobook_pages = pages

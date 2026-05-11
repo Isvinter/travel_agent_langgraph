@@ -58,7 +58,7 @@ class TestPhotobookNodes:
         plan_dict = json.loads(MOCK_PLAN)
         state.photobook_plan = PhotobookPlan(pages=[PagePlan(**p) for p in plan_dict["pages"]])
         result = generate_photobook_node(state)
-        assert len(result.photobook_pages) == 1
+        assert len(result.photobook_pages) == 11  # Fallback generiert alle 11 Seiten aus dem Plan
 
     def test_render_node(self):
         state = make_state()

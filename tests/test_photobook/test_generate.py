@@ -17,6 +17,7 @@ MOCK_GENERATE_CONTENT = json.dumps([
     {"preset_id": "double_stacked", "slots": [
         {"slot_id": "top", "image_index": 1},
         {"slot_id": "bottom", "image_index": 2},
+        {"slot_id": "title", "text": "Aufstieg"},
     ]},
 ])
 
@@ -28,7 +29,7 @@ class TestGenerate:
     def test_generate_returns_page_descriptions(self, mock_call):
         mock_call.return_value = MOCK_GENERATE_CONTENT
         result = generate_photobook_pages(
-            plan=MOCK_PLAN, images=SAMPLE_IMAGES, gpx_stats={}, notes="Test", model="test-model",
+            plan=MOCK_PLAN, images=SAMPLE_IMAGES, tour_summary="Test-Tour", gpx_distance="10.0", gpx_elevation="500", model="test-model",
         )
         assert len(result) == 2
         assert isinstance(result[0], PageDescription)
@@ -37,7 +38,7 @@ class TestGenerate:
 
     def test_fallback_on_empty_plan(self):
         result = generate_photobook_pages(
-            plan=PhotobookPlan(pages=[]), images=SAMPLE_IMAGES[:4], gpx_stats={}, notes=None, model="test-model",
+            plan=PhotobookPlan(pages=[]), images=SAMPLE_IMAGES[:4], tour_summary=None, model="test-model",
         )
         assert len(result) == 0
 
@@ -47,7 +48,7 @@ class TestGenerate:
             {"preset_id": "cover_hero", "slots": [{"slot_id": "main", "image_index": 999}]},
         ])
         result = generate_photobook_pages(
-            plan=MOCK_PLAN, images=SAMPLE_IMAGES[:3], gpx_stats={}, notes="Test", model="test-model",
+            plan=MOCK_PLAN, images=SAMPLE_IMAGES[:3], tour_summary="Test-Tour", model="test-model",
         )
         assert len(result) >= 0
 
@@ -59,7 +60,7 @@ class TestGenerate:
         ])
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(3)]
         with patch("app.photobook.generate.call_ollama", return_value=None):
-            pages = generate_photobook_pages(plan, images, None, None, model="test")
+            pages = generate_photobook_pages(plan, images, tour_summary=None, model="test")
         assert len(pages) == 2
         assert pages[0].template_id == "cover_hero"
         assert pages[1].template_id == "double_stacked"
@@ -75,7 +76,7 @@ class TestGenerate:
             ]}
         ])
         with patch("app.photobook.generate.call_ollama", return_value=mock_content):
-            pages = generate_photobook_pages(plan, images, None, None, model="test")
+            pages = generate_photobook_pages(plan, images, tour_summary=None, model="test")
         assert len(pages) == 1
         title_slot = next((s for s in pages[0].slots if s.slot_id == "title"), None)
         assert title_slot is not None
@@ -86,7 +87,7 @@ class TestGenerate:
         plan = PhotobookPlan(pages=[PagePlan(position=0, preset_id="nonexistent", image_indices=[0, 1])])
         images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(2)]
         with patch("app.photobook.generate.call_ollama", return_value=None):
-            pages = generate_photobook_pages(plan, images, None, None, model="test")
+            pages = generate_photobook_pages(plan, images, tour_summary=None, model="test")
         assert len(pages) == 1
         assert pages[0].template_id != "nonexistent"
         from app.photobook.preset_loader import load_preset
@@ -263,3 +264,118 @@ class TestFallbackForBatch:
         result = _generate_fallback_for_batch(batch_pages, batch_images)
         assert len(result) == 1
         assert result[0].template_id != "nonexistent"
+
+
+from app.photobook.generate import _merge_batch_results
+
+MOCK_BATCH_CONTENT_1 = json.dumps([
+    {"preset_id": "cover_hero", "slots": [
+        {"slot_id": "main", "image_index": 0},
+        {"slot_id": "title", "text": "Cover"},
+    ]},
+    {"preset_id": "single_text_below", "slots": [
+        {"slot_id": "main", "image_index": 1},
+        {"slot_id": "title", "text": "Erste Etappe"},
+        {"slot_id": "caption", "text": "Ein wunderschöner Morgen."},
+    ]},
+    {"preset_id": "double_stacked_text", "slots": [
+        {"slot_id": "top", "image_index": 2},
+        {"slot_id": "bottom", "image_index": 3},
+        {"slot_id": "title", "text": "Aufstieg"},
+        {"slot_id": "caption", "text": "Der steile Pfad durch den Wald."},
+    ]},
+])
+
+MOCK_BATCH_CONTENT_2 = json.dumps([
+    {"preset_id": "single_text_below", "slots": [
+        {"slot_id": "main", "image_index": 4},
+        {"slot_id": "title", "text": "Gipfel"},
+        {"slot_id": "caption", "text": "Endlich oben angekommen."},
+    ]},
+    {"preset_id": "single_text_below", "slots": [
+        {"slot_id": "main", "image_index": 5},
+        {"slot_id": "title", "text": "Abstieg"},
+        {"slot_id": "caption", "text": "Gemütlich zurück ins Tal."},
+    ]},
+])
+
+
+class TestMergeBatchResults:
+    def test_merges_two_batches(self):
+        results = [
+            json.loads(MOCK_BATCH_CONTENT_1),
+            json.loads(MOCK_BATCH_CONTENT_2),
+        ]
+        merged = _merge_batch_results(results)
+        assert len(merged) == 5
+
+    def test_merge_empty_returns_empty(self):
+        assert _merge_batch_results([]) == []
+
+    def test_merge_single_batch(self):
+        results = [json.loads(MOCK_BATCH_CONTENT_1)]
+        merged = _merge_batch_results(results)
+        assert len(merged) == 3
+
+
+class TestBatchGenerateIntegration:
+    @patch("app.photobook.generate.call_ollama")
+    def test_batch_pipeline_produces_all_pages(self, mock_call):
+        plan = PhotobookPlan(pages=[
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0], purpose="Cover"),
+            PagePlan(position=1, preset_id="single_text_below", image_indices=[1], purpose="Start"),
+            PagePlan(position=2, preset_id="single_text_below", image_indices=[2], purpose="Ende"),
+        ])
+        images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(3)]
+
+        mock_call.return_value = json.dumps([
+            {"preset_id": "cover_hero", "slots": [
+                {"slot_id": "main", "image_index": 0},
+                {"slot_id": "title", "text": "Cover"},
+            ]},
+            {"preset_id": "single_text_below", "slots": [
+                {"slot_id": "main", "image_index": 1},
+                {"slot_id": "title", "text": "Start"},
+                {"slot_id": "caption", "text": "Los geht's."},
+            ]},
+            {"preset_id": "single_text_below", "slots": [
+                {"slot_id": "main", "image_index": 2},
+                {"slot_id": "title", "text": "Ende"},
+                {"slot_id": "caption", "text": "Geschafft."},
+            ]},
+        ])
+
+        result = generate_photobook_pages(
+            plan=plan,
+            images=images,
+            tour_summary="Test-Tour",
+            gpx_distance="5.0",
+            gpx_elevation="100",
+            model="test-model",
+            batch_size=3,
+        )
+        assert len(result) == 3
+        assert all(isinstance(p, PageDescription) for p in result)
+
+    @patch("app.photobook.generate.call_ollama")
+    def test_batch_fallback_on_llm_error(self, mock_call):
+        mock_call.return_value = None
+        plan = PhotobookPlan(pages=[
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0], purpose="Cover"),
+            PagePlan(position=1, preset_id="single_text_below", image_indices=[1], purpose="Bild"),
+        ])
+        images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(2)]
+
+        result = generate_photobook_pages(
+            plan=plan,
+            images=images,
+            tour_summary="Test-Tour",
+            gpx_distance="5.0",
+            gpx_elevation="100",
+            model="test-model",
+            batch_size=3,
+        )
+        assert len(result) == 2
+        title_slots = [s for p in result for s in p.slots if s.slot_id == "title"]
+        assert len(title_slots) == 2
+        assert all(s.text and len(s.text) > 0 for s in title_slots)
