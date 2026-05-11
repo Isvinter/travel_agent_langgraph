@@ -195,3 +195,71 @@ class TestBuildBatchPrompt:
         batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
         prompt = _build_batch_prompt(batch_pages, None, None, None)
         assert "cover_hero" in prompt  # Should not crash
+
+
+from app.photobook.generate import _validate_batch_result, _generate_fallback_for_batch
+
+
+class TestValidateBatchResult:
+    def test_valid_result_passes(self):
+        batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
+        result_json = [{"preset_id": "cover_hero", "slots": [
+            {"slot_id": "main", "image_index": 0},
+            {"slot_id": "title", "text": "Cover"},
+        ]}]
+        ok, msg = _validate_batch_result(result_json, batch_pages)
+        assert ok
+        assert msg is None
+
+    def test_missing_title_fails(self):
+        batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
+        result_json = [{"preset_id": "cover_hero", "slots": [
+            {"slot_id": "main", "image_index": 0},
+        ]}]
+        ok, msg = _validate_batch_result(result_json, batch_pages)
+        assert not ok
+
+    def test_wrong_page_count_fails(self):
+        batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
+        result_json = []
+        ok, msg = _validate_batch_result(result_json, batch_pages)
+        assert not ok
+
+    def test_empty_text_slot_fails(self):
+        batch_pages = [PagePlan(position=0, preset_id="single_text_below", image_indices=[0])]
+        result_json = [{"preset_id": "single_text_below", "slots": [
+            {"slot_id": "main", "image_index": 0},
+            {"slot_id": "title", "text": "Seite"},
+            {"slot_id": "caption", "text": ""},
+        ]}]
+        ok, msg = _validate_batch_result(result_json, batch_pages)
+        assert not ok
+
+
+class TestFallbackForBatch:
+    def test_generates_correct_page_count(self):
+        batch_pages = [
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0]),
+            PagePlan(position=1, preset_id="single_text_below", image_indices=[1]),
+        ]
+        batch_images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(2)]
+        result = _generate_fallback_for_batch(batch_pages, batch_images)
+        assert len(result) == 2
+        assert result[0].template_id == "cover_hero"
+        assert result[1].template_id == "single_text_below"
+
+    def test_fallback_has_titles(self):
+        batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0], purpose="MeinCover")]
+        batch_images = [ImageData(path="/tmp/img_0.jpg")]
+        result = _generate_fallback_for_batch(batch_pages, batch_images)
+        assert len(result) == 1
+        title_slot = next((s for s in result[0].slots if s.slot_id == "title"), None)
+        assert title_slot is not None
+        assert len(title_slot.text) > 0
+
+    def test_fallback_unknown_preset_uses_fallback(self):
+        batch_pages = [PagePlan(position=0, preset_id="nonexistent", image_indices=[0, 1])]
+        batch_images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(2)]
+        result = _generate_fallback_for_batch(batch_pages, batch_images)
+        assert len(result) == 1
+        assert result[0].template_id != "nonexistent"

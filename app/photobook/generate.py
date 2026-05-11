@@ -140,6 +140,91 @@ def _build_batch_prompt(
     )
 
 
+def _validate_batch_result(
+    result_json: list,
+    batch_pages: List[PagePlan],
+) -> tuple:
+    """Validiert ein Batch-Ergebnis. Returns (ok: bool, error_message: Optional[str])."""
+    if not isinstance(result_json, list):
+        return False, "Kein JSON-Array"
+
+    if len(result_json) != len(batch_pages):
+        return False, f"Seitenanzahl ({len(result_json)}) != erwartet ({len(batch_pages)})"
+
+    all_presets = load_all_presets()
+    for i, page_data in enumerate(result_json):
+        if not isinstance(page_data, dict):
+            return False, f"Seite {i}: Kein Dictionary"
+        preset_id = page_data.get("preset_id", "")
+        preset = all_presets.get(preset_id)
+        if not preset:
+            return False, f"Seite {i}: Unbekanntes Preset '{preset_id}'"
+        slots = page_data.get("slots", [])
+        slot_map = {s.get("slot_id", ""): s for s in slots}
+
+        title_slot = slot_map.get("title")
+        if not title_slot or not title_slot.get("text", "").strip():
+            return False, f"Seite {i}: Fehlender oder leerer title-Slot"
+
+        for ps in preset.slots:
+            if ps.type == "text":
+                slot = slot_map.get(ps.id)
+                if not slot:
+                    return False, f"Seite {i}: Fehlender Text-Slot '{ps.id}'"
+                if not slot.get("text", "").strip():
+                    return False, f"Seite {i}: Leerer Text-Slot '{ps.id}'"
+
+    return True, None
+
+
+def _generate_fallback_for_batch(
+    batch_pages: List[PagePlan],
+    batch_images: List[ImageData],
+) -> List[PageDescription]:
+    """Generiert Fallback-Seiten fuer einen Batch."""
+    all_presets = load_all_presets()
+    fallback = []
+    for plan_page in batch_pages:
+        preset_id = plan_page.preset_id or "quad_grid"
+        preset = all_presets.get(preset_id)
+        if preset is None:
+            count = len(plan_page.image_indices)
+            preset_id = get_any_preset(count)
+            preset = all_presets.get(preset_id, all_presets["quad_grid"])
+
+        indices = plan_page.image_indices
+        image_slots = [s.id for s in preset.slots if s.type == "image"]
+        slots = []
+        for sid, idx in zip(image_slots, indices):
+            if 0 <= idx < len(batch_images):
+                slots.append({"slot_id": sid, "image_index": idx})
+
+        purpose = plan_page.purpose
+        position = plan_page.position
+        if purpose and purpose.lower() not in ("cover", "einzelbild", "sammlung", "sequenz", "vergleich"):
+            title = purpose[:60]
+        elif position == 0:
+            title = "Fotobuch"
+        else:
+            title = f"Seite {position + 1}"
+        slots.append({"slot_id": "title", "text": title})
+
+        for s in preset.slots:
+            if s.type == "text" and s.text_role != "title":
+                img_indices_str = ", ".join(str(i) for i in indices[:2])
+                slot_text = f"Foto {img_indices_str} — Eindrücke der Tour"
+                if s.char_limit and len(slot_text) > s.char_limit:
+                    slot_text = slot_text[:s.char_limit]
+                slots.append({"slot_id": s.id, "text": slot_text})
+
+        fallback.append(PageDescription(
+            template_id=preset_id,
+            page_type="single",
+            slots=[PageSlot(**s) for s in slots],
+        ))
+    return fallback
+
+
 # ── Prompt Template ──
 
 GENERATE_PROMPT_TEMPLATE = """Du befuellst die Slots der gewaehlten Presets mit Bildern und Text.
