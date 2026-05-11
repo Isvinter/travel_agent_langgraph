@@ -12,11 +12,61 @@ from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama
 from app.state import ImageData, WeatherInfo, POI, EnrichmentContext
+from app.services.gpx_analytics import GPXStats
 
 logger = logging.getLogger(__name__)
 
 
 MAX_REVIEW_RESPONSE_TOKENS = 2048
+
+
+# ── Prompt Template ──
+
+REVIEW_PROMPT_TEMPLATE = """You are a travel blog editor. Review the following enriched trip data.
+Your job is to filter and curate for a compelling narrative.
+
+WETTERDATEN:
+{weather_text}
+
+TOUR-STATISTIKEN:
+{gpx_text}
+
+NOTIZEN ZUR TOUR:
+{notes_text}
+
+POINTS OF INTEREST ({poi_count} gefunden):
+{poi_text}
+
+AUSGEWÄHLTE BILDER ({image_count} Bilder):
+{image_text}
+
+AUFGABEN:
+1. POI-Filterung: Markiere jeden POI als KEEP oder DISCARD. Verwerfe irrelevante
+   Einträge (urbane Infrastruktur, banale Orte, Duplikate nach Name/Nähe).
+   Behalte maximal 8 POIs. Gib einen kurzen Grund für jedes DISCARD an.
+2. Wetter-Kontext: Schreibe eine 2-3 sätzige Wetter-Zusammenfassung für die Blog-Einleitung.
+   Verwende die maximale Höhe aus den Tour-Statistiken, um zu beurteilen, ob die
+   0°C-Grenze relevant ist.
+   WICHTIG — manche Wetterfelder sind kontextabhängig und MÜSSEN verworfen werden, wenn
+   sie nicht relevant sind:
+   - Niederschlagsdaten (Menge + Stunden): verwerfen, wenn die Tour kaum oder keinen
+     Niederschlag hatte.
+   - 0°C-Grenze (freezing_level): verwerfen, wenn die maximale Höhe der Tour weit darunter
+     liegt (z.B. 0°C-Grenze bei 2500 m bei einer flachen 200 m-Wanderung). Nur behalten,
+     wenn sie innerhalb von ~1000 m der maximalen Track-Höhe liegt oder alpines Gelände betroffen ist.
+   - Windgeschwindigkeit: verwerfen bei unauffälligen Werten (< 20 km/h).
+   Ziel: den Blog-Schreiber NICHT mit irrelevanten Daten verwirren.
+3. Bildqualität: Bewerte jedes Bild 1-5 auf thematische Eignung für einen Reiseblog.
+   Markiere Bilder, die unscharf, schlecht komponiert oder Duplikate sein könnten.
+4. Gesamtkohärenz: Vergib 1-10 Punkte, wie gut die Daten eine Geschichte erzählen.
+
+Antworte AUSSCHLIESSLICH als gültiges JSON:
+{{"pois": [{{"name": "...", "action": "KEEP|DISCARD", "reason": "..."}}],
+ "weather_summary": "...",
+ "discarded_weather_fields": [],
+ "image_ratings": {{"pfad/zum/bild.jpg": 4}},
+ "coherence_score": 7,
+ "flags": ["image_x_blurry", "poi_y_irrelevant"]}}"""
 
 
 def _extract_json_object(text: str) -> Optional[str]:
@@ -109,51 +159,15 @@ def _build_review_prompt(
     else:
         image_text = "Keine Bilder ausgewählt."
 
-    prompt = f"""You are a travel blog editor. Review the following enriched trip data.
-Your job is to filter and curate for a compelling narrative.
-
-WETTERDATEN:
-{weather_text}
-
-TOUR-STATISTIKEN:
-{gpx_text}
-
-NOTIZEN ZUR TOUR:
-{notes_text}
-
-POINTS OF INTEREST ({len(poi_list)} gefunden):
-{poi_text}
-
-AUSGEWÄHLTE BILDER ({len(selected_images)} Bilder):
-{image_text}
-
-AUFGABEN:
-1. POI-Filterung: Markiere jeden POI als KEEP oder DISCARD. Verwerfe irrelevante
-   Einträge (urbane Infrastruktur, banale Orte, Duplikate nach Name/Nähe).
-   Behalte maximal 8 POIs. Gib einen kurzen Grund für jedes DISCARD an.
-2. Wetter-Kontext: Schreibe eine 2-3 sätzige Wetter-Zusammenfassung für die Blog-Einleitung.
-   Verwende die maximale Höhe aus den Tour-Statistiken, um zu beurteilen, ob die
-   0°C-Grenze relevant ist.
-   WICHTIG — manche Wetterfelder sind kontextabhängig und MÜSSEN verworfen werden, wenn
-   sie nicht relevant sind:
-   - Niederschlagsdaten (Menge + Stunden): verwerfen, wenn die Tour kaum oder keinen
-     Niederschlag hatte.
-   - 0°C-Grenze (freezing_level): verwerfen, wenn die maximale Höhe der Tour weit darunter
-     liegt (z.B. 0°C-Grenze bei 2500 m bei einer flachen 200 m-Wanderung). Nur behalten,
-     wenn sie innerhalb von ~1000 m der maximalen Track-Höhe liegt oder alpines Gelände betroffen ist.
-   - Windgeschwindigkeit: verwerfen bei unauffälligen Werten (< 20 km/h).
-   Ziel: den Blog-Schreiber NICHT mit irrelevanten Daten verwirren.
-3. Bildqualität: Bewerte jedes Bild 1-5 auf thematische Eignung für einen Reiseblog.
-   Markiere Bilder, die unscharf, schlecht komponiert oder Duplikate sein könnten.
-4. Gesamtkohärenz: Vergib 1-10 Punkte, wie gut die Daten eine Geschichte erzählen.
-
-Antworte AUSSCHLIESSLICH als gültiges JSON:
-{{"pois": [{{"name": "...", "action": "KEEP|DISCARD", "reason": "..."}}],
- "weather_summary": "...",
- "discarded_weather_fields": [],
- "image_ratings": {{"pfad/zum/bild.jpg": 4}},
- "coherence_score": 7,
- "flags": ["image_x_blurry", "poi_y_irrelevant"]}}"""
+    prompt = REVIEW_PROMPT_TEMPLATE.format(
+        weather_text=weather_text,
+        gpx_text=gpx_text,
+        notes_text=notes_text,
+        poi_count=len(poi_list),
+        poi_text=poi_text,
+        image_count=len(selected_images),
+        image_text=image_text,
+    )
 
     return prompt
 
@@ -198,7 +212,7 @@ def review_enrichment(
     weather: Optional[WeatherInfo],
     poi_list: List[POI],
     selected_images: List[ImageData],
-    gpx_stats: Any = None,
+    gpx_stats: Optional[GPXStats] = None,
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,

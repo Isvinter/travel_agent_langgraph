@@ -2,10 +2,12 @@
 """Service zum Persistieren generierter Blogposts in der Datenbank."""
 import logging
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, List
 
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository
+from app.state import BlogPostResult, ImageData
+from app.services.gpx_analytics import GPXStats
 from app.utils.html_sanitizer import sanitize_html
 from app.utils.tour_metadata import compute_tour_date_and_duration, build_tour_stats
 
@@ -22,9 +24,9 @@ def _extract_title(markdown: str) -> Optional[str]:
 
 
 def persist_article(
-    blog_post: "BlogPostResult",
-    gpx_stats: Any,
-    images: list,
+    blog_post: BlogPostResult,
+    gpx_stats: GPXStats,
+    images: List[ImageData],
     gpx_file: str,
     model: str,
     notes: Optional[str] = None,

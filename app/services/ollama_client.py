@@ -11,11 +11,11 @@ from typing import Optional
 import requests
 
 from app.config import OLLAMA_BASE_URL
+from app.services.http_client import get_http_session
 
 logger = logging.getLogger(__name__)
 
-_session = requests.Session()
-_session.headers.update({"User-Agent": "travel-agent/1.0"})
+_session = get_http_session()
 
 
 THINKING_PATTERN = re.compile(

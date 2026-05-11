@@ -73,6 +73,11 @@ def _ensure_indexes():
             idx_name = f"idx_{table_name}_{col}"
             if idx_name not in existing_names:
                 Index(idx_name, model.__table__.c[col]).create(engine)
+    # Composite-Index für articles.status + generation_timestamp
+    existing_article_idx = inspector.get_indexes("articles")
+    existing_article_names = [idx["name"] for idx in existing_article_idx]
+    if "idx_articles_status" not in existing_article_names:
+        Index("idx_articles_status", Article.__table__.c["status"], Article.__table__.c["generation_timestamp"]).create(engine)
 
 
 def get_session() -> Session:

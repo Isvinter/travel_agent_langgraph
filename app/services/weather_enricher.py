@@ -11,13 +11,13 @@ from typing import List, Optional, Dict, Any
 
 import requests
 
-_session = requests.Session()
-_session.headers.update({"User-Agent": "travel-agent/1.0"})
-
 from app.services.gpx_analytics import TrackPoint
 from app.state import DailyWeather, WeatherInfo
+from app.services.http_client import get_http_session
 
 logger = logging.getLogger(__name__)
+
+_session = get_http_session()
 
 
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"

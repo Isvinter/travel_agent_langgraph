@@ -18,11 +18,11 @@ from app.state import POI
 
 import requests
 from app.utils.geo_utils import haversine_distance
+from app.services.http_client import get_http_session
 
 logger = logging.getLogger(__name__)
 
-_session = requests.Session()
-_session.headers.update({"User-Agent": "travel-agent/1.0"})
+_session = get_http_session()
 
 
 OVERPASS_INSTANCES = [

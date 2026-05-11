@@ -66,83 +66,86 @@
     }
   }
 
-  function parseHtml(html: string) {
-    const blocks: typeof htmlBlocks = [];
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const body = doc.body;
+  function walkBlocks(
+    node: Element,
+    onParagraph: (el: Element, idx: number) => void,
+    onFigure: (el: Element, idx: number) => void,
+  ): void {
     let idx = 0;
 
-    function walk(node: Element) {
-      for (const child of node.children) {
+    function walk(n: Element) {
+      for (const child of n.children) {
         const tag = child.tagName.toLowerCase();
         if (tag === "p") {
-          const text = child.textContent?.trim() || "";
-          if (text.length === 0) continue;
-          blocks.push({ type: "paragraph", content: child.outerHTML, index: idx });
-          child.setAttribute("data-block-index", String(idx));
-          idx++;
+          if ((child.textContent?.trim() || "").length > 0) {
+            onParagraph(child, idx);
+            idx++;
+          }
         } else if (tag === "figure") {
-          const img = child.querySelector("img");
-          const figcaption = child.querySelector("figcaption");
-          blocks.push({
-            type: "image",
-            content: child.outerHTML,
-            index: idx,
-            src: img?.getAttribute("src") || "",
-            alt: figcaption?.textContent || img?.getAttribute("alt") || "",
-          });
-          child.setAttribute("data-block-index", String(idx));
+          onFigure(child, idx);
           idx++;
         } else if (tag === "div" || tag === "section" || tag === "article" || tag === "main" || tag === "blockquote" || tag === "body") {
           walk(child);
         } else if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "h5" || tag === "h6") {
-          // Überschriften nicht markierbar, aber zählen für konsistentes Indexing
           idx++;
         }
       }
     }
 
-    walk(body);
+    walk(node);
+  }
+
+  function parseHtml(html: string) {
+    const blocks: typeof htmlBlocks = [];
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    walkBlocks(doc.body,
+      (el, idx) => {
+        blocks.push({ type: "paragraph", content: el.outerHTML, index: idx });
+        el.setAttribute("data-block-index", String(idx));
+      },
+      (el, idx) => {
+        const img = el.querySelector("img");
+        const figcaption = el.querySelector("figcaption");
+        blocks.push({
+          type: "image",
+          content: el.outerHTML,
+          index: idx,
+          src: img?.getAttribute("src") || "",
+          alt: figcaption?.textContent || img?.getAttribute("alt") || "",
+        });
+        el.setAttribute("data-block-index", String(idx));
+      },
+    );
+
     htmlBlocks = blocks;
   }
 
   function getRenderedHtml(): string {
     const parser = new DOMParser();
     const doc = parser.parseFromString(article?.html_content || "", "text/html");
-    const body = doc.body;
-    let idx = 0;
 
-    function walk(node: Element) {
-      for (const child of node.children) {
-        const tag = child.tagName.toLowerCase();
-        if (tag === "p") {
-          const text = child.textContent?.trim() || "";
-          if (text.length === 0) continue;
-          child.setAttribute("data-block-index", String(idx));
-          if (markedIndices.has(idx)) {
-            child.setAttribute("data-marked", "true");
-          } else {
-            child.removeAttribute("data-marked");
-          }
-          idx++;
-        } else if (tag === "figure") {
-          child.setAttribute("data-block-index", String(idx));
-          if (markedIndices.has(idx)) {
-            child.setAttribute("data-marked", "true");
-          } else {
-            child.removeAttribute("data-marked");
-          }
-          idx++;
-        } else if (tag === "div" || tag === "section" || tag === "article" || tag === "main" || tag === "blockquote" || tag === "body") {
-          walk(child);
-        } else if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "h5" || tag === "h6") {
-          idx++;
+    walkBlocks(doc.body,
+      (el, idx) => {
+        el.setAttribute("data-block-index", String(idx));
+        if (markedIndices.has(idx)) {
+          el.setAttribute("data-marked", "true");
+        } else {
+          el.removeAttribute("data-marked");
         }
-      }
-    }
-    walk(body);
-    return body.innerHTML;
+      },
+      (el, idx) => {
+        el.setAttribute("data-block-index", String(idx));
+        if (markedIndices.has(idx)) {
+          el.setAttribute("data-marked", "true");
+        } else {
+          el.removeAttribute("data-marked");
+        }
+      },
+    );
+
+    return doc.body.innerHTML;
   }
 
   function handleBlockClick(e: MouseEvent) {

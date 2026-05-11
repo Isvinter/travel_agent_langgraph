@@ -1,6 +1,6 @@
 # app/db/base_repository.py
 from typing import Generic, Optional, List, TypeVar, Tuple
-from sqlalchemy import select, func
+from sqlalchemy import select, func, Select
 from sqlalchemy.orm import Session, DeclarativeBase, selectinload
 
 T = TypeVar("T", bound=DeclarativeBase)
@@ -101,6 +101,6 @@ class BaseRepository(Generic[T, F]):
 
         return records, total
 
-    def _apply_filters(self, q, filters: F):
+    def _apply_filters(self, q: Select[Tuple[T]], filters: F) -> Select[Tuple[T]]:
         """Wendet Filterspezifische Bedingungen an. Von Subklassen zu überschreiben."""
         raise NotImplementedError("Subklassen müssen _apply_filters() implementieren")

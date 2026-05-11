@@ -1,5 +1,16 @@
 import { writable, get } from "svelte/store";
 
+// Session-Cookie für Datei-Uploads (Backend prüft session_id Cookie)
+let _sessionId: string | null = null;
+function getSessionId(): string {
+  if (!_sessionId) {
+    _sessionId = crypto.randomUUID();
+    document.cookie = `session_id=${_sessionId};path=/;SameSite=Lax`;
+  }
+  return _sessionId;
+}
+getSessionId();
+
 export type RunState = "idle" | "running" | "done" | "failed";
 
 export interface LogLine {
@@ -53,24 +64,11 @@ const STEP_LABELS: Record<string, string> = {
   persist_photobook: "Fotobuch speichern",
 };
 
-// Session-ID lazy erzeugen (kein Side-Effect beim Modul-Import).
-let _sessionId: string | null = null;
-
-function getSessionId(): string {
-  if (!_sessionId) {
-    _sessionId = crypto.randomUUID();
-    document.cookie = `session_id=${_sessionId};path=/;SameSite=Lax`;
-  }
-  return _sessionId;
-}
-
 export const logLines = writable<LogLine[]>([]);
 export const pipelineSteps = writable<StepState[]>([]);
 export const runState = writable<RunState>("idle");
 export const currentRunId = writable<string | null>(null);
 export const result = writable<RunResult | null>(null);
-export const sessionId = writable<string>(getSessionId());
-
 // Pipeline form fields — shared via stores (Svelte 5 runes mode:
 // export function creates props, not callable instance methods via bind:this)
 export const selectedModel = writable<string>("");

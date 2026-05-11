@@ -91,6 +91,73 @@ def validate_page(page: PageDescription, presets: dict = None) -> List[str]:
     return errors
 
 
+def _repair_slots(preset, old_slots: List[PageSlot]) -> List[dict]:
+    """Repariert Slots für ein gegebenes Preset: Bilder zuweisen, Texte migrieren, Platzhalter füllen, Dedup."""
+    image_indices = [
+        s.image_index for s in old_slots
+        if s.image_index is not None and s.image_index >= 0
+    ]
+
+    image_slot_ids = [s.id for s in preset.slots if s.type == "image"]
+    repaired_slots: List[dict] = []
+
+    for i, img_idx in enumerate(image_indices):
+        if i >= len(image_slot_ids):
+            break
+        repaired_slots.append({"slot_id": image_slot_ids[i], "image_index": img_idx})
+
+    slot_defs = {s.id: s for s in preset.slots}
+
+    text_role_map = {}
+    for sid, sd in slot_defs.items():
+        if sd.type == "text":
+            text_role_map[sd.text_role or sid] = sid
+
+    for slot in old_slots:
+        sid = slot.slot_id
+        if sid == "title" and slot.text:
+            repaired_slots.append({"slot_id": sid, "text": _truncate_text(slot.text, 60)})
+        elif sid in slot_defs and slot_defs[sid].type == "text" and slot.text:
+            sd = slot_defs[sid]
+            text = slot.text
+            if sd.char_limit and len(text) > sd.char_limit:
+                text = _truncate_text(text, sd.char_limit)
+            repaired_slots.append({"slot_id": sid, "text": text})
+        elif slot.text and sid in text_role_map:
+            matched_sid = text_role_map.get(sid)
+            if not matched_sid and len(text_role_map) == 1:
+                matched_sid = list(text_role_map.values())[0]
+            if matched_sid:
+                sd = slot_defs[matched_sid]
+                text = slot.text
+                if sd.char_limit and len(text) > sd.char_limit:
+                    text = _truncate_text(text, sd.char_limit)
+                repaired_slots.append({"slot_id": matched_sid, "text": text})
+
+    for sid, sd in slot_defs.items():
+        if sd.type == "text":
+            already_filled = any(s.get("slot_id") == sid and s.get("text", "").strip() for s in repaired_slots)
+            if not already_filled:
+                placeholder = _text_placeholder(sd.text_role or "caption")
+                repaired_slots.append({"slot_id": sid, "text": placeholder})
+
+    has_title = any(s.get("slot_id") == "title" and s.get("text", "").strip() for s in repaired_slots)
+    if not has_title:
+        repaired_slots.append({"slot_id": "title", "text": "Fotobuch"})
+
+    # Dedupliziere Slots: behalte letzten Eintrag pro slot_id (last wins)
+    deduped_slots: List[dict] = []
+    seen: set = set()
+    for s in reversed(repaired_slots):
+        sid = s.get("slot_id", "")
+        if sid not in seen:
+            seen.add(sid)
+            deduped_slots.append(s)
+    deduped_slots.reverse()
+
+    return deduped_slots
+
+
 def enforce_fallback(page: PageDescription) -> PageDescription:
     """Repariert eine fehlerhafte Seite mit minimalen Eingriffen.
 
@@ -103,106 +170,28 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
         if s.image_index is not None and s.image_index >= 0
     ]
 
-    # Preset existiert nicht → passendes nach Bildanzahl wählen
     if page.template_id not in presets:
         page.template_id = get_any_preset(len(image_indices))
 
     preset = presets[page.template_id]
 
-    # Erkenne LLM-generierte Texte, die das Preset nicht unterstützt
-    # (z.B. LLM schreibt "caption" für quad_grid, das keine Text-Slots hat)
     llm_text_roles = set()
     for slot in page.slots:
         sid = slot.slot_id
         text = (slot.text or "").strip()
         if sid == "title" or not text:
             continue
-        # Prüfe, ob dieser Text-Slot ins Preset passt
         if sid in {s.id for s in preset.slots if s.type == "text"}:
-            continue  # Passt ins Preset
-        # Text-Slot passt nicht → merke text_role für Upgrade
-        text_role = None
-        for s in preset.slots:
-            if s.type == "text" and s.id == sid:
-                text_role = s.text_role
-                break
+            continue
         llm_text_roles.add(sid)
 
-    # Wenn LLM Text generiert hat, den das Preset nicht unterstützt,
-    # wechsle zu einem text-fähigen Preset gleicher Bildanzahl.
-    # cover_hero wird NIE upgegraded — es hat nur das Cover-Overlay.
     if llm_text_roles and not preset.has_text and page.template_id != "cover_hero":
         text_presets = get_presets_by_image_count(preset.image_count, has_text=True)
         if text_presets:
             page.template_id = text_presets[0]
             preset = presets[page.template_id]
 
-    slot_defs = {s.id: s for s in preset.slots}
-    image_slot_ids = [s.id for s in preset.slots if s.type == "image"]
-
-    repaired_slots = []
-
-    # Bilder korrekten Image-Slots zuweisen
-    for i, img_idx in enumerate(image_indices):
-        if i >= len(image_slot_ids):
-            break
-        slot_data = {"slot_id": image_slot_ids[i], "image_index": img_idx}
-        repaired_slots.append(slot_data)
-
-    # Text-Slots aus Original übernehmen, dabei Char-Limit kürzen
-    # Baue text_role → slot_id Mapping für Fallback-Matching
-    text_role_map = {}
-    for sid, sd in slot_defs.items():
-        if sd.type == "text":
-            text_role_map[sd.text_role or sid] = sid
-
-    for slot in page.slots:
-        sid = slot.slot_id
-        # Titel-Slot wird universell beibehalten (page-header)
-        if sid == "title" and slot.text:
-            repaired_slots.append({"slot_id": sid, "text": _truncate_text(slot.text, 60)})
-        elif sid in slot_defs and slot_defs[sid].type == "text" and slot.text:
-            sd = slot_defs[sid]
-            text = slot.text
-            if sd.char_limit and len(text) > sd.char_limit:
-                text = _truncate_text(text, sd.char_limit)
-            repaired_slots.append({"slot_id": sid, "text": text})
-        elif slot.text:
-            # Fallback: versuche Text zuzuordnen
-            matched_sid = text_role_map.get(sid)
-            # Wenn slot_id nicht direkt im text_role_map ist, und es gibt
-            # nur einen Text-Slot im Preset, weise den Text diesem zu
-            if not matched_sid and len(text_role_map) == 1:
-                matched_sid = list(text_role_map.values())[0]
-            if matched_sid:
-                sd = slot_defs[matched_sid]
-                text = slot.text
-                if sd.char_limit and len(text) > sd.char_limit:
-                    text = _truncate_text(text, sd.char_limit)
-                repaired_slots.append({"slot_id": matched_sid, "text": text})
-
-    # Stelle sicher, dass ALLE Text-Slots befüllt sind (Platzhalter falls LLM sie leer lässt)
-    for sid, sd in slot_defs.items():
-        if sd.type == "text":
-            already_filled = any(s.get("slot_id") == sid and s.get("text", "").strip() for s in repaired_slots)
-            if not already_filled:
-                placeholder = _text_placeholder(sd.text_role or "caption")
-                repaired_slots.append({"slot_id": sid, "text": placeholder})
-
-    # Universeller Title-Slot fuer den page-header
-    has_title = any(s.get("slot_id") == "title" and s.get("text", "").strip() for s in repaired_slots)
-    if not has_title:
-        repaired_slots.append({"slot_id": "title", "text": "Fotobuch"})
-
-    # Dedupliziere Slots: behalte letzten Eintrag pro slot_id (last wins)
-    deduped_slots = []
-    seen = set()
-    for s in reversed(repaired_slots):
-        sid = s.get("slot_id", "")
-        if sid not in seen:
-            seen.add(sid)
-            deduped_slots.append(s)
-    deduped_slots.reverse()
+    deduped_slots = _repair_slots(preset, page.slots)
 
     return PageDescription(
         template_id=page.template_id,
@@ -320,59 +309,13 @@ def check_variety(pages: List[PageDescription]) -> List[PageDescription]:
 
 
 def _replace_preset(page: PageDescription, new_preset_id: str) -> PageDescription:
-    """Ersetzt das Preset einer Seite, behält aber image_indices bei."""
+    """Ersetzt das Preset einer Seite, behält aber image_indices und Text-Inhalte bei."""
     presets = load_all_presets()
     preset = presets.get(new_preset_id)
     if not preset:
         return page
 
-    old_slots = page.slots
-    new_slots = []
-
-    image_indices = [
-        s.image_index for s in old_slots
-        if s.image_index is not None and s.image_index >= 0
-    ]
-
-    image_slot_ids = [s.id for s in preset.slots if s.type == "image"]
-    for i, img_idx in enumerate(image_indices):
-        if i >= len(image_slot_ids):
-            break
-        new_slots.append({"slot_id": image_slot_ids[i], "image_index": img_idx})
-
-    for slot in old_slots:
-        sid = slot.slot_id
-        # Titel-Slot universell beibehalten
-        if sid == "title" and slot.text:
-            new_slots.append({"slot_id": sid, "text": _truncate_text(slot.text, 60)})
-        elif sid in {s.id for s in preset.slots if s.type == "text"} and slot.text:
-            new_slots.append({"slot_id": sid, "text": slot.text})
-
-    # Stelle sicher, dass ALLE Text-Slots im neuen Preset befüllt sind
-    for sd in preset.slots:
-        if sd.type == "text":
-            already_filled = any(
-                s.get("slot_id") == sd.id and s.get("text", "").strip()
-                for s in new_slots
-            )
-            if not already_filled:
-                placeholder = _text_placeholder(sd.text_role or "caption")
-                new_slots.append({"slot_id": sd.id, "text": placeholder})
-
-    # Universeller Title-Slot fuer den page-header
-    has_title = any(s.get("slot_id") == "title" and s.get("text", "").strip() for s in new_slots)
-    if not has_title:
-        new_slots.append({"slot_id": "title", "text": "Fotobuch"})
-
-    # Dedupliziere Slots: behalte letzten Eintrag pro slot_id (last wins)
-    deduped_slots = []
-    seen = set()
-    for s in reversed(new_slots):
-        sid = s.get("slot_id", "")
-        if sid not in seen:
-            seen.add(sid)
-            deduped_slots.append(s)
-    deduped_slots.reverse()
+    deduped_slots = _repair_slots(preset, page.slots)
 
     return PageDescription(
         template_id=new_preset_id,

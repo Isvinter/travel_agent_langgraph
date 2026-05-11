@@ -18,10 +18,68 @@ import markdown
 
 from app.config import OLLAMA_BASE_URL, PERSONAS, LENGTH_PRESETS, OUTPUT_DIR, get_project_root
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
-from app.state import BlogPostResult, EnrichmentContext, POI
+from app.state import BlogPostResult, EnrichmentContext, POI, OutputConfig, WeatherInfo
 from app.utils.image_utils import compress_image_to_jpeg, encode_image_base64  # noqa: F401 — re-exported for callers
 
 logger = logging.getLogger(__name__)
+
+
+# ── Prompt Templates (static instruction blocks, extracted for maintainability) ──
+
+BLOG_POST_INSTRUCTIONS = """
+DEINE AUFGABE:
+
+1. **TIEFE**: Nimm dir Zeit für Details. Beschreibe die Atmosphäre, das Wetter, die körperliche Anstrengung (brennende Waden bei Höhenmetern!), die Geräusche der Natur und das Gefühl der Belohnung am Ziel. "Show, don't tell!"
+
+2. **KARTE + HÖHENPROFIL**:
+- Übersichtskarte MUSS am Anfang des Artikels erscheinen, direkt nach der Einleitung — mit Beschreibung:
+  ![Routenverlauf unserer Tour — jeder markierte Punkt ein Stück Weg](./images/00_map.png)
+- Höhengraphen MUSS am Ende des Artikels erscheinen, im Abschnitt "Hard Facts" oder "Fazit" — mit Beschreibung:
+  ![Höhenprofil der Tour — jeder Anstieg und jeder Abstieg auf einen Blick](./images/00_elevation_profile.png)
+
+3. **BILDER & TEXTFLUSS**: Integriere die Tour-Fotos organisch als Meilensteine in die Geschichte.
+- Schreibe für JEDES Bild (auch Karte und Höhengraphen!) eine aussagekräftige Bildunterschrift IM ALT-TEXT (1-2 Sätze).
+- **WICHTIG:** Die Bildbeschreibung steht NUR im alt-Text des Bildes — schreibe sie NICHT zusätzlich als separaten Fließtext davor oder danach.
+- Leite im Fließtext kurz auf das Bild hin (z.B. "Als wir um die Ecke bogen…"), aber wiederhole NICHT die Bildbeschreibung.
+
+4. **TEXTFLUSS**: Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze.
+
+5. **STRUKTUR — als Markdown-Überschriften mit ## und ###**:
+- **Ganz am Anfang MUSS ein # Haupttitel stehen** (eine Zeile mit # als erstes Zeichen).
+  Beispiel: # Meine Wintertour durch die Allgäuer Alpen
+- Verwende `##` für Hauptabschnitte und `###` für Unterabschnitte.
+- Deine Abschnitte:
+- **Hook & Einleitung**: Ein packender Einstieg. Warum diese Tour? Die Vorfreude. (KEINE Überschrift nötig — Starte direkt mit dem Text.)
+- **## Die Übersicht**: Beschreibe die Route anhand der Karte. Bette die Karte ein.
+- **## Der Aufbruch**: Wie war der Start? Leichtes Einlaufen oder direkt steil?
+- **## Die Challenge**: Die Höhenmeter, Erschöpfung, Hindernisse.
+- **## Das Highlight**: Der emotionale Höhepunkt, Aussicht, Gipfelmoment.
+- **## Der Abstieg & Fazit**: Die Rückkehr, Resümee. Bette hier den Höhengraphen ein.
+
+ 6. **FORMATIERUNG (STRIKT)**:
+ - Gib NUR den Markdown-Text des Blogposts zurück.
+ - Keine Einleitung deinerseits, keine Metatexte, keine Kommentare.
+ - Nutze ## und ### für Überschriften — MINDESTENS eine ##-Überschrift pro Abschnitt.
+ - Jeder Abschnitt der Heldenreise MUSS mit einer ##-Überschrift beginnen (außer der Einleitung).
+ - Nutze für Karte und Höhenprofil folgendes Format (OHNE Nummer):
+   ![Routenverlauf unserer Tour — jeder markierte Punkt ein Stück Weg](./images/00_map.png)
+   ![Höhenprofil der Tour — jeder Anstieg und jeder Abstieg auf einen Blick](./images/00_elevation_profile.png)
+ - Nutze für Tour-Fotos EXAKT folgendes Format mit Nummer:
+   ![Foto X: Deine Beschreibung](pfad/zum/bild)
+   Die Nummer X entspricht der Position in der Bildliste. Auf der Übersichtskarte
+   findest du jedes Foto mit dem Label "Foto X" am Aufnahmeort eingezeichnet.
+ - **WICHTIG:** Verwende NUR die exakten Dateipfade aus der Liste unten. Kopiere den Pfad 1:1.
+   Erfinde NIEMALS eigene Pfade oder Nummern — jeder Pfad aus der Liste muss exakt verwendet werden.
+ - **JEDES Bild BRAUCHT eine Beschreibung im alt-Text** (auch Karte und Höhengraphen).
+   Beispiel Tour-Foto: ![Foto 1: Atmosphärische Beschreibung des Bildinhalts](PFAD_AUS_DER_LISTE)
+   Beispiel Karte: ![Routenverlauf unserer Tour](PFAD_ZUR_KARTE)
+
+DIE FÜR DICH AUSGEWÄHLTEN BILDER (verwende GENAU diese Pfade):
+"""
+
+BLOG_POST_CLOSING = """
+Lass die Tastatur glühen und nimm uns mit auf dieses Abenteuer! BEGINNE JETZT MIT DEM BLOGPOST:
+"""
 
 
 def construct_blog_post_prompt(
@@ -32,9 +90,9 @@ def construct_blog_post_prompt(
     notes: Optional[str] = None,
     image_path_prefix: str = "",
     enrichment_context: Optional[EnrichmentContext] = None,
-    weather: Any = None,
+    weather: Optional[WeatherInfo] = None,
     poi_list: Optional[List[POI]] = None,
-    output_config: Any = None,
+    output_config: Optional[OutputConfig] = None,
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
     Konstruiert den Prompt für das multimodale Modell.
@@ -102,56 +160,7 @@ HIER SIND DIE DATEN ZUR TOUR:
         text_prompt += "\nHIER IST DIE ÜBERSICHTSKARTE der Route (wird als Bild hochgeladen):\n"
 
     # Hauptanweisung
-    text_prompt += """
-    DEINE AUFGABE:
-
-    1. **TIEFE**: Nimm dir Zeit für Details. Beschreibe die Atmosphäre, das Wetter, die körperliche Anstrengung (brennende Waden bei Höhenmetern!), die Geräusche der Natur und das Gefühl der Belohnung am Ziel. "Show, don't tell!"
-
-    2. **KARTE + HÖHENPROFIL**:
-    - Übersichtskarte MUSS am Anfang des Artikels erscheinen, direkt nach der Einleitung — mit Beschreibung:
-      ![Routenverlauf unserer Tour — jeder markierte Punkt ein Stück Weg](./images/00_map.png)
-    - Höhengraphen MUSS am Ende des Artikels erscheinen, im Abschnitt "Hard Facts" oder "Fazit" — mit Beschreibung:
-      ![Höhenprofil der Tour — jeder Anstieg und jeder Abstieg auf einen Blick](./images/00_elevation_profile.png)
-
-    3. **BILDER & TEXTFLUSS**: Integriere die Tour-Fotos organisch als Meilensteine in die Geschichte.
-    - Schreibe für JEDES Bild (auch Karte und Höhengraphen!) eine aussagekräftige Bildunterschrift IM ALT-TEXT (1-2 Sätze).
-    - **WICHTIG:** Die Bildbeschreibung steht NUR im alt-Text des Bildes — schreibe sie NICHT zusätzlich als separaten Fließtext davor oder danach.
-    - Leite im Fließtext kurz auf das Bild hin (z.B. "Als wir um die Ecke bogen…"), aber wiederhole NICHT die Bildbeschreibung.
-
-    4. **TEXTFLUSS**: Mach den Leser neugierig. Nutze abwechslungsreiche Satzstrukturen und Absätze.
-
-    5. **STRUKTUR — als Markdown-Überschriften mit ## und ###**:
-    - **Ganz am Anfang MUSS ein # Haupttitel stehen** (eine Zeile mit # als erstes Zeichen).
-      Beispiel: # Meine Wintertour durch die Allgäuer Alpen
-    - Verwende `##` für Hauptabschnitte und `###` für Unterabschnitte.
-    - Deine Abschnitte:
-    - **Hook & Einleitung**: Ein packender Einstieg. Warum diese Tour? Die Vorfreude. (KEINE Überschrift nötig — Starte direkt mit dem Text.)
-    - **## Die Übersicht**: Beschreibe die Route anhand der Karte. Bette die Karte ein.
-    - **## Der Aufbruch**: Wie war der Start? Leichtes Einlaufen oder direkt steil?
-    - **## Die Challenge**: Die Höhenmeter, Erschöpfung, Hindernisse.
-    - **## Das Highlight**: Der emotionale Höhepunkt, Aussicht, Gipfelmoment.
-    - **## Der Abstieg & Fazit**: Die Rückkehr, Resümee. Bette hier den Höhengraphen ein.
-
-     6. **FORMATIERUNG (STRIKT)**:
-     - Gib NUR den Markdown-Text des Blogposts zurück.
-     - Keine Einleitung deinerseits, keine Metatexte, keine Kommentare.
-     - Nutze ## und ### für Überschriften — MINDESTENS eine ##-Überschrift pro Abschnitt.
-     - Jeder Abschnitt der Heldenreise MUSS mit einer ##-Überschrift beginnen (außer der Einleitung).
-     - Nutze für Karte und Höhenprofil folgendes Format (OHNE Nummer):
-       ![Routenverlauf unserer Tour — jeder markierte Punkt ein Stück Weg](./images/00_map.png)
-       ![Höhenprofil der Tour — jeder Anstieg und jeder Abstieg auf einen Blick](./images/00_elevation_profile.png)
-     - Nutze für Tour-Fotos EXAKT folgendes Format mit Nummer:
-       ![Foto X: Deine Beschreibung](pfad/zum/bild)
-       Die Nummer X entspricht der Position in der Bildliste. Auf der Übersichtskarte
-       findest du jedes Foto mit dem Label "Foto X" am Aufnahmeort eingezeichnet.
-     - **WICHTIG:** Verwende NUR die exakten Dateipfade aus der Liste unten. Kopiere den Pfad 1:1.
-       Erfinde NIEMALS eigene Pfade oder Nummern — jeder Pfad aus der Liste muss exakt verwendet werden.
-     - **JEDES Bild BRAUCHT eine Beschreibung im alt-Text** (auch Karte und Höhengraphen).
-       Beispiel Tour-Foto: ![Foto 1: Atmosphärische Beschreibung des Bildinhalts](PFAD_AUS_DER_LISTE)
-       Beispiel Karte: ![Routenverlauf unserer Tour](PFAD_ZUR_KARTE)
-
-    DIE FÜR DICH AUSGEWÄHLTEN BILDER (verwende GENAU diese Pfade):
-    """
+    text_prompt += BLOG_POST_INSTRUCTIONS
 
     # Bilder-Informationen hinzufügen
     for idx, img in enumerate(images, 1):
@@ -170,10 +179,7 @@ HIER SIND DIE DATEN ZUR TOUR:
             f"  Pfad: {rel_path}"
         )
 
-    text_prompt += """
-
-    Lass die Tastatur glühen und nimm uns mit auf dieses Abenteuer! BEGINNE JETZT MIT DEM BLOGPOST:
-    """
+    text_prompt += BLOG_POST_CLOSING
 
     # --- Wetter- und POI-Anreicherung ---
     if enrichment_context:
@@ -302,9 +308,9 @@ def generate_blog_post(
     notes: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
     enrichment_context: Optional[EnrichmentContext] = None,
-    weather: Any = None,
+    weather: Optional[WeatherInfo] = None,
     poi_list: Optional[List[POI]] = None,
-    output_config: Any = None,
+    output_config: Optional[OutputConfig] = None,
 ) -> BlogPostResult:
     """
     Generiert einen kompletten Blogpost und speichert ihn als .md und .html Datei.

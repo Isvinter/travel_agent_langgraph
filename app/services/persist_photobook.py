@@ -7,13 +7,15 @@ from typing import Optional, List
 
 from app.db.connection import get_session
 from app.db.photobook_repository import PhotobookRepository
+from app.state import ImageData, PageDescription
+from app.services.gpx_analytics import GPXStats
 from app.utils.html_sanitizer import sanitize_html
 from app.utils.tour_metadata import compute_tour_date_and_duration, build_tour_stats
 
 logger = logging.getLogger(__name__)
 
 
-def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[str]:
+def _extract_photobook_title(photobook_pages: List[PageDescription], gpx_file: str) -> Optional[str]:
     """Extrahiert den Fotobuch-Titel aus der Titelseite des LLM-Generats."""
     if photobook_pages:
         cover_page = photobook_pages[0]
@@ -29,7 +31,7 @@ def _extract_photobook_title(photobook_pages: List, gpx_file: str) -> Optional[s
     return None
 
 
-def _count_images_in_pages(photobook_pages: List) -> int:
+def _count_images_in_pages(photobook_pages: List[PageDescription]) -> int:
     """Zaehlt die tatsaechlich im Fotobuch verwendeten Bilder (unique image_index)."""
     used = set()
     for page in photobook_pages:
@@ -40,9 +42,9 @@ def _count_images_in_pages(photobook_pages: List) -> int:
 
 
 def persist_photobook(
-    gpx_stats,
-    photobook_images: List,
-    photobook_pages: List,
+    gpx_stats: GPXStats,
+    photobook_images: List[ImageData],
+    photobook_pages: List[PageDescription],
     photobook_html: Optional[str],
     photobook_html_path: Optional[str],
     photobook_pdf_path: Optional[str],

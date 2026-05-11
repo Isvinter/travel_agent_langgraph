@@ -17,6 +17,28 @@ from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookP
 logger = logging.getLogger(__name__)
 
 
+# ── Prompt Template ──
+
+PLAN_PROMPT_TEMPLATE = """Du bist Fotobuch-Art-Director fuer eine Wandertour.
+
+{context}{page_range_hint}
+PRESETS (waehle eins pro Seite):
+{preset_catalog}
+
+VARIETY-REGELN (UNBEDINGT EINHALTEN):
+1. Maximal 2x das gleiche Preset im gesamten Buch (cover_hero NUR auf Seite 0, niemals woanders)
+2. Nicht 2x hintereinander das gleiche Preset
+3. Maximal 3 Seiten ohne Text hintereinander
+4. Nicht 3x hintereinander die gleiche Bildanzahl
+5. Dramatischer Bogen: Cover (cover_hero) -> ruhiger Start (1-Bild) -> Aufbau (2-3 Bilder) -> Hoehepunkt (4-Bild) -> Ausklang (1-Bild)
+6. Seite 0 MUSS cover_hero sein
+{theme_block}
+PLANE die Seitenabfolge. Gib JEDEM Bild einen Platz — alle {image_count} Bilder muessen verwendet werden.
+
+ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
+{{"pages": [{{"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"}}], "dramatic_arc": "kurze Beschreibung"}}"""
+
+
 def _build_plan_prompt(
     image_count: int,
     gpx_stats_d: Optional[Dict[str, Any]],
@@ -55,24 +77,13 @@ def _build_plan_prompt(
     if preset and preset.layout_preferences:
         theme_block = f"\nTHEMA: {preset.name}\n{preset.layout_preferences}\n"
 
-    return f"""Du bist Fotobuch-Art-Director fuer eine Wandertour.
-
-{context}{page_range_hint}
-PRESETS (waehle eins pro Seite):
-{preset_catalog}
-
-VARIETY-REGELN (UNBEDINGT EINHALTEN):
-1. Maximal 2x das gleiche Preset im gesamten Buch (cover_hero NUR auf Seite 0, niemals woanders)
-2. Nicht 2x hintereinander das gleiche Preset
-3. Maximal 3 Seiten ohne Text hintereinander
-4. Nicht 3x hintereinander die gleiche Bildanzahl
-5. Dramatischer Bogen: Cover (cover_hero) -> ruhiger Start (1-Bild) -> Aufbau (2-3 Bilder) -> Hoehepunkt (4-Bild) -> Ausklang (1-Bild)
-6. Seite 0 MUSS cover_hero sein
-{theme_block}
-PLANE die Seitenabfolge. Gib JEDEM Bild einen Platz — alle {image_count} Bilder muessen verwendet werden.
-
-ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
-{{"pages": [{{"position": 0, "preset_id": "cover_hero", "image_indices": [3], "purpose": "Cover"}}], "dramatic_arc": "kurze Beschreibung"}}"""
+    return PLAN_PROMPT_TEMPLATE.format(
+        context=context,
+        page_range_hint=page_range_hint,
+        preset_catalog=preset_catalog,
+        theme_block=theme_block,
+        image_count=image_count,
+    )
 
 
 def _generate_fallback_plan(images: List[ImageData], image_count: int) -> PhotobookPlan:

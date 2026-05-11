@@ -1,4 +1,4 @@
-import { writable, derived } from "svelte/store";
+import { writable } from "svelte/store";
 
 export type Route =
   | { page: "pipeline" }
@@ -8,7 +8,7 @@ export type Route =
   | { page: "photobooks" }
   | { page: "photobook"; id: number };
 
-function parseHash(hash: string): Route {
+export function parseHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, "") || "/";
 
   if (path === "/" || path === "" || path === "pipeline") {
