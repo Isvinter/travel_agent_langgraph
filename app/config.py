@@ -55,3 +55,6 @@ PERSONAS = {
         ),
     },
 }
+
+# Batch-Grösse für die Fotobuch-Generierung (Pass 2). Reduzieren bei Kontext-Problemen.
+PHOTOBOOK_BATCH_SIZE = 3
