@@ -165,6 +165,7 @@ class AppState(BaseModel):
     selected_images_list: List[str] = Field(default_factory=list)
     blog_post: Optional[BlogPostResult] = None
     notes: Optional[str] = None
+    tour_summary: Optional[str] = None
     weather: Optional[WeatherInfo] = None
     poi_list: List[POI] = Field(default_factory=list)
     enrichment_context: EnrichmentContext = Field(default_factory=EnrichmentContext)
