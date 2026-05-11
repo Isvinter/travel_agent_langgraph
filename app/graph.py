@@ -24,6 +24,7 @@ from app.nodes.generate_photobook_node import generate_photobook_node
 from app.nodes.render_photobook_node import render_photobook_node
 from app.nodes.generate_photobook_pdf_node import generate_photobook_pdf_node
 from app.nodes.persist_photobook import persist_photobook_node
+from app.nodes.summarize_context_node import summarize_context_node
 
 # Event emitter callback signature: (stage: str, status: str, message: str) -> None
 EventEmitter = Callable[[str, str, str], None]
@@ -35,6 +36,7 @@ NODE_NAMES = {
     "clustering_images": "Bilder gruppieren",
     "generate_map_image": "Karte generieren",
     "load_tour_notes": "Notizen laden",
+    "summarize_context": "Tour-Zusammenfassung",
     "select_images": "Bilder auswählen",
     "generate_blog_post": "Blogpost generieren",
     "enrich_weather": "Wetterdaten abrufen",
@@ -122,6 +124,7 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     _add_wrapped(builder, "clustering_images", clustering_image_node, event_emitter)
     _add_wrapped(builder, "generate_map_image", generate_map_image_node, event_emitter)
     _add_wrapped(builder, "load_tour_notes", load_tour_notes_node, event_emitter)
+    _add_wrapped(builder, "summarize_context", summarize_context_node, event_emitter)
     _add_wrapped(builder, "select_images", select_images_node, event_emitter)
     _add_wrapped(builder, "generate_blog_post", generate_blog_post_node, event_emitter)
     _add_wrapped(builder, "design_blogpost", design_blogpost_node, event_emitter)
@@ -150,17 +153,17 @@ def build_graph(event_emitter: Optional[EventEmitter] = None) -> StateGraph[AppS
     builder.add_edge("extract_metadata", "clustering_images")
     builder.add_edge("clustering_images", "generate_map_image")
     builder.add_edge("generate_map_image", "load_tour_notes")
+    builder.add_edge("load_tour_notes", "summarize_context")
 
-    # Mode-abhaengiges Routing NACH load_tour_notes:
-    # Photobook überspringt die teuren Blog-Enrichment-Schritte
-    def _route_after_notes(state: AppState) -> str:
+    # Mode-abhaengiges Routing NACH summarize_context:
+    def _route_after_summary(state: AppState) -> str:
         if state.output_config.mode == "photobook":
             return "select_photobook_images"
         return "enrich_weather"
 
     builder.add_conditional_edges(
-        "load_tour_notes",
-        _route_after_notes,
+        "summarize_context",
+        _route_after_summary,
         {
             "select_photobook_images": "select_photobook_images",
             "enrich_weather": "enrich_weather",
