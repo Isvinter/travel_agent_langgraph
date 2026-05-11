@@ -44,6 +44,7 @@ def call_ollama(
     timeout: int = 600,
     keep_alive: str = "10m",
     strip_thinking: bool = False,
+    disable_thinking: bool = False,
 ) -> Optional[str]:
     """Sendet einen Chat-Request an die Ollama-API.
 
@@ -59,6 +60,7 @@ def call_ollama(
         timeout: Request-Timeout in Sekunden.
         keep_alive: Ollama keep_alive-Dauer.
         strip_thinking: Entferne <think>/<thinking>-Tags aus der Antwort.
+        disable_thinking: Deaktiviert thinking-Modus (relevant für Gemma-Modelle).
 
     Returns:
         Antwort-Text des LLM oder None bei Fehler.
@@ -84,6 +86,9 @@ def call_ollama(
         "options": options,
         "keep_alive": keep_alive,
     }
+
+    if disable_thinking:
+        payload["thinking"] = {"type": "disabled"}
 
     try:
         t0 = time.time()
