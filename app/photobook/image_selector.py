@@ -68,7 +68,7 @@ def _select_batch(
         images=encoded,
         temperature=0.0,
         top_p=0.1,
-        num_predict=128,
+        num_predict=16384,
         timeout=120,
     )
 

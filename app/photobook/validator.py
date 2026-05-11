@@ -6,10 +6,13 @@ Prueft die LLM-Ausgabe auf Konsistenz VOR dem Rendering:
   - Variety-Checks (Cover, Back-to-Back, Text-Lücke, Bildanzahl-Monotonie, Gesamt-Variety)
 """
 
+import logging
 from typing import List
 from app.state import PageDescription, PageSlot
 from app.photobook.preset_loader import load_all_presets
 from app.photobook.presets import get_any_preset, get_presets_by_image_count
+
+logger = logging.getLogger(__name__)
 
 
 def _truncate_text(text: str, limit: int) -> str:
@@ -133,6 +136,16 @@ def _repair_slots(preset, old_slots: List[PageSlot]) -> List[dict]:
                 if sd.char_limit and len(text) > sd.char_limit:
                     text = _truncate_text(text, sd.char_limit)
                 repaired_slots.append({"slot_id": matched_sid, "text": text})
+        elif slot.text:
+            # Generischer Fallback: verwaister Text → erster Text-Slot im neuen Preset
+            if text_role_map:
+                new_sid = list(text_role_map.values())[0]
+                sd = slot_defs[new_sid]
+                text = slot.text
+                if sd.char_limit and len(text) > sd.char_limit:
+                    text = _truncate_text(text, sd.char_limit)
+                logger.info("repair_slots fallback: %s:'%s...' → %s", sid, text[:30], new_sid)
+                repaired_slots.append({"slot_id": new_sid, "text": text})
 
     for sid, sd in slot_defs.items():
         if sd.type == "text":
@@ -192,7 +205,6 @@ def enforce_fallback(page: PageDescription) -> PageDescription:
             preset = presets[page.template_id]
 
     deduped_slots = _repair_slots(preset, page.slots)
-
     return PageDescription(
         template_id=page.template_id,
         page_type="single",

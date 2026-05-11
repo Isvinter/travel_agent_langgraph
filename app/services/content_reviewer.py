@@ -17,7 +17,7 @@ from app.services.gpx_analytics import GPXStats
 logger = logging.getLogger(__name__)
 
 
-MAX_REVIEW_RESPONSE_TOKENS = 2048
+MAX_REVIEW_RESPONSE_TOKENS = 8192
 
 
 # ── Prompt Template ──

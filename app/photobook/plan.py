@@ -11,8 +11,7 @@ from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData, WeatherInfo, PhotobookPlan, PagePlan, POI
-from app.utils.image_utils import encode_image_base64
-from app.photobook.presets import get_preset_summary, get_any_preset, PhotobookPreset, get_photobook_preset
+from app.photobook.presets import get_preset_summary, get_any_preset, get_presets_by_image_count, PhotobookPreset, get_photobook_preset
 
 logger = logging.getLogger(__name__)
 
@@ -87,12 +86,7 @@ def _build_plan_prompt(
 
 
 def _generate_fallback_plan(images: List[ImageData], image_count: int) -> PhotobookPlan:
-    """Deterministische Fallback-Planung: chronologische Einzelbilder.
-    
-    Verwendet ueberwiegend single_full-Presets (1 Bild pro Seite), damit alle
-    Bilder im Fotobuch erscheinen und die Seitenanzahl der Bildanzahl entspricht.
-    Nur wenn viele Bilder uebrig sind, werden 2-Bild-Presets eingestreut.
-    """
+    """Deterministische Fallback-Planung: chronologische Seiten mit Text-Presets."""
     indices = list(range(min(image_count, len(images))))
     pages = []
     if indices:
@@ -103,20 +97,39 @@ def _generate_fallback_plan(images: List[ImageData], image_count: int) -> Photob
             "purpose": "Cover",
         })
     pos = 1
+    # Wechsle zwischen verschiedenen Presets für Abwechslung im Fallback
+    preset_rotation = [
+        "single_text_below",
+        "double_stacked_text",
+        "single_text_left",
+        "double_text_right",
+        "single_text_below",
+    ]
+    rotation_idx = 0
     while indices:
         remaining = len(indices)
         if remaining >= 2:
-            pid = get_any_preset(2)
-            pages.append({
-                "position": pos,
-                "preset_id": pid,
-                "image_indices": [indices.pop(0), indices.pop(0)],
-                "purpose": "Vergleich",
-            })
+            pid = preset_rotation[rotation_idx % len(preset_rotation)]
+            if pid in ("double_stacked_text", "double_text_right"):
+                pages.append({
+                    "position": pos,
+                    "preset_id": pid,
+                    "image_indices": [indices.pop(0), indices.pop(0)],
+                    "purpose": "Vergleich",
+                })
+            else:
+                pid = "single_text_below"
+                pages.append({
+                    "position": pos,
+                    "preset_id": pid,
+                    "image_indices": [indices.pop(0)],
+                    "purpose": "Einzelbild",
+                })
+            rotation_idx += 1
         else:
             pages.append({
                 "position": pos,
-                "preset_id": "single_full",
+                "preset_id": "single_text_below",
                 "image_indices": [indices.pop(0)],
                 "purpose": "Einzelbild",
             })
@@ -159,12 +172,8 @@ def plan_photobook_layout(
         preset=preset,
     )
 
-    # Bilder als Base64 encodieren
-    encoded_images = []
-    for img in images:
-        b64 = encode_image_base64(img.path)
-        if b64:
-            encoded_images.append(b64)
+    # Keine Bilder an den Plan-LLM senden — die Layout-Planung ist strukturell
+    # (Presets auf Indizes verteilen), nicht inhaltlich.
 
     plan = None
     try:
@@ -172,9 +181,8 @@ def plan_photobook_layout(
             prompt,
             model=model,
             base_url=base_url,
-            images=encoded_images,
             temperature=0.3,
-            num_predict=4096,
+            num_predict=32768,
             timeout=300,
         )
         if content:
@@ -183,13 +191,18 @@ def plan_photobook_layout(
             if json_match:
                 plan = json.loads(json_match.group())
                 if "pages" in plan and len(plan["pages"]) > 0:
-                    # Pruefe, ob alle Bilder verwendet wurden
                     if _all_images_used(plan, len(images)):
                         return PhotobookPlan(
                             pages=[PagePlan(**p) for p in plan["pages"]]
                         )
                     else:
                         logger.warning("LLM-Plan verwendet nicht alle Bilder, verwende Fallback")
+                else:
+                    logger.warning("LLM-Plan hat keine pages, verwende Fallback")
+            else:
+                logger.warning("Kein JSON-Objekt in LLM-Plan-Antwort, verwende Fallback")
+        else:
+            logger.warning("LLM-Plan: keine Antwort, verwende Fallback")
     except Exception as e:
         logger.warning("Pass 1 (Planung) fehlgeschlagen: %s", e)
     return _generate_fallback_plan(images, len(images))

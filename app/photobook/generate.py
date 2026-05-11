@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ── Prompt Template ──
 
-GENERATE_PROMPT_TEMPLATE = """Du befuellst die Slots der gewaehlten Presets mit Bildern und ausfuehrlichem Text.
+GENERATE_PROMPT_TEMPLATE = """Du befuellst die Slots der gewaehlten Presets mit Bildern und Text.
 
 SEITENPLAN (preset_id pro Seite):
 {plan_text}
@@ -26,19 +26,22 @@ VERWENDETE PRESETS (nur diese sind relevant):
 {catalog}
 {gpx_text}{notes_text}
 
-{constraints}
-
-{text_block}
-
 AUFGABE PRO SEITE:{style_block}
 1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
-2. Text-Rollen: title (stimmungsvoller Titel, max. 60 Z.), caption (Bildunterschrift, char_min–char_max siehe Preset-Liste oben), intro (Einleitungstext, max. 1200 Z.).
-3. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter. Fuell die Textboxen gut aus, ziele auf MINDESTENS char_min Zeichen.
+2. TEXT-PFLICHT: Jeder in der Preset-Liste oben als "text" markierte Slot (title, caption, intro, ...) MUSS einen nicht-leeren text-Wert bekommen. Lass KEINEN Text-Slot leer. Ein Preset OHNE Text-Slots (Text=nein) braucht natuerlich keinen Text.
+3. Textdimensionen: title max. 60 Zeichen. caption und intro: char_max siehe Preset-Liste oben ([min-maxZ]) — ueberschreite NIEMALS char_max. Die char_min-Angabe ist eine Empfehlung fuer ausfuehrlichen Text, keine harte Pflicht.
+4. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter. Je mehr Details desto besser.
 {title_instruction}{multi_image_instruction}
+
+VOR DER AUSGABE PRUEFEN:
+- Hat JEDE Seite einen title-Slot mit nicht-leerem Text?
+- Hat JEDE Seite fuer ALLE im Preset vorhandenen Text-Slots (caption, intro, ...) einen nicht-leeren text-Eintrag?
+- Sind alle char_min/char_max eingehalten?
 
 BEISPIELE:
 - cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}, {{"slot_id": "main", "image_index": 0}}]}}]
-- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "title", "text": "Alpenwiese"}}, {{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Ein atemberaubender Weitblick ueber das Tal. Die Morgensonne taucht die gegenüberliegenden Berggipfel in warmes, goldenes Licht. In der Ferne sind vereinzelte Wanderer auf dem schmalen Gratweg zu erkennen, während unter uns die Nebelschwaden langsam aus dem Tal aufsteigen."}}]}}]"""
+- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "title", "text": "Alpenwiese"}}, {{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Ein atemberaubender Weitblick ueber das Tal. Die Morgensonne taucht die gegenüberliegenden Berggipfel in warmes, goldenes Licht. In der Ferne sind vereinzelte Wanderer auf dem schmalen Gratweg zu erkennen, während unter uns die Nebelschwaden langsam aus dem Tal aufsteigen."}}]}}]
+- image_text_split: [{{"preset_id": "image_text_split", "slots": [{{"slot_id": "title", "text": "Historische Altstadt"}}, {{"slot_id": "main", "image_index": 2}}, {{"slot_id": "intro", "text": "Die verwinkelten Gassen fuehren vorbei an jahrhundertealten Fachwerkhaeusern. Kleine Laeden und Cafes säumen den Weg, waehrend die Spaetnachmittagssonne warmes Licht auf die Kopfsteinpflaster wirft. Der Duft von frisch gebackenem Brot liegt in der Luft."}}]}}]"""
 
 
 def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
@@ -76,14 +79,7 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
             preset_summary.append(f"  {pid} [{p.image_count} Bilder, Text={'ja' if p.has_text else 'nein'}]: {slot_info}")
     catalog = "\n".join(preset_summary)
 
-    # Zeige Char-Ranges pro Preset (bereits im catalog enthalten)
-    constraint_note = (
-        "TEXT-CONSTRAINTS:\n"
-        "  title: max. 60 Zeichen, Schriftgröße 14pt bold (Seitentitel im page-header)\n"
-        "  caption: Schriftgröße 10pt italic — char_min/char_max PRO PRESET (siehe [min-maxZ] in der Liste oben)\n"
-        "  intro: Schriftgröße 11pt, max. 1200 Zeichen (Einleitungstext)\n"
-        "  WICHTIG: Ziele auf MINDESTENS char_min Zeichen. Überschreite NIEMALS char_max."
-    )
+    # Char-Ranges sind bereits im catalog enthalten; keine separaten Constraints noetig.
 
     # Konvertiere PagePlan-Objekte zu dicts für JSON-Serialisierung
     serializable_pages = []
@@ -100,30 +96,20 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
         gpx_text = f"\nTOUR: {dist:.1f} km, {elev:.0f}m Hoehenmeter."
     notes_text = f"\nTOUR-NOTIZEN: {notes}" if notes else ""
 
-    if preset.text_enabled:
-        text_required = any(all_presets.get(pid) and all_presets[pid].has_text for pid in used_preset_ids)
-        text_block = (
-            "TEXT IST PFLICHT: Hat ein Preset Text-Slots, MUSST du diese befuellen. "
-            "Lass KEINEN Text-Slot leer. Betrachte die Bilder und beschreibe ausfuehrlich, "
-            "was du siehst — Landschaft, Stimmung, Farben, Details, Wetter."
-        ) if text_required else ""
-    else:
-        text_block = ""
+    # Text-Pflicht ist jetzt direkt im Prompt-Template verankert (Punkt 2).
 
     style_block = ""
     if preset.generation_instructions:
         style_block = f"\nSTILVORGABE ({preset.name}): {preset.generation_instructions}\n"
 
-    title_instruction = "4. JEDE Seite MUSS einen title-Slot haben: " + '{"slot_id": "title", "text": "Einzeiliger Seitentitel"}' if preset.text_enabled else ""
-    multi_image_instruction = "\n5. Bei Presets mit MEHREREN Bildern (quad_grid, double_stacked, triple_stacked): beschreibe den Gesamteindruck der Bildgruppe, nicht nur ein einzelnes Bild." if preset.text_enabled else ""
+    title_instruction = "5. JEDE Seite MUSS einen title-Slot haben: " + '{"slot_id": "title", "text": "Einzeiliger Seitentitel"}' if preset.text_enabled else ""
+    multi_image_instruction = "\n6. Bei Presets mit MEHREREN Bildern (quad_grid, double_stacked, triple_stacked): beschreibe den Gesamteindruck der Bildgruppe, nicht nur ein einzelnes Bild." if preset.text_enabled else ""
 
     return GENERATE_PROMPT_TEMPLATE.format(
         plan_text=plan_text,
         catalog=catalog,
         gpx_text=gpx_text,
         notes_text=notes_text,
-        constraints=constraint_note,
-        text_block=text_block,
         style_block=style_block,
         title_instruction=title_instruction,
         multi_image_instruction=multi_image_instruction,
@@ -160,7 +146,7 @@ def generate_photobook_pages(
             base_url=base_url,
             images=encoded_images,
             temperature=0.3,
-            num_predict=16384,
+            num_predict=32768,
             timeout=300,
         )
         if content:

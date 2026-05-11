@@ -182,8 +182,9 @@ class TestGeneratePresetIntegration:
             {"preset_id": "quad_grid", "image_indices": [0, 1, 2, 3], "purpose": "Collage"}
         ]
         prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
-        assert "TEXT IST PFLICHT" not in prompt
-        assert "title-Slot" not in prompt
+        # Bei text_enabled=False werden title_instruction und multi_image_instruction nicht injiziert
+        assert "JEDE Seite MUSS einen title-Slot haben" not in prompt
+        assert "beschreibe den Gesamteindruck" not in prompt
 
     def test_build_generate_prompt_text_enabled_has_text_block(self):
         preset = PHOTOBOOK_PRESETS["nature_outdoor"]
@@ -191,5 +192,5 @@ class TestGeneratePresetIntegration:
             {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
         ]
         prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
-        assert "TEXT IST PFLICHT" in prompt
+        assert "TEXT-PFLICHT" in prompt
         assert "title-Slot" in prompt

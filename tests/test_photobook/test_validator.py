@@ -315,3 +315,121 @@ class TestValidateAllPages:
                         assert (slot.text or "").strip() != "", (
                             f"Text-Slot '{sd.id}' in Preset '{page.template_id}' ist leer"
                         )
+
+
+class TestTextMigration:
+    """Text-Erhaltung bei verschiedenen Slot-Konstellationen."""
+
+    def test_repair_slots_migrates_text_by_generic_fallback(self):
+        """_repair_slots migriert verwaisten Text (slot_id='text') → ersten Text-Slot des neuen Presets."""
+        from app.photobook.validator import _repair_slots
+        from app.photobook.preset_loader import load_preset
+        from app.state import PageSlot
+
+        new_preset = load_preset("single_text_below")
+        old_slots = [
+            PageSlot(slot_id="main", image_index=0),
+            PageSlot(slot_id="title", text="Historische Altstadt"),
+            PageSlot(slot_id="text", text="Die verwinkelten Gassen der Altstadt..."),
+        ]
+        result = _repair_slots(new_preset, old_slots)
+        caption_slot = next((s for s in result if s.get("slot_id") == "caption"), None)
+        assert caption_slot is not None, "Caption-Slot muss nach Migration existieren"
+        assert caption_slot["text"] == "Die verwinkelten Gassen der Altstadt...", (
+            f"Text wurde nicht migriert: {caption_slot.get('text')!r}"
+        )
+
+    def test_repair_slots_catches_orphaned_text(self):
+        """_repair_slots migriert verwaisten Text in den einzigen Text-Slot."""
+        from app.photobook.validator import _repair_slots
+        from app.photobook.preset_loader import load_preset
+        from app.state import PageSlot
+
+        new_preset = load_preset("panorama")
+        old_slots = [
+            PageSlot(slot_id="main", image_index=0),
+            PageSlot(slot_id="title", text="Panoramablick"),
+            PageSlot(slot_id="intro", text="Weites Bergpanorama im Abendlicht."),
+        ]
+        result = _repair_slots(new_preset, old_slots)
+        caption_slot = next((s for s in result if s.get("slot_id") == "caption"), None)
+        assert caption_slot is not None
+        assert caption_slot["text"] == "Weites Bergpanorama im Abendlicht."
+
+    def test_replace_preset_preserves_text_across_different_slot_ids(self):
+        """_replace_preset erhält LLM-Text bei Wechsel image_text_split → single_text_below."""
+        from app.photobook.validator import _replace_preset
+        from app.state import PageDescription
+
+        page = PageDescription(
+            template_id="image_text_split",
+            page_type="single",
+            slots=[
+                {"slot_id": "image", "image_index": 0},
+                {"slot_id": "title", "text": "Altstadtgassen"},
+                {"slot_id": "text", "text": "Fachwerkhäuser säumen den Weg durch das historische Viertel."},
+            ],
+        )
+        result = _replace_preset(page, "single_text_below")
+        caption_slot = next((s for s in result.slots if s.slot_id == "caption"), None)
+        assert caption_slot is not None, "Caption-Slot muss nach Preset-Wechsel vorhanden sein"
+        assert caption_slot.text == "Fachwerkhäuser säumen den Weg durch das historische Viertel.", (
+            f"Text verloren: {caption_slot.text!r}"
+        )
+
+    def test_validate_all_pages_preserves_text_through_variety_replacement(self):
+        """check_variety ersetzt Presets — Text muss ueberleben."""
+        from app.photobook.validator import validate_all_pages
+        from app.state import PageDescription
+
+        pages = [
+            PageDescription(template_id="cover_hero", page_type="single",
+                          slots=[{"slot_id": "main", "image_index": 0}]),
+            PageDescription(template_id="image_text_split", page_type="single",
+                          slots=[
+                              {"slot_id": "image", "image_index": 1},
+                              {"slot_id": "title", "text": "Erste Gasse"},
+                              {"slot_id": "text", "text": "Text der ersten Altstadtseite."},
+                          ]),
+            PageDescription(template_id="image_text_split", page_type="single",
+                          slots=[
+                              {"slot_id": "image", "image_index": 2},
+                              {"slot_id": "title", "text": "Zweite Gasse"},
+                              {"slot_id": "text", "text": "Text der zweiten Altstadtseite."},
+                          ]),
+            PageDescription(template_id="image_text_split", page_type="single",
+                          slots=[
+                              {"slot_id": "image", "image_index": 3},
+                              {"slot_id": "title", "text": "Dritte Gasse"},
+                              {"slot_id": "text", "text": "Text der dritten Altstadtseite."},
+                          ]),
+        ]
+        validated, warnings = validate_all_pages(pages)
+
+        for page in validated:
+            text_slots = [
+                s for s in page.slots
+                if s.text and s.slot_id != "title" and s.text.strip() not in ("Bildbeschreibung", "Einleitungstext")
+            ]
+            if page.template_id != "cover_hero":
+                assert len(text_slots) > 0, (
+                    f"Seite '{page.template_id}' hat nur Platzhalter-Text: "
+                    f"{[(s.slot_id, s.text) for s in page.slots if s.text]}"
+                )
+
+    def test_repair_slots_same_preset_preserves_text(self):
+        """_repair_slots erhält Text bei gleichem Preset (Standardfall)."""
+        from app.photobook.validator import _repair_slots
+        from app.photobook.preset_loader import load_preset
+        from app.state import PageSlot
+
+        preset = load_preset("single_text_below")
+        old_slots = [
+            PageSlot(slot_id="main", image_index=0),
+            PageSlot(slot_id="title", text="Alpenwiese"),
+            PageSlot(slot_id="caption", text="Ein atemberaubender Weitblick."),
+        ]
+        result = _repair_slots(preset, old_slots)
+        caption_slot = next((s for s in result if s.get("slot_id") == "caption"), None)
+        assert caption_slot is not None
+        assert caption_slot["text"] == "Ein atemberaubender Weitblick."

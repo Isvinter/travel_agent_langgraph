@@ -6,6 +6,7 @@ sowie photobook/plan, photobook/generate, photobook/image_selector.
 
 import logging
 import re
+import time
 from typing import Optional
 
 import requests
@@ -85,7 +86,9 @@ def call_ollama(
     }
 
     try:
+        t0 = time.time()
         resp = _session.post(url, json=payload, timeout=timeout)
+        elapsed = time.time() - t0
     except requests.exceptions.ConnectionError:
         logger.error("Could not connect to Ollama at %s", base_url)
         return None
@@ -100,7 +103,19 @@ def call_ollama(
         logger.error("Ollama returned HTTP %s: %s", resp.status_code, resp.text[:500])
         return None
 
-    content = resp.json().get("message", {}).get("content", "")
+    msg = resp.json().get("message", {})
+    content = msg.get("content", "")
+    # Gemma-Modelle legen Output manchmal ins "thinking"-Feld statt "content"
+    # Aber NICHT bei done_reason="length" (trunkierte Antwort) — da enthält
+    # thinking nur Reasoning, nicht die eigentliche Antwort.
+    done_reason = resp.json().get("done_reason", "")
+    if not content and msg.get("thinking") and done_reason != "length":
+        content = msg["thinking"]
+    if not content:
+        thinking_raw = msg.get("thinking", "")
+        eval_count = resp.json().get("eval_count", 0)
+        logger.warning("Ollama returned HTTP 200 but empty content after %.1fs. eval_count=%s, done_reason=%s, thinking_len=%s",
+                       elapsed, eval_count, done_reason, len(thinking_raw))
     if strip_thinking and content:
         content = strip_thinking_tokens(content)
     return content or None
