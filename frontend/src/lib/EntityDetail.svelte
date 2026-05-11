@@ -8,7 +8,7 @@
   interface Props {
     id: number;
     entityType: "article" | "photobook";
-    content: Snippet<[htmlContent: string | null]>;
+    content: Snippet<[htmlContent: string | null, entity: Record<string, any> | null]>;
     extraMeta?: Snippet<[entity: Record<string, any>]>;
   }
 
@@ -133,7 +133,7 @@
       </details>
     {/if}
 
-    {@render content(entity.html_content)}
+    {@render content(entity.html_content, rawEntity)}
   {/if}
 </div>
 

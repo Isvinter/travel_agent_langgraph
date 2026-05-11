@@ -9,7 +9,6 @@ from app.db.connection import get_session
 from app.db.photobook_repository import PhotobookRepository
 from app.state import ImageData, PageDescription
 from app.services.gpx_analytics import GPXStats
-from app.utils.html_sanitizer import sanitize_html
 from app.utils.tour_metadata import compute_tour_date_and_duration, build_tour_stats
 
 logger = logging.getLogger(__name__)
@@ -73,7 +72,7 @@ def persist_photobook(
         "elevation_gain_m": tour_stats.get("elevation_gain_m"),
         "elevation_loss_m": tour_stats.get("elevation_loss_m"),
         "image_count": _count_images_in_pages(photobook_pages),
-        "html_content": sanitize_html(photobook_html or "", keep_style=True),
+        "html_content": photobook_html or "",
         "html_path": photobook_html_path or "",
         "model_used": model,
         "notes": notes,

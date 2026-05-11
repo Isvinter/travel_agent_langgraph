@@ -16,6 +16,7 @@ class PresetSlot(BaseModel):
     css_area: str
     optional: bool = False
     char_limit: Optional[int] = None   # Zeichenlimit (nur für type="text")
+    char_min: Optional[int] = None     # Mindest-Zeichenzahl (nur für type="text")
     font_size: Optional[str] = None    # CSS font-size (nur für type="text")
     text_role: Optional[str] = None    # "title" | "caption" | "intro" (nur für type="text")
 

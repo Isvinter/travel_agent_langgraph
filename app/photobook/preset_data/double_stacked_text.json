@@ -8,6 +8,6 @@
   "slots": [
     {"id": "top", "type": "image", "priority": "primary", "css_area": "top", "optional": false},
     {"id": "bottom", "type": "image", "priority": "secondary", "css_area": "bottom", "optional": false},
-    {"id": "caption", "type": "text", "css_area": "caption", "char_limit": 500, "font_size": "10pt", "text_role": "caption", "optional": true}
+    {"id": "caption", "type": "text", "css_area": "caption", "char_min": 450, "char_limit": 800, "font_size": "10pt", "text_role": "caption", "optional": true}
   ]
 }

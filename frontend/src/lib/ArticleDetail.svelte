@@ -13,7 +13,7 @@
 </script>
 
 <EntityDetail id={id} entityType="article">
-  {#snippet content(html)}
+  {#snippet content(html, entity)}
     {#if html}
       <div class="content">
         {@html sanitize(html)}

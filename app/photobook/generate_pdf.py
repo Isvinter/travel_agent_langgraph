@@ -19,7 +19,7 @@ def _inject_print_css(html_content: str) -> str:
     print_css = (
         '<style>'
         '@page { size: 210mm 297mm; margin: 0 !important; }'
-        'body { margin: 0 !important; padding: 0 !important; }'
+        'body { margin: 0 !important; padding: 0 !important; display: block !important; }'
         '.photobook-page:last-child { margin-bottom: 0 !important; }'
         '</style>'
     )
@@ -28,11 +28,13 @@ def _inject_print_css(html_content: str) -> str:
     return print_css + html_content
 
 
-def generate_photobook_pdf(html_content: str) -> bytes:
+def generate_photobook_pdf(html_content: str, source_path: str = None) -> bytes:
     """Wandelt Fotobuch-HTML via Headless Chrome in PDF um.
 
     Args:
         html_content: Vollstaendiges HTML des Fotobuchs
+        source_path: Pfad zur HTML-Datei (wird direkt geladen, wenn vorhanden).
+                     Wichtig, damit Chrome file:// Bilder aus demselben Verzeichnis laden kann.
 
     Returns:
         PDF als Bytes
@@ -46,13 +48,16 @@ def generate_photobook_pdf(html_content: str) -> bytes:
 
     processed = _inject_print_css(html_content)
 
-    fd, html_path = tempfile.mkstemp(suffix=".html")
+    # Temp-Datei im selben Verzeichnis wie die Bilder anlegen,
+    # damit Chrome file:// Bilder laden kann (same-origin policy)
+    tmp_dir = os.path.dirname(source_path) if source_path and os.path.isfile(source_path) else None
+    fd, html_path = tempfile.mkstemp(suffix=".html", dir=tmp_dir)
     try:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(processed)
         except Exception:
-            os.close(fd)  # fdopen fehlgeschlagen → fd manuell schließen
+            os.close(fd)
             raise
 
         options = Options()
@@ -62,8 +67,8 @@ def generate_photobook_pdf(html_content: str) -> bytes:
 
         driver = webdriver.Chrome(options=options)
         try:
-            abs_path = os.path.abspath(html_path)
-            driver.get(f"file:///{abs_path}")
+            abs_load = os.path.abspath(html_path)
+            driver.get(f"file:///{abs_load}")
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )

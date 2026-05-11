@@ -98,6 +98,22 @@ def _get_text_constraints():
 _TEXT_CONSTRAINTS = None
 
 
+def get_preset_text_ranges(preset_id: str) -> dict:
+    """Liefert dict slot_id -> (char_min, char_max) fuer Text-Slots eines Presets.
+    
+    Wenn char_min nicht in der JSON-Datei gesetzt ist, wird ein Default-Wert
+    von 50% des char_limit berechnet (hybrider Ansatz).
+    """
+    from app.photobook.preset_loader import load_preset
+    preset = load_preset(preset_id)
+    ranges = {}
+    for slot in preset.slots:
+        if slot.type == "text" and slot.char_limit:
+            char_min = slot.char_min if slot.char_min is not None else max(10, int(slot.char_limit * 0.5))
+            ranges[slot.id] = (char_min, slot.char_limit)
+    return ranges
+
+
 def get_constraint_summary() -> str:
     """Erzeugt Constraint-Text für den LLM-Prompt."""
     lines = ["TEXT-CONSTRAINTS (UNBEDINGT EINHALTEN):"]

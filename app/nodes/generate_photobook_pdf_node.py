@@ -14,7 +14,7 @@ def generate_photobook_pdf_node(state: AppState) -> AppState:
         logger.warning("Kein HTML zum PDF-Export vorhanden.")
         return state
     try:
-        pdf_bytes = generate_photobook_pdf(state.photobook_html)
+        pdf_bytes = generate_photobook_pdf(state.photobook_html, source_path=state.photobook_html_path)
         timestamp = state.photobook_timestamp or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_dir = Path(OUTPUT_DIR) / f"photobook_{timestamp}"
         output_dir.mkdir(parents=True, exist_ok=True)

@@ -185,7 +185,6 @@ body {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
   gap: 0;
-  padding: 0;
 }
 
 .preset-single-text-below {
@@ -356,7 +355,7 @@ body {
 /* --- Print --- */
 
 @media print {
-  body { background: #fff; padding-bottom: 0; }
+  body { background: #fff; padding-bottom: 0; display: block; }
   .photobook-page {
     box-shadow: none;
   }

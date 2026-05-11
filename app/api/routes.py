@@ -150,14 +150,15 @@ def _rewrite_photobook_html(html_content: str | None, photobook_id: int) -> str 
     if not html_content:
         return html_content
 
-    # Sicherheitssanitisierung (defense-in-depth, style-tags bleiben erhalten)
-    html_content = sanitize_html(html_content, keep_style=True)
-
+    # Zuerst file:/// URLs umschreiben, BEVOR der Sanitizer sie entfernt
     html_content = re.sub(
         r'file:///[^"]*?/images/([^"]+)',
         f'/api/photobooks/{photobook_id}/images/\\1',
         html_content,
     )
+
+    # Dann Sicherheitssanitisierung (relative URLs sind unkritisch)
+    html_content = sanitize_html(html_content, keep_style=True)
 
     return html_content
 

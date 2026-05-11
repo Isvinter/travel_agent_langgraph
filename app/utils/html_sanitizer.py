@@ -16,13 +16,13 @@ _EXTRA_TAGS = {
 
 _ATTRIBUTES = {
     "a": {"href", "title", "target"},
-    "img": {"src", "alt", "width", "height", "loading"},
+    "img": {"src", "alt", "width", "height", "loading", "class", "style"},
     "td": {"colspan", "rowspan"},
     "th": {"colspan", "rowspan"},
-    "div": {"class"},
-    "span": {"class"},
-    "section": {"class"},
-    "article": {"class"},
+    "div": {"class", "style"},
+    "span": {"class", "style"},
+    "section": {"class", "style"},
+    "article": {"class", "style"},
 }
 
 

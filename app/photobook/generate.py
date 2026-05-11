@@ -8,7 +8,7 @@ from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData, PageDescription, PhotobookPlan, PagePlan, PageSlot
 from app.photobook.preset_loader import load_all_presets
-from app.photobook.presets import get_constraint_summary, get_any_preset, get_photobook_preset
+from app.photobook.presets import get_any_preset, get_photobook_preset, get_preset_text_ranges
 from app.photobook.presets import PhotobookPreset
 from app.utils.image_utils import encode_image_base64
 
@@ -32,8 +32,8 @@ VERWENDETE PRESETS (nur diese sind relevant):
 
 AUFGABE PRO SEITE:{style_block}
 1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
-2. Text-Rollen: title (stimmungsvoller Titel, 60 Z.), caption (ausfuehrliche Bildbeschreibung, max. 500 Z.), intro (detaillierte Einleitung, max. 1200 Z.).
-3. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter, was auf den Bildern zu sehen ist. Nutze die Zeichenlimits WIRKLICH aus.
+2. Text-Rollen: title (stimmungsvoller Titel, max. 60 Z.), caption (Bildunterschrift, char_min–char_max siehe Preset-Liste oben), intro (Einleitungstext, max. 1200 Z.).
+3. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter. Fuell die Textboxen gut aus, ziele auf MINDESTENS char_min Zeichen.
 {title_instruction}{multi_image_instruction}
 
 BEISPIELE:
@@ -59,18 +59,31 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
         if pid:
             used_preset_ids.add(pid)
 
-    # Nur relevante Presets anzeigen
+    # Nur relevante Presets anzeigen (mit Char-Ranges fuer Text-Slots)
     preset_summary = []
     for pid in sorted(used_preset_ids):
         p = all_presets.get(pid)
         if p:
-            slot_info = ", ".join(
-                f"{s.id}({s.type},{s.text_role or s.priority or '-'})" for s in p.slots
-            )
+            text_ranges = get_preset_text_ranges(pid)
+            slot_info_parts = []
+            for s in p.slots:
+                slot_label = f"{s.id}({s.type},{s.text_role or s.priority or '-'})"
+                if s.id in text_ranges:
+                    ch_min, ch_max = text_ranges[s.id]
+                    slot_label += f"[{ch_min}-{ch_max}Z]"
+                slot_info_parts.append(slot_label)
+            slot_info = ", ".join(slot_info_parts)
             preset_summary.append(f"  {pid} [{p.image_count} Bilder, Text={'ja' if p.has_text else 'nein'}]: {slot_info}")
     catalog = "\n".join(preset_summary)
 
-    constraints = get_constraint_summary()
+    # Zeige Char-Ranges pro Preset (bereits im catalog enthalten)
+    constraint_note = (
+        "TEXT-CONSTRAINTS:\n"
+        "  title: max. 60 Zeichen, Schriftgröße 14pt bold (Seitentitel im page-header)\n"
+        "  caption: Schriftgröße 10pt italic — char_min/char_max PRO PRESET (siehe [min-maxZ] in der Liste oben)\n"
+        "  intro: Schriftgröße 11pt, max. 1200 Zeichen (Einleitungstext)\n"
+        "  WICHTIG: Ziele auf MINDESTENS char_min Zeichen. Überschreite NIEMALS char_max."
+    )
 
     # Konvertiere PagePlan-Objekte zu dicts für JSON-Serialisierung
     serializable_pages = []
@@ -109,7 +122,7 @@ def _build_generate_prompt(pages_plan, gpx_stats_d, notes, preset=None):
         catalog=catalog,
         gpx_text=gpx_text,
         notes_text=notes_text,
-        constraints=constraints,
+        constraints=constraint_note,
         text_block=text_block,
         style_block=style_block,
         title_instruction=title_instruction,

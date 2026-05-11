@@ -48,7 +48,8 @@ class TestPresetLoader:
         assert len(image_slots) == 1
         assert len(text_slots) >= 1
         caption = text_slots[0]
-        assert caption.char_limit == 500
+        assert caption.char_limit == 1400
+        assert caption.char_min == 900
         assert caption.font_size == "10pt"
         assert caption.text_role == "caption"
 
@@ -85,7 +86,7 @@ class TestPresetCatalog:
         from app.photobook.presets import get_constraint_summary
         summary = get_constraint_summary()
         assert "60" in summary
-        assert "500" in summary
+        assert "800" in summary   # double_stacked_text hat char_limit 800 (erstes caption-Preset alphabetisch)
         assert "1200" in summary
         assert "14pt" in summary
         assert "10pt" in summary
