@@ -47,6 +47,99 @@ def calculate_num_predict(
     return max(min_tokens, int((text_tokens + json_overhead) * safety_factor))
 
 
+# ── Batch Prompt Template ──
+
+BATCH_PROMPT_TEMPLATE = """Du befuellst die Slots der gewaehlten Presets mit Bildern und Text.
+
+TOUR: {tour_summary}
+TOURDATEN: {gpx_text}
+
+SEITENPLAN (nur dieser Batch):
+{plan_text}
+
+VERWENDETE PRESETS (nur diese sind relevant):
+{catalog}
+
+AUFGABE PRO SEITE:{style_block}
+1. Weise jedem Image-Slot ein Bild zu (image_index aus dem Plan).
+2. TEXT-PFLICHT: Jeder in der Preset-Liste oben als "text" markierte Slot (title, caption, intro, ...) MUSS einen nicht-leeren text-Wert bekommen. Lass KEINEN Text-Slot leer. Ein Preset OHNE Text-Slots (Text=nein) braucht natuerlich keinen Text.
+3. Textdimensionen: title max. 60 Zeichen. caption und intro: char_max siehe Preset-Liste oben ([min-maxZ]) — ueberschreite NIEMALS char_max. Die char_min-Angabe ist eine Empfehlung fuer ausfuehrlichen Text, keine harte Pflicht.
+4. Generiere AUSFUEHRLICHE, lebendige Texte — beschreibe Landschaft, Stimmung, Farben, Details, Wetter. Je mehr Details desto besser.
+{title_instruction}{multi_image_instruction}
+
+VOR DER AUSGABE PRUEFEN:
+- Hat JEDE Seite einen title-Slot mit nicht-leerem Text?
+- Hat JEDE Seite fuer ALLE im Preset vorhandenen Text-Slots (caption, intro, ...) einen nicht-leeren text-Eintrag?
+- Sind alle char_min/char_max eingehalten?
+
+BEISPIELE:
+- cover_hero: [{{"preset_id": "cover_hero", "slots": [{{"slot_id": "title", "text": "Aufbruch im Morgengrauen"}}, {{"slot_id": "main", "image_index": 0}}]}}]
+- single_text_below: [{{"preset_id": "single_text_below", "slots": [{{"slot_id": "title", "text": "Alpenwiese"}}, {{"slot_id": "main", "image_index": 1}}, {{"slot_id": "caption", "text": "Ein atemberaubender Weitblick ueber das Tal..."}}]}}]"""
+
+
+def _build_batch_prompt(
+    batch_pages: List[PagePlan],
+    tour_summary: Optional[str],
+    gpx_distance: Optional[str],
+    gpx_elevation: Optional[str],
+    preset: Optional[PhotobookPreset] = None,
+) -> str:
+    if preset is None:
+        preset = get_photobook_preset("mixed")
+
+    all_presets = load_all_presets()
+    used_preset_ids = set()
+    for pp in batch_pages:
+        if pp.preset_id:
+            used_preset_ids.add(pp.preset_id)
+
+    preset_summary = []
+    for pid in sorted(used_preset_ids):
+        p = all_presets.get(pid)
+        if p:
+            text_ranges = get_preset_text_ranges(pid)
+            slot_info_parts = []
+            for s in p.slots:
+                slot_label = f"{s.id}({s.type},{s.text_role or s.priority or '-'})"
+                if s.id in text_ranges:
+                    ch_min, ch_max = text_ranges[s.id]
+                    slot_label += f"[{ch_min}-{ch_max}Z]"
+                slot_info_parts.append(slot_label)
+            slot_info = ", ".join(slot_info_parts)
+            preset_summary.append(f"  {pid} [{p.image_count} Bilder, Text={'ja' if p.has_text else 'nein'}]: {slot_info}")
+    catalog = "\n".join(preset_summary)
+
+    serializable_pages = [pp.model_dump() for pp in batch_pages]
+    plan_text = json.dumps(serializable_pages, indent=2, ensure_ascii=False)
+
+    gpx_text = ""
+    if gpx_distance and gpx_elevation:
+        gpx_text = f"{gpx_distance} km, {gpx_elevation}m Hoehenmeter."
+    elif gpx_distance:
+        gpx_text = f"{gpx_distance} km."
+    else:
+        gpx_text = "Keine Daten."
+
+    summary = tour_summary if tour_summary else "Keine Zusammenfassung verfuegbar."
+
+    style_block = ""
+    if preset.generation_instructions:
+        style_block = f"\nSTILVORGABE ({preset.name}): {preset.generation_instructions}\n"
+
+    title_instruction = "5. JEDE Seite MUSS einen title-Slot haben: " + '{"slot_id": "title", "text": "Einzeiliger Seitentitel"}' if preset.text_enabled else ""
+    multi_image_instruction = "\n6. Bei Presets mit MEHREREN Bildern (quad_grid, double_stacked, triple_stacked): beschreibe den Gesamteindruck der Bildgruppe, nicht nur ein einzelnes Bild." if preset.text_enabled else ""
+
+    return BATCH_PROMPT_TEMPLATE.format(
+        tour_summary=summary,
+        gpx_text=gpx_text,
+        plan_text=plan_text,
+        catalog=catalog,
+        style_block=style_block,
+        title_instruction=title_instruction,
+        multi_image_instruction=multi_image_instruction,
+    )
+
+
 # ── Prompt Template ──
 
 GENERATE_PROMPT_TEMPLATE = """Du befuellst die Slots der gewaehlten Presets mit Bildern und Text.

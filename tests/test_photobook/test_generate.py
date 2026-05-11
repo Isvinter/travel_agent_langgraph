@@ -170,3 +170,28 @@ class TestCalculateNumPredict:
         ]
         result = calculate_num_predict(pages, min_tokens=8192)
         assert result == 8192
+
+
+from app.photobook.generate import _build_batch_prompt
+
+
+class TestBuildBatchPrompt:
+    def test_includes_tour_summary(self):
+        batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
+        prompt = _build_batch_prompt(batch_pages, "Wanderung im Allgäu, Herbst.", "14.3", "520")
+        assert "Wanderung im Allgäu" in prompt
+        assert "14.3" in prompt
+        assert "520" in prompt
+
+    def test_includes_batch_plan_json(self):
+        batch_pages = [
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0], purpose="Cover"),
+        ]
+        prompt = _build_batch_prompt(batch_pages, "Test", "5.0", "100")
+        assert "cover_hero" in prompt
+        assert "Cover" in prompt
+
+    def test_handles_empty_summary(self):
+        batch_pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
+        prompt = _build_batch_prompt(batch_pages, None, None, None)
+        assert "cover_hero" in prompt  # Should not crash
