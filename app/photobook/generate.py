@@ -4,7 +4,7 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
-from app.config import OLLAMA_BASE_URL
+from app.config import OLLAMA_BASE_URL, PHOTOBOOK_BATCH_SIZE
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
 from app.state import ImageData, PageDescription, PhotobookPlan, PagePlan, PageSlot
 from app.photobook.preset_loader import load_all_presets
@@ -13,6 +13,38 @@ from app.photobook.presets import PhotobookPreset
 from app.utils.image_utils import encode_image_base64
 
 logger = logging.getLogger(__name__)
+
+
+# ── Batch-Hilfsfunktionen ──
+
+
+def _split_into_batches(pages: List[PagePlan], batch_size: int) -> List[List[PagePlan]]:
+    """Teilt Seiten chronologisch in Batches."""
+    return [pages[i:i + batch_size] for i in range(0, len(pages), batch_size)]
+
+
+def _images_for_batch(batch_pages: List[PagePlan], all_images: List[ImageData]) -> List[ImageData]:
+    """Ermittelt die Menge der im Batch referenzierten Bilder (dedupliziert, sortiert)."""
+    used_indices: set[int] = set()
+    for page in batch_pages:
+        used_indices.update(page.image_indices)
+    return [all_images[i] for i in sorted(used_indices) if 0 <= i < len(all_images)]
+
+
+def calculate_num_predict(
+    batch_pages: List[PagePlan],
+    safety_factor: float = 1.5,
+    min_tokens: int = 8192,
+) -> int:
+    """Berechnet num_predict aus der Summe der char_limits aller Text-Slots im Batch."""
+    max_chars = 0
+    for page in batch_pages:
+        text_ranges = get_preset_text_ranges(page.preset_id)
+        for slot_id, (ch_min, ch_max) in text_ranges.items():
+            max_chars += ch_max
+    text_tokens = max_chars / 2.5
+    json_overhead = 2000
+    return max(min_tokens, int((text_tokens + json_overhead) * safety_factor))
 
 
 # ── Prompt Template ──

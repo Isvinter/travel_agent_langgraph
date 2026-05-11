@@ -92,3 +92,81 @@ class TestGenerate:
         from app.photobook.preset_loader import load_preset
         preset = load_preset(pages[0].template_id)
         assert preset.image_count == 2
+
+
+from app.photobook.generate import _split_into_batches, _images_for_batch, calculate_num_predict
+from app.state import PagePlan
+
+SAMPLE_PAGES_16 = [
+    PagePlan(position=i, preset_id="single_text_below", image_indices=[i], purpose=f"Seite {i}")
+    for i in range(16)
+]
+SAMPLE_PAGES_16[0] = PagePlan(position=0, preset_id="cover_hero", image_indices=[0], purpose="Cover")
+
+
+class TestBatchHelpers:
+    def test_split_into_batches_exact(self):
+        batches = _split_into_batches(SAMPLE_PAGES_16, batch_size=3)
+        assert len(batches) == 6
+        assert len(batches[0]) == 3
+        assert len(batches[-1]) == 1  # 16 % 3 = 1
+
+    def test_split_first_batch_has_cover(self):
+        batches = _split_into_batches(SAMPLE_PAGES_16, batch_size=3)
+        assert batches[0][0].preset_id == "cover_hero"
+        assert batches[0][0].position == 0
+
+    def test_split_single_batch(self):
+        pages = SAMPLE_PAGES_16[:2]
+        batches = _split_into_batches(pages, batch_size=3)
+        assert len(batches) == 1
+        assert len(batches[0]) == 2
+
+    def test_images_for_batch_extracts_correct_images(self):
+        batch_pages = [
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0]),
+            PagePlan(position=1, preset_id="double_stacked", image_indices=[1, 2]),
+            PagePlan(position=2, preset_id="single_text_below", image_indices=[3]),
+        ]
+        all_images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(10)]
+        result = _images_for_batch(batch_pages, all_images)
+        assert len(result) == 4  # Indices 0, 1, 2, 3
+        assert result[0].path == "/tmp/img_0.jpg"
+        assert result[3].path == "/tmp/img_3.jpg"
+
+    def test_images_for_batch_deduplicates(self):
+        batch_pages = [
+            PagePlan(position=0, preset_id="cover_hero", image_indices=[0]),
+            PagePlan(position=1, preset_id="double_stacked", image_indices=[0, 1]),
+        ]
+        all_images = [ImageData(path=f"/tmp/img_{i}.jpg") for i in range(5)]
+        result = _images_for_batch(batch_pages, all_images)
+        assert len(result) == 2  # Dedupliziert
+
+    def test_images_for_batch_empty(self):
+        result = _images_for_batch([], [])
+        assert result == []
+
+
+class TestCalculateNumPredict:
+    def test_returns_minimum_for_small_batch(self):
+        pages = [PagePlan(position=0, preset_id="cover_hero", image_indices=[0])]
+        result = calculate_num_predict(pages, min_tokens=8192)
+        assert result >= 8192
+
+    def test_scales_with_text_slots(self):
+        pages = [
+            PagePlan(position=i, preset_id="single_text_below", image_indices=[i])
+            for i in range(3)
+        ]
+        result = calculate_num_predict(pages, min_tokens=8192)
+        assert result >= 8192
+        assert result >= 5500
+
+    def test_no_text_presets_return_minimum(self):
+        pages = [
+            PagePlan(position=i, preset_id="double_stacked", image_indices=[i, i+1])
+            for i in range(3)
+        ]
+        result = calculate_num_predict(pages, min_tokens=8192)
+        assert result == 8192
