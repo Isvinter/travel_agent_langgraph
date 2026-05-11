@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, List, Optional
 from app.config import OLLAMA_BASE_URL
 from app.services.ollama_client import call_ollama, strip_thinking_tokens
-from app.state import ImageData, WeatherInfo, PhotobookPlan, PagePlan, POI
+from app.state import ImageData, PhotobookPlan, PagePlan
 from app.photobook.presets import get_preset_summary, get_any_preset, get_presets_by_image_count, PhotobookPreset, get_photobook_preset
 
 logger = logging.getLogger(__name__)
@@ -41,9 +41,7 @@ ANTWORTE AUSSCHLIESSLICH mit diesem JSON:
 def _build_plan_prompt(
     image_count: int,
     gpx_stats_d: Optional[Dict[str, Any]],
-    notes: Optional[str],
-    weather: Optional[WeatherInfo],
-    poi_count: int,
+    tour_summary: Optional[str],
     page_range: Optional[str] = None,
     preset: Optional[PhotobookPreset] = None,
 ) -> str:
@@ -51,13 +49,9 @@ def _build_plan_prompt(
     if gpx_stats_d:
         dist = gpx_stats_d.get("total_distance_m", 0) / 1000
         elev = gpx_stats_d.get("elevation_gain_m", 0)
-        context_parts.append(f"TOUR: {dist:.1f} km, {elev:.0f}m Hoehenmeter")
-    if weather and weather.daily:
-        context_parts.append(f"WETTER: {weather.summary}")
-    if poi_count > 0:
-        context_parts.append(f"POIs: {poi_count} Sehenswuerdigkeiten")
-    if notes:
-        context_parts.append(f"NOTIZEN: {notes}")
+        context_parts.append(f"TOURDATEN: {dist:.1f} km, {elev:.0f}m Hoehenmeter")
+    if tour_summary:
+        context_parts.append(f"TOUR: {tour_summary}")
     context = "\n".join(context_parts)
 
     preset_catalog = get_preset_summary()
@@ -152,9 +146,7 @@ def _all_images_used(plan: Dict[str, Any], image_count: int) -> bool:
 def plan_photobook_layout(
     images: List[ImageData],
     gpx_stats: Optional[Dict[str, Any]],
-    notes: Optional[str],
-    weather: Optional[WeatherInfo],
-    poi_list: List[POI],
+    tour_summary: Optional[str],
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
     page_range: str = "",
@@ -167,7 +159,7 @@ def plan_photobook_layout(
         preset = get_photobook_preset("mixed")
 
     prompt = _build_plan_prompt(
-        len(images), gpx_stats, notes, weather, len(poi_list),
+        len(images), gpx_stats, tour_summary,
         page_range=page_range if page_range else None,
         preset=preset,
     )
@@ -184,6 +176,7 @@ def plan_photobook_layout(
             temperature=0.3,
             num_predict=32768,
             timeout=300,
+            disable_thinking=True,
         )
         if content:
             content = strip_thinking_tokens(content)

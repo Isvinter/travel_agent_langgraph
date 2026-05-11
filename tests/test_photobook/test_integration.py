@@ -120,7 +120,7 @@ class TestPresetPipeline:
         with patch("app.photobook.plan.call_ollama") as mock_plan_post:
             mock_plan_post.return_value = mock_plan_content
 
-            plan = plan_photobook_layout(images, None, None, None, [], model="test")
+            plan = plan_photobook_layout(images, None, None, model="test")
             assert len(plan.pages) == 5
             assert plan.pages[0].preset_id == "cover_hero"
 

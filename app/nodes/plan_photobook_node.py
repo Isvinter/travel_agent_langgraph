@@ -25,8 +25,10 @@ def plan_photobook_node(state: AppState) -> AppState:
     gpx_dict, preset = _get_photobook_context(state)
     try:
         plan = plan_photobook_layout(
-            images=state.photobook_images, gpx_stats=gpx_dict, notes=state.notes,
-            weather=state.weather, poi_list=state.poi_list, model=state.model,
+            images=state.photobook_images,
+            gpx_stats=gpx_dict,
+            tour_summary=state.tour_summary,
+            model=state.model,
             page_range=state.output_config.photobook.page_range,
             preset=preset,
         )

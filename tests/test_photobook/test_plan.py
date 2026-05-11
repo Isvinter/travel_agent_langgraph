@@ -34,9 +34,7 @@ class TestPlan:
         result = plan_photobook_layout(
             images=SAMPLE_IMAGES,
             gpx_stats={"total_distance_m": 8000},
-            notes="Test",
-            weather=None,
-            poi_list=[],
+            tour_summary="Eine schoene Wanderung im Schwarzwald.",
             model="test-model",
         )
         assert len(result.pages) > 0
@@ -52,9 +50,7 @@ class TestPlan:
         result = plan_photobook_layout(
             images=SAMPLE_IMAGES[:4],
             gpx_stats={},
-            notes=None,
-            weather=None,
-            poi_list=[],
+            tour_summary=None,
             model="test-model",
         )
         assert len(result.pages) > 0
@@ -66,9 +62,7 @@ class TestPlan:
         result = plan_photobook_layout(
             images=SAMPLE_IMAGES[:6],
             gpx_stats={},
-            notes=None,
-            weather=None,
-            poi_list=[],
+            tour_summary=None,
             model="test-model",
             base_url="http://invalid:99999",
         )
