@@ -21,10 +21,57 @@ Zusätzlich werden rohe Tournotizen, Wetterdaten und POIs ungefiltert in die Pro
 3. **Alle drei Pässe optimieren**: Summary in Pass 0 (Bildauswahl), Pass 1 (Layout-Planung) und Pass 2 (Content) nutzen
 4. **Batch-Größe konfigurierbar**: Einfache Anpassung in `config.py`
 5. **Robustness-Maßnahmen**: Retry/Fallback pro Batch, Validierung pro Batch, dynamisches `num_predict`
+6. **Thinking Mode deaktivieren**: Gemma-4-Modelle haben Thinking standardmäßig aktiv — der verbraucht `num_predict`-Budget und führt zu leeren Antworten
 
 ---
 
 ## Design
+
+### 0. Thinking Mode deaktivieren (Ollama-Client-Änderung)
+
+**Datei**: `app/services/ollama_client.py`
+
+**Problem**: Gemma-4-Modelle (`gemma4:26b-ctx128k`, `gemma4:31b-ctx112k`) haben Thinking Mode standardmäßig aktiviert. Die Thinking-Tokens werden aus dem `num_predict`-Budget bedient. Bei `num_predict=32768` kann das Modell den Großteil des Budgets für internes Reasoning verbrauchen, sodass für die eigentliche Antwort nichts übrig bleibt → leere `content`-Felder.
+
+**Lösung**: Thinking Mode für Photobook-Calls deaktivieren, da es sich um strukturierte JSON-Generierung handelt, nicht um komplexes Reasoning.
+
+**Änderung an `call_ollama()`**:
+```python
+def call_ollama(
+    prompt: str,
+    *,
+    model: str = "gemma4:26b-ctx128k",
+    base_url: str = OLLAMA_BASE_URL,
+    images: Optional[list[str]] = None,
+    system_prompt: Optional[str] = None,
+    temperature: float = 0.7,
+    top_p: Optional[float] = 0.9,
+    num_predict: int = 16384,
+    timeout: int = 600,
+    keep_alive: str = "10m",
+    strip_thinking: bool = False,
+    disable_thinking: bool = False,  # NEU
+) -> Optional[str]:
+```
+
+Im Payload:
+```python
+payload = {
+    "model": model,
+    "messages": messages,
+    "stream": False,
+    "options": options,
+    "keep_alive": keep_alive,
+}
+if disable_thinking:
+    payload["thinking"] = {"type": "disabled"}
+```
+
+**Verwendung in Photobook-Calls**: Alle LLM-Calls in `image_selector.py`, `plan.py`, `generate.py` und `summarize_context.py` rufen `call_ollama()` mit `disable_thinking=True` auf.
+
+**Hinweis**: `strip_thinking` bleibt erhalten für Fälle, in denen Thinking erwünscht ist (z.B. Blog-Pfad). Wenn `disable_thinking=True`, ist `strip_thinking` implizit nicht nötig.
+
+---
 
 ### 1. Neuer Shared Node: `summarize_context`
 
@@ -49,7 +96,7 @@ TOURDATEN: {distanz}km, {höhenmeter}m Aufstieg, {dauer}
 TOURNOTIZEN: {notes}
 ```
 
-- `temperature=0.0`, `num_predict=512`, `timeout=60s`
+- `temperature=0.0`, `num_predict=1024`, `timeout=60s`, `disable_thinking=True`
 - Prompt unter 1000 Tokens (nur Text)
 
 **Output**: `state.tour_summary: Optional[str]`
@@ -82,6 +129,7 @@ tour_summary: Optional[str] = None  # neues Feld
   Wähle die {select_count} besten Bilder...
   ```
 - `gpx_stats` und `notes` Parameter werden aus dem Service entfernt (bisher ungenutzt)
+- `disable_thinking=True` für deterministische Bildauswahl
 - Batch-Größe bleibt bei 15, zweistufige Selektion bleibt unverändert
 
 **Node-Änderung**: `state.tour_summary` statt `state.gpx_stats` + `state.notes` an den Service übergeben
@@ -109,6 +157,7 @@ tour_summary: Optional[str] = None  # neues Feld
   ```
 
 **Kontext-Ersparnis**: ca. 30–40% weniger Prompt-Tokens (Wetter/POI-Listen + rohe Notizen entfallen)
+**Thinking**: `disable_thinking=True` (strukturierte JSON-Ausgabe, kein Reasoning nötig)
 
 **Fallback**: `_generate_fallback_plan()` bleibt unverändert
 
@@ -207,7 +256,7 @@ def calculate_num_predict(
     batch_pages: List[PagePlan],
     preset_catalog: Dict[str, Preset],
     safety_factor: float = 1.5,
-    min_tokens: int = 4096,
+    min_tokens: int = 8192,
 ) -> int:
     """Berechnet num_predict aus der Summe der char_limits aller Text-Slots im Batch."""
     max_chars = 0
@@ -223,10 +272,12 @@ def calculate_num_predict(
     return max(min_tokens, int((text_tokens + json_overhead) * safety_factor))
 ```
 
-**Beispielrechnungen**:
-- 3 × `single_text_below` (je 1400 chars) → `(4200/2.5 + 2000) * 1.5 = 5520` → min. 5520
-- 3 × `quad_grid_text` (je 1400 chars) → `(4200/2.5 + 2000) * 1.5 = 5520` → min. 5520
-- Mix: `cover_hero` (0 text) + `single_text_below` (1400) + `double_stacked_text` (800) → `(2200/2.5 + 2000) * 1.5 = 4320` → min. 4320
+**Beispielrechnungen** (Thinking deaktiviert, daher realistisch):
+- 3 × `single_text_below` (je 1400 chars) → `(4200/2.5 + 2000) * 1.5 = 5520` → min. 8192
+- 3 × `quad_grid_text` (je 1400 chars) → `(4200/2.5 + 2000) * 1.5 = 5520` → min. 8192
+- Mix: `cover_hero` (0 text) + `single_text_below` (1400) + `double_stacked_text` (800) → `(2200/2.5 + 2000) * 1.5 = 4320` → min. 8192
+
+Das Minimum von 8192 dient als Sicherheitspuffer — selbst wenn Thinking versehentlich aktiv bleibt, reicht das Budget für eine vollständige Antwort.
 
 #### 4.6 Batch-Validierung
 
@@ -259,8 +310,9 @@ def _generate_fallback_for_batch(
 | Parameter | Vorher | Nachher |
 |-----------|--------|---------|
 | `temperature` | 0.3 | 0.3 (unverändert) |
-| `num_predict` | 32768 (fest) | dynamisch, typ. 4096–8192 |
+| `num_predict` | 32768 (fest) | dynamisch, min. 8192 (safety) |
 | `timeout` | 300s | 120s (kürzer pro Batch) |
+| `disable_thinking` | — (nicht gesetzt) | `True` (verhindert Thinking-Token-Verbrauch) |
 | Bilder im Call | 16–20 | 3–12 (nur Batch-Bilder) |
 
 #### 4.9 Kontext-Ersparnis pro Batch (geschätzt)
@@ -324,6 +376,7 @@ tour_summary: Optional[str] = None
 | **NEU** | `app/services/summarize_context.py` |
 | **MODIFY** | `app/state.py` — `tour_summary` Feld |
 | **MODIFY** | `app/config.py` — `PHOTOBOOK_BATCH_SIZE` |
+| **MODIFY** | `app/services/ollama_client.py` — `disable_thinking` Parameter |
 | **MODIFY** | `app/graph.py` — neuer Node + Edge-Änderungen |
 | **MODIFY** | `app/nodes/select_photobook_images_node.py` — Summary statt raw data |
 | **MODIFY** | `app/photobook/image_selector.py` — Summary in Prompt |
@@ -368,7 +421,8 @@ tour_summary: Optional[str] = None
 | Risiko | Mitigation |
 |--------|------------|
 | Batch-übergreifende Textkonsistenz leidet (kein globaler Kontext) | `tour_summary` in jedem Batch-Prompt hält roten Faden; LLM-Prompt enthält Anweisung, Seitenübergänge konsistent zu halten |
-| `num_predict` zu niedrig → Truncation | 1.5x Safety-Faktor + 4096 Minimum; im Fehlerfall greift Batch-Fallback |
+| `num_predict` zu niedrig → Truncation | 1.5x Safety-Faktor + 8192 Minimum; Thinking deaktiviert → keine versteckten Token-Verbraucher; im Fehlerfall greift Batch-Fallback |
+| Thinking Mode verbraucht `num_predict`-Budget → leere Antwort | `disable_thinking=True` in allen Photobook-Calls; Minimum von 8192 als zusätzlicher Puffer |
 | Mehr LLM-Calls → höhere Gesamtlatenz (6 Batches × 30s = 3min statt 1 Call × 120s = 2min) | Akzeptabler Trade-off für Robustheit; Ollama ist lokal, kein API-Kosten-Problem |
 | `summarize_context` schlägt fehl → leere Summary | Deterministischer Fallback aus GPX-Stats garantiert immer ein Ergebnis |
 
