@@ -4,7 +4,7 @@ from app.photobook.presets import (
     PHOTOBOOK_PRESETS,
     get_photobook_preset,
 )
-from app.photobook.image_selector import _build_batch_prompt
+from app.photobook.image_selector import _build_batch_prompt as _build_image_selector_prompt
 from app.photobook.plan import _build_plan_prompt
 
 
@@ -99,7 +99,7 @@ class TestImageSelectorPresetIntegration:
             generation_instructions="",
             text_enabled=True,
         )
-        prompt = _build_batch_prompt(batch_size=5, select_count=2, preset=preset)
+        prompt = _build_image_selector_prompt(batch_size=5, select_count=2, preset=preset, tour_summary="Test-Tour")
         assert "Test Preset" in prompt
         assert "Wähle nur Sonnenuntergänge." in prompt
         assert "--- Bild 0 ---" in prompt
@@ -107,7 +107,7 @@ class TestImageSelectorPresetIntegration:
 
     def test_build_batch_prompt_mixed_preset_uses_default_criteria(self):
         preset = PHOTOBOOK_PRESETS["mixed"]
-        prompt = _build_batch_prompt(batch_size=3, select_count=1, preset=preset)
+        prompt = _build_image_selector_prompt(batch_size=3, select_count=1, preset=preset, tour_summary="Test-Tour")
         assert "Gemischt" in prompt
         assert "starke Motive" in prompt
 
@@ -125,9 +125,7 @@ class TestPlanPresetIntegration:
         prompt = _build_plan_prompt(
             image_count=5,
             gpx_stats_d=None,
-            notes=None,
-            weather=None,
-            poi_count=0,
+            tour_summary="Test-Tour",
             page_range=None,
             preset=preset,
         )
@@ -139,16 +137,15 @@ class TestPlanPresetIntegration:
         prompt = _build_plan_prompt(
             image_count=5,
             gpx_stats_d=None,
-            notes=None,
-            weather=None,
-            poi_count=0,
+            tour_summary="Test-Tour",
             page_range=None,
             preset=preset,
         )
         assert "THEMA:" not in prompt
 
 
-from app.photobook.generate import _build_generate_prompt
+from app.photobook.generate import _build_batch_prompt as _build_generate_batch_prompt
+from app.state import PagePlan
 
 
 class TestGeneratePresetIntegration:
@@ -162,26 +159,26 @@ class TestGeneratePresetIntegration:
             text_enabled=True,
         )
         pages_plan = [
-            {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
+            PagePlan(preset_id="single_text_below", image_indices=[0], purpose="Test")
         ]
-        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        prompt = _build_generate_batch_prompt(pages_plan, "Test-Tour", "10.0", "500", preset=preset)
         assert "STILVORGABE (Test Gen)" in prompt
         assert "Schreibe im poetischen Stil." in prompt
 
     def test_build_generate_prompt_mixed_has_no_style_section(self):
         preset = PHOTOBOOK_PRESETS["mixed"]
         pages_plan = [
-            {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
+            PagePlan(preset_id="single_text_below", image_indices=[0], purpose="Test")
         ]
-        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        prompt = _build_generate_batch_prompt(pages_plan, "Test-Tour", "10.0", "500", preset=preset)
         assert "STILVORGABE" not in prompt
 
     def test_build_generate_prompt_text_disabled_no_text_block(self):
         preset = PHOTOBOOK_PRESETS["nature_collage"]
         pages_plan = [
-            {"preset_id": "quad_grid", "image_indices": [0, 1, 2, 3], "purpose": "Collage"}
+            PagePlan(preset_id="quad_grid", image_indices=[0, 1, 2, 3], purpose="Collage")
         ]
-        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        prompt = _build_generate_batch_prompt(pages_plan, "Test-Tour", "10.0", "500", preset=preset)
         # Bei text_enabled=False werden title_instruction und multi_image_instruction nicht injiziert
         assert "JEDE Seite MUSS einen title-Slot haben" not in prompt
         assert "beschreibe den Gesamteindruck" not in prompt
@@ -189,8 +186,8 @@ class TestGeneratePresetIntegration:
     def test_build_generate_prompt_text_enabled_has_text_block(self):
         preset = PHOTOBOOK_PRESETS["nature_outdoor"]
         pages_plan = [
-            {"preset_id": "single_text_below", "image_indices": [0], "purpose": "Test"}
+            PagePlan(preset_id="single_text_below", image_indices=[0], purpose="Test")
         ]
-        prompt = _build_generate_prompt(pages_plan, None, None, preset=preset)
+        prompt = _build_generate_batch_prompt(pages_plan, "Test-Tour", "10.0", "500", preset=preset)
         assert "TEXT-PFLICHT" in prompt
         assert "title-Slot" in prompt
