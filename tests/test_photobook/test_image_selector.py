@@ -14,8 +14,7 @@ class TestImageSelector:
         mock_call.return_value = "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
         result = select_photobook_images(
             images=SAMPLE_IMAGES,
-            gpx_stats={"total_distance_m": 5000},
-            notes="Test Tour",
+            tour_summary="Test Tour mit 5km Wanderung",
             model="test-model",
             photo_count=16,
         )
@@ -28,8 +27,7 @@ class TestImageSelector:
         mock_call.return_value = None
         result = select_photobook_images(
             images=SAMPLE_IMAGES[:10],
-            gpx_stats={},
-            notes=None,
+            tour_summary=None,
             model="test-model",
             photo_count=8,
         )
@@ -38,8 +36,7 @@ class TestImageSelector:
     def test_returns_all_when_fewer_images(self):
         result = select_photobook_images(
             images=SAMPLE_IMAGES[:3],
-            gpx_stats={},
-            notes=None,
+            tour_summary=None,
             model="test-model",
             photo_count=16,
         )

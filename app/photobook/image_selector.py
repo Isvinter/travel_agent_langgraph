@@ -20,13 +20,17 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 15  # Gleiche Batch-Grösse wie Blog-Selector
 
 
-def _build_batch_prompt(batch_size: int, select_count: int, preset: PhotobookPreset) -> str:
+def _build_batch_prompt(batch_size: int, select_count: int, preset: PhotobookPreset, tour_summary: Optional[str] = None) -> str:
     criteria = preset.selection_criteria if preset.selection_criteria else (
         "starke Motive, gute Belichtung, landschaftliche Vielfalt, "
         "verschiedene Perspektiven, Details und Porträts mischen."
     )
+    header = ""
+    if tour_summary:
+        header = f"TOUR: {tour_summary}\n\n"
     return (
-        f"Du erhältst {batch_size} Fotos aus einer Wanderung.\n"
+        f"{header}"
+        f"Du erhältst {batch_size} Fotos aus dieser Tour.\n"
         f"Wähle die {select_count} besten Bilder für ein A4-Fotobuch "
         f"({preset.name}).\n"
         f"Kriterien: {criteria}\n"
@@ -42,6 +46,7 @@ def _select_batch(
     model: str,
     base_url: str,
     preset: PhotobookPreset,
+    tour_summary: Optional[str] = None,
 ) -> List[int]:
     """Fragt das LLM nach den besten Bildern aus einem Batch.
     Gleicher Ansatz wie Blog-Selector: permissives Parsing, Fallback auf evenly-spaced.
@@ -59,7 +64,7 @@ def _select_batch(
     if len(encoded) <= select_count:
         return [index_map[i] for i in range(len(encoded))]
 
-    prompt = _build_batch_prompt(len(encoded), select_count, preset)
+    prompt = _build_batch_prompt(len(encoded), select_count, preset, tour_summary=tour_summary)
 
     response = call_ollama(
         prompt,
@@ -70,6 +75,7 @@ def _select_batch(
         top_p=0.1,
         num_predict=16384,
         timeout=120,
+        disable_thinking=True,
     )
 
     if response:
@@ -85,8 +91,7 @@ def _select_batch(
 
 def select_photobook_images(
     images: List[ImageData],
-    gpx_stats: Optional[Dict[str, Any]],
-    notes: Optional[str],
+    tour_summary: Optional[str] = None,
     model: str = "gemma4:26b-ctx128k",
     photo_count: int = 16,
     base_url: str = OLLAMA_BASE_URL,
@@ -120,7 +125,7 @@ def select_photobook_images(
         if select <= 0:
             break
 
-        batch_indices = _select_batch(batch, select, model, base_url, preset)
+        batch_indices = _select_batch(batch, select, model, base_url, preset, tour_summary=tour_summary)
         global_indices = [start + i for i in batch_indices if i < len(batch)]
         all_indices.extend(global_indices)
 
@@ -135,7 +140,7 @@ def select_photobook_images(
         return selected[:target]
 
     # Step 2: Finale Reduktion auf target
-    final_indices = _select_batch(selected, target, model, base_url, preset)
+    final_indices = _select_batch(selected, target, model, base_url, preset, tour_summary=tour_summary)
     final = [selected[i] for i in final_indices if i < len(selected)]
     if len(final) < max(5, target // 2):
         final = selected[:target]
