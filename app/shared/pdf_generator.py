@@ -68,12 +68,16 @@ def generate_pdf(
         options.add_argument("--headless=new")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--allow-file-access-from-files")
+        options.page_load_strategy = "eager"  # Nicht auf Bilder warten
 
         with webdriver.Chrome(options=options) as driver:
-            driver.set_page_load_timeout(30)
+            driver.set_page_load_timeout(60)
+            driver.set_script_timeout(30)
             abs_load = os.path.abspath(html_path)
             driver.get(f"file:///{abs_load}")
-            WebDriverWait(driver, 30).until(
+            WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {"media": "print"})
