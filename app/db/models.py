@@ -83,3 +83,32 @@ class PhotobookImage(Base):
     is_elevation_profile = Column(Boolean, default=False)
 
     photobook = relationship("Photobook", back_populates="images")
+
+
+class Calendar(Base):
+    __tablename__ = "calendars"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    preset = Column(String, nullable=False, default="mixed")
+    year = Column(Integer, nullable=False)
+    custom_instructions = Column(Text, nullable=True)
+    html_content = Column(Text, nullable=True)
+    html_path = Column(String, nullable=True)
+    pdf_path = Column(String, nullable=True)
+    status = Column(String, default="pending")
+    model_used = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+    images = relationship("CalendarImage", back_populates="calendar", cascade="all, delete-orphan")
+
+
+class CalendarImage(Base):
+    __tablename__ = "calendar_images"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    calendar_id = Column(Integer, ForeignKey("calendars.id", ondelete="CASCADE"), nullable=False, index=True)
+    image_path = Column(String, nullable=False)
+    month_index = Column(Integer, nullable=False)
+    slot_index = Column(Integer, nullable=False)
+
+    calendar = relationship("Calendar", back_populates="images")
