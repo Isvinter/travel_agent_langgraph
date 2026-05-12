@@ -18,8 +18,10 @@ from app.utils.html_sanitizer import sanitize_html
 from app.db.connection import get_session
 from app.db.repository import ArticleRepository, ArticleFilters
 from app.db.models import Article
+from app.db.models import Calendar
 from app.db.models import Photobook
 from app.db.photobook_repository import PhotobookRepository, PhotobookFilters
+from app.db.calendar_repository import CalendarRepository, CalendarFilters
 import re
 import shutil
 
@@ -163,6 +165,42 @@ def _rewrite_photobook_html(html_content: str | None, photobook_id: int) -> str 
     return html_content
 
 
+def _calendar_to_summary(c: "Calendar") -> dict:
+    return {
+        "id": c.id,
+        "preset": c.preset,
+        "year": c.year,
+        "custom_instructions": c.custom_instructions,
+        "status": c.status,
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+    }
+
+
+def _calendar_to_detail(c: "Calendar") -> dict:
+    return {
+        **_calendar_to_summary(c),
+        "html_content": c.html_content,
+        "html_path": c.html_path,
+        "pdf_path": c.pdf_path,
+        "images": [
+            {"image_path": img.image_path, "month_index": img.month_index, "slot_index": img.slot_index}
+            for img in c.images
+        ],
+    }
+
+
+def _rewrite_calendar_html(html_content: str | None, calendar_id: int) -> str | None:
+    if not html_content:
+        return html_content
+    html_content = re.sub(
+        r'file:///[^"]*?/images/([^"]+)',
+        f'/api/calendars/{calendar_id}/images/\\1',
+        html_content,
+    )
+    html_content = sanitize_html(html_content, keep_style=True)
+    return html_content
+
+
 router = APIRouter(prefix="/api")
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -270,6 +308,14 @@ class RunPipelineRequest(BaseModel):
     photobook_preset: Literal[
         "nature_outdoor", "culture_architecture", "people", "nature_collage", "mixed"
     ] = "mixed"
+
+
+class RunCalendarRequest(BaseModel):
+    preset: Literal["mixed", "nature_landscape", "people", "culture"] = "mixed"
+    year: int = Field(default=2026, ge=2000, le=2100)
+    custom_instructions: Optional[str] = None
+    model: str = "gemma4:26b-ctx128k"
+    image_files: list[str] = []
 
 
 class RevisionItem(BaseModel):
@@ -925,6 +971,263 @@ async def get_photobook_image(photobook_id: int, filename: str):
         record = repo.get_by_id(photobook_id)
         if record is None:
             raise HTTPException(status_code=404, detail="Photobook not found")
+
+        for img in record.images:
+            if os.path.basename(img.image_path) == filename:
+                if os.path.isfile(img.image_path):
+                    return FileResponse(img.image_path)
+                break
+
+        output_dir = None
+        if record.html_path:
+            output_dir = os.path.dirname(record.html_path)
+
+        if output_dir:
+            image_path = _safe_join(Path(output_dir), "images", filename)
+            if image_path.is_file():
+                return FileResponse(image_path)
+
+        raise HTTPException(status_code=404, detail="Image not found")
+    finally:
+        session.close()
+
+
+# ── Calendar ───────────────────────────────────────────
+
+@router.post("/calendar/generate")
+async def generate_calendar(body: RunCalendarRequest, session_id: str = Cookie(default="")):
+    """Startet die Kalender-Generierung und gibt eine run_id für SSE-Streaming zurück."""
+    if body.model not in AVAILABLE_MODELS:
+        raise HTTPException(status_code=422, detail=f"Unbekanntes Modell: {body.model}")
+    if not body.image_files:
+        raise HTTPException(status_code=422, detail="Mindestens ein Bild erforderlich")
+
+    run_id = str(uuid.uuid4())
+    event_manager.create_run(run_id)
+
+    session_dir = _get_session_dir(session_id) if session_id else PROJECT_ROOT
+
+    image_paths = []
+    for img in body.image_files:
+        if os.path.isabs(img):
+            resolved = Path(img).resolve()
+            if not str(resolved).startswith(str(UPLOADS_DIR.resolve())) and \
+               not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+                raise HTTPException(status_code=400, detail="Absolute path outside allowed directories.")
+            image_paths.append(str(resolved))
+        else:
+            image_paths.append(str(_safe_join(session_dir, img)))
+
+    task = asyncio.create_task(
+        _run_calendar_in_background(
+            run_id=run_id,
+            image_files=image_paths,
+            body=body,
+        )
+    )
+    return {"run_id": run_id}
+
+
+async def _run_calendar_in_background(
+    run_id: str,
+    image_files: list[str],
+    body: RunCalendarRequest,
+):
+    """Führt die Kalender-Pipeline als Hintergrund-Task aus."""
+    from app.calendar.pipeline import run_calendar_pipeline
+    from app.calendar.models import CalendarConfig
+    from app.state import ImageData
+    from app.shared.pdf_generator import generate_pdf
+    from app.db.connection import get_session
+    from app.db.calendar_repository import CalendarRepository
+
+    loop = asyncio.get_running_loop()
+
+    def emit_fn(stage: str, status: str, message: str):
+        event_manager.emit(run_id, stage, status, message)
+
+    try:
+        emit_fn("start", "running", "Kalender-Generierung gestartet…")
+
+        emit_fn("calendar_selecting_images", "running", "Wähle beste Bilder aus…")
+        images = [ImageData(path=p) for p in image_files if os.path.exists(p)]
+
+        config = CalendarConfig(
+            preset=body.preset,
+            year=body.year,
+            custom_instructions=body.custom_instructions,
+            model=body.model,
+        )
+
+        result = await loop.run_in_executor(
+            None, lambda: run_calendar_pipeline(images=images, config=config)
+        )
+        emit_fn("calendar_selecting_images", "done", f"{result.selected_image_count} Bilder ausgewählt")
+        emit_fn("calendar_assigning_months", "done", "Fotos auf Monate verteilt")
+
+        # HTML speichern
+        output_base = os.path.join("output", f"calendar_{run_id[:8]}")
+        os.makedirs(output_base, exist_ok=True)
+        html_path = os.path.join(output_base, f"{run_id[:8]}_calendar.html")
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(result.html_content)
+        emit_fn("calendar_rendering", "done", "HTML gerendert")
+
+        # PDF generieren
+        emit_fn("calendar_generating_pdf", "running", "PDF wird generiert…")
+        pdf_path = None
+        try:
+            pdf_bytes = await loop.run_in_executor(
+                None, lambda: generate_pdf(result.html_content, paper_size="landscape", source_path=html_path)
+            )
+            pdf_path = os.path.join(output_base, f"{run_id[:8]}_calendar.pdf")
+            with open(pdf_path, "wb") as f:
+                f.write(pdf_bytes)
+            emit_fn("calendar_generating_pdf", "done", "PDF generiert")
+        except Exception as e:
+            logger = logging.getLogger("api")
+            logger.warning("PDF-Generierung fehlgeschlagen: %s", e)
+            emit_fn("calendar_generating_pdf", "error", f"PDF fehlgeschlagen: {e}")
+
+        # Persistieren
+        session = get_session()
+        calendar_id = None
+        try:
+            repo = CalendarRepository(session)
+            image_entries = []
+            for page in result.pages:
+                month_idx = page.month
+                for slot_idx, slot in enumerate(page.slots):
+                    if 0 <= slot.image_index < len(image_files):
+                        image_entries.append({
+                            "image_path": image_files[slot.image_index],
+                            "month_index": month_idx,
+                            "slot_index": slot_idx,
+                        })
+            cal = repo.create(
+                preset=result.preset,
+                year=result.year,
+                custom_instructions=body.custom_instructions,
+                html_content=result.html_content,
+                html_path=html_path,
+                pdf_path=pdf_path,
+                model_used=body.model,
+                image_entries=image_entries,
+            )
+            calendar_id = cal.id
+        finally:
+            session.close()
+
+        emit_fn("start", "done", "Kalender-Generierung abgeschlossen.")
+        event_manager.complete_run(
+            run_id, "success", output_base,
+            calendar_id=calendar_id,
+            pdf_available=pdf_path is not None,
+        )
+
+    except Exception as e:
+        emit_fn("error", "error", str(e))
+        event_manager.complete_run(run_id, "failed", "")
+
+
+@router.get("/calendars")
+async def get_calendars(
+    year: Optional[int] = None,
+    preset: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Liste aller persistierten Kalender."""
+    filters = CalendarFilters(limit=limit, offset=offset)
+    if year:
+        filters.year = year
+    if preset:
+        filters.preset = preset
+
+    session = get_session()
+    try:
+        repo = CalendarRepository(session)
+        records, total = repo.list(filters)
+        return {"calendars": [_calendar_to_summary(c) for c in records], "total": total}
+    finally:
+        session.close()
+
+
+@router.get("/calendars/{calendar_id}")
+async def get_calendar(calendar_id: int):
+    """Einzelnen Kalender mit vollständigem Inhalt abrufen."""
+    session = get_session()
+    try:
+        repo = CalendarRepository(session)
+        record = repo.get_by_id(calendar_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Calendar not found")
+        return {"calendar": _calendar_to_detail(record)}
+    finally:
+        session.close()
+
+
+@router.delete("/calendars/{calendar_id}")
+async def delete_calendar(calendar_id: int):
+    """Kalender und zugehörige Dateien löschen."""
+    session = get_session()
+    try:
+        repo = CalendarRepository(session)
+        record = repo.get_by_id(calendar_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Calendar not found")
+
+        output_dir = os.path.dirname(record.html_path) if record.html_path else None
+        repo.delete(calendar_id)
+
+        if output_dir and os.path.exists(output_dir):
+            try:
+                shutil.rmtree(output_dir)
+            except OSError as e:
+                logging.getLogger("api").warning("Konnte Output-Verzeichnis nicht löschen: %s", e)
+
+        return {"deleted": calendar_id}
+    finally:
+        session.close()
+
+
+@router.get("/calendars/{calendar_id}/pdf")
+async def get_calendar_pdf(calendar_id: int):
+    """PDF eines Kalenders ausliefern."""
+    session = get_session()
+    try:
+        repo = CalendarRepository(session)
+        record = repo.get_by_id(calendar_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Kalender nicht gefunden")
+        if not record.pdf_path:
+            raise HTTPException(status_code=400, detail="Kalender hat kein PDF")
+
+        path = Path(record.pdf_path)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="PDF-Datei nicht gefunden")
+
+        return FileResponse(
+            path,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{path.name}"',
+                "Cache-Control": "no-cache",
+            },
+        )
+    finally:
+        session.close()
+
+
+@router.get("/calendars/{calendar_id}/images/{filename}")
+async def get_calendar_image(calendar_id: int, filename: str):
+    """Bilddatei eines Kalenders ausliefern."""
+    session = get_session()
+    try:
+        repo = CalendarRepository(session)
+        record = repo.get_by_id(calendar_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Calendar not found")
 
         for img in record.images:
             if os.path.basename(img.image_path) == filename:

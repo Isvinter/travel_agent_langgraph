@@ -40,7 +40,8 @@ class PipelineEventManager:
 
     def complete_run(self, run_id: str, status: str, output_dir: str = "",
                      article_id: int = None, photobook_id: int = None,
-                     draft_id: int = None, pdf_available: bool = False):
+                     draft_id: int = None, pdf_available: bool = False,
+                     calendar_id: int = None):
         """Signal pipeline completion and store the result."""
         queue = self._runs.get(run_id)
         if queue is None or self._loop is None:
@@ -50,6 +51,8 @@ class PipelineEventManager:
             event["article_id"] = article_id
         if photobook_id is not None:
             event["photobook_id"] = photobook_id
+        if calendar_id is not None:
+            event["calendar_id"] = calendar_id
         if draft_id is not None:
             event["draft_id"] = draft_id
         event["pdf_available"] = pdf_available
