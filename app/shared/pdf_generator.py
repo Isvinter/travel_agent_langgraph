@@ -1,4 +1,7 @@
-"""PDF-Generierung via Headless Chrome (shared zwischen Photobuch und Kalender)."""
+"""PDF-Generierung via Headless Chrome (shared zwischen Photobuch und Kalender).
+
+1:1 vom funktionierenden photobook/generate_pdf.py abgeleitet, nur mit Landscape-Support erweitert.
+"""
 import base64
 import logging
 import os
@@ -42,10 +45,15 @@ def generate_pdf(
     Args:
         html_content: Vollständiges HTML-Dokument.
         paper_size: "portrait" oder "landscape".
-        source_path: Pfad zur HTML-Datei (für file:// Bilder).
+        source_path: Pfad zur HTML-Datei (wird direkt geladen, wenn vorhanden).
+                     Wichtig, damit Chrome file:// Bilder aus demselben Verzeichnis laden kann.
 
     Returns:
-        PDF als Bytes.
+        PDF als Bytes
+
+    Raises:
+        ValueError: Wenn html_content leer ist
+        RuntimeError: Wenn Chrome/PDF-Generierung fehlschlägt
     """
     if not html_content:
         raise ValueError("Kein HTML-Inhalt für die PDF-Generierung")
@@ -54,6 +62,8 @@ def generate_pdf(
 
     processed = _inject_print_css(html_content, paper_size)
 
+    # Temp-Datei im selben Verzeichnis wie die Bilder anlegen,
+    # damit Chrome file:// Bilder laden kann (same-origin policy)
     tmp_dir = os.path.dirname(source_path) if source_path and os.path.isfile(source_path) else None
     fd, html_path = tempfile.mkstemp(suffix=".html", dir=tmp_dir)
     try:
@@ -68,18 +78,15 @@ def generate_pdf(
         options.add_argument("--headless=new")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--allow-file-access-from-files")
-        options.page_load_strategy = "eager"  # Nicht auf Bilder warten
 
-        with webdriver.Chrome(options=options) as driver:
-            driver.set_page_load_timeout(60)
-            driver.set_script_timeout(30)
+        driver = webdriver.Chrome(options=options)
+        try:
             abs_load = os.path.abspath(html_path)
             driver.get(f"file:///{abs_load}")
-            WebDriverWait(driver, 15).until(
+            WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
+            # Erzwinge Print-Media für korrekte @media print und @page Anwendung
             driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {"media": "print"})
 
             paper = PAPER_SIZES[paper_size]
@@ -95,7 +102,8 @@ def generate_pdf(
             })
 
             return base64.b64decode(pdf_result["data"])
-
+        finally:
+            driver.quit()
     finally:
         try:
             Path(html_path).unlink(missing_ok=True)

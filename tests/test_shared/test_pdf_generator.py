@@ -29,8 +29,7 @@ class TestGeneratePdf:
         mock_driver.execute_cdp_cmd.return_value = {"data": "dGVzdA=="}
 
         mock_chrome = mocker.patch("app.shared.pdf_generator.webdriver.Chrome")
-        mock_chrome.return_value.__enter__.return_value = mock_driver
-        mock_chrome.return_value.__exit__.return_value = False
+        mock_chrome.return_value = mock_driver
 
         mocker.patch("os.fdopen")
         mocker.patch("tempfile.mkstemp", return_value=(3, "/tmp/test.html"))
