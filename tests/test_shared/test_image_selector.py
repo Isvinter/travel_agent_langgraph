@@ -1,4 +1,3 @@
-import os
 import pytest
 from app.shared.image_selector import select_images
 from app.state import ImageData
@@ -57,3 +56,19 @@ class TestSelectImages:
         # Mindestens ein Aufruf enthält den custom text
         prompt_texts = [c[0][0] for c in mock.call_args_list]
         assert any("Bevorzuge Sonnenaufgänge" in p for p in prompt_texts)
+
+    def test_llm_success_path_selects_correct_images(self, mocker, sample_images):
+        """LLM gibt gültige Indizes zurück — der LLM-Pfad wird durchlaufen."""
+        from app.shared import image_selector as mod
+
+        # Nur 10 Bilder (einfacher Batch), target 4 — alle Indizes aus mock passen
+        subset = sample_images[:10]
+        mock = mocker.patch.object(mod, "call_ollama", return_value="0,3,6,9")
+        result = select_images(
+            subset,
+            criteria="test",
+            target_count=4,
+            base_url="http://localhost:99999",
+        )
+        assert len(result) == 4
+        assert mock.called
