@@ -1,0 +1,255 @@
+/* Fotokalender — Landscape (Querformat) Styles */
+
+/* ── @page für PDF (Landscape) ── */
+@page {
+  size: 297mm 210mm;
+  margin: 0 !important;
+}
+
+/* ── Basis-Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  background: #000;
+  color: #333;
+}
+
+/* ── Kalender-Seite ── */
+.calendar-page {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  page-break-after: always;
+  overflow: hidden;
+}
+
+.calendar-page:last-child {
+  page-break-after: auto;
+}
+
+/* ── Monatskopf ── */
+.month-header {
+  background: #2a2a2a;
+  color: #eee;
+  padding: 4mm 10mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2mm solid #e67e22;
+  flex-shrink: 0;
+}
+
+.month-name {
+  font-size: 18pt;
+  font-weight: bold;
+}
+
+.year-label {
+  font-size: 12pt;
+  color: #999;
+}
+
+/* ── Bildbereich ── */
+.image-area {
+  flex: 1;
+  display: grid;
+  gap: 1mm;
+  padding: 1mm;
+  background: #111;
+  min-height: 0;
+}
+
+.image-area img,
+.image-area .slot-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.slot-placeholder {
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 10pt;
+}
+
+/* ── Tagesraster ── */
+.day-grid {
+  padding: 3mm 10mm 5mm;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: 8mm repeat(7, 1fr);
+  gap: 0;
+  text-align: center;
+  font-size: 7pt;
+  font-weight: bold;
+  color: #999;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1mm;
+  margin-bottom: 1mm;
+  text-transform: uppercase;
+}
+
+.weekday-row .kw-header {
+  color: #ccc;
+}
+
+.week-row {
+  display: grid;
+  grid-template-columns: 8mm repeat(7, 1fr);
+  gap: 0;
+  text-align: center;
+  font-size: 8pt;
+  padding: 1mm 0;
+}
+
+.week-row .kw {
+  color: #ccc;
+  font-size: 7pt;
+}
+
+.week-row .day {
+  color: #333;
+  padding: 1mm 0;
+}
+
+.week-row .day.weekend {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.week-row .day.empty {
+  color: transparent;
+}
+
+/* ── Deckblatt ── */
+.cover-page {
+  position: relative;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.cover-overlay {
+  position: absolute;
+  bottom: 15mm;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+.cover-year {
+  font-size: 48pt;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+
+/* ── Layout-Preset Grids (Landscape, Bildbereich füllt verfügbaren Platz) ── */
+
+/* cal_single_full */
+.cal-single-full {
+  grid-template-areas: "img";
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* cal_double_side */
+.cal-double-side {
+  grid-template-areas: "left right";
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* cal_double_stacked */
+.cal-double-stacked {
+  grid-template-areas: "top" "bottom";
+  grid-template-columns: 1fr;
+  grid-template-rows: 2fr 1fr;
+}
+
+/* cal_triple_big_top */
+.cal-triple-big-top {
+  grid-template-areas: "big big" "sl sr";
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 2fr 1fr;
+}
+
+/* cal_triple_row */
+.cal-triple-row {
+  grid-template-areas: "l m r";
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* cal_triple_stacked */
+.cal-triple-stacked {
+  grid-template-areas: "big top" "big bottom";
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* cal_triple_lshape */
+.cal-triple-lshape {
+  grid-template-areas: "main main top" "main main bottom";
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* cal_quad_grid */
+.cal-quad-grid {
+  grid-template-areas: "tl tr" "bl br";
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* cal_quad_big_left */
+.cal-quad-big-left {
+  grid-template-areas: "big rt" "big rm" "big rb";
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+}
+
+/* cal_quad_panorama */
+.cal-quad-panorama {
+  grid-template-areas: "wide wide wide" "bl bm br";
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 2fr 1fr;
+}
+
+/* cal_quad_two_big */
+.cal-quad-two-big {
+  grid-template-areas: "tl tr" "bl br";
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 2fr 1fr;
+}
+
+/* cal_cover */
+.cal-cover {
+  grid-template-areas: "cover";
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
