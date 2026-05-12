@@ -36,7 +36,10 @@
     <button
       class="tab"
       class:active={current === "photobook"}
+      class:disabled={!hasGpx}
       onclick={() => select("photobook")}
+      disabled={!hasGpx}
+      title={hasGpx ? "" : "GPX-Datei erforderlich"}
     >
       Fotobuch
     </button>

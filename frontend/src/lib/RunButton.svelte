@@ -72,14 +72,13 @@
       return;
     }
 
-    // Blog braucht zwingend GPX, Fotobuch nicht
-    if (mode === "blog" && !gpxFile) {
+    // Blog und Fotobuch brauchen GPX (Kalender nicht)
+    if (mode !== "calendar" && !gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
       return;
     }
 
-    // Für Fotobuch ohne GPX: nur Bilder prüfen
-    if (mode === "photobook" && !gpxFile && (!imageFiles || imageFiles.length === 0)) {
+    if (mode !== "calendar" && (!imageFiles || imageFiles.length === 0)) {
       addLine("validation", "error", "Keine Bilder ausgewählt.");
       return;
     }
