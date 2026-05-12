@@ -179,7 +179,7 @@ def _calendar_to_summary(c: "Calendar") -> dict:
 def _calendar_to_detail(c: "Calendar") -> dict:
     return {
         **_calendar_to_summary(c),
-        "html_content": c.html_content,
+        "html_content": _rewrite_calendar_html(c.html_content, c.id),
         "html_path": c.html_path,
         "pdf_path": c.pdf_path,
         "images": [
@@ -1053,22 +1053,31 @@ async def _run_calendar_in_background(
     try:
         emit_fn("start", "running", "Kalender-Generierung gestartet…")
 
-        # Output-Verzeichnis und Bilder-Kopie VOR dem Rendering (wie Photobuch)
+        # Output-Verzeichnis und Bilder-Komprimierung VOR dem Rendering (wie Photobuch)
         output_base = os.path.join("output", f"calendar_{run_id[:8]}")
         images_dir = os.path.join(output_base, "images")
         os.makedirs(images_dir, exist_ok=True)
 
-        # Bilder ins Output-Verzeichnis kopieren, damit file:/// URLs funktionieren
-        import shutil as _shutil
-        copied_files = []
-        for p in image_files:
+        # Bilder komprimieren und ins Output-Verzeichnis kopieren (max 1200px, max 1 MB)
+        from app.utils.image_utils import compress_image_to_jpeg
+        compressed_files = []
+        for idx, p in enumerate(image_files):
             if os.path.isfile(p):
-                dest = os.path.join(images_dir, os.path.basename(p))
-                _shutil.copy2(p, dest)
-                copied_files.append(dest)
+                basename = os.path.splitext(os.path.basename(p))[0]
+                out_name = f"{idx:02d}_{basename}.jpg"
+                out_path = os.path.join(images_dir, out_name)
+                result = compress_image_to_jpeg(p, out_path)
+                if result:
+                    compressed_files.append(result)
+                else:
+                    # Fallback: Original kopieren wenn Kompression fehlschlägt
+                    import shutil as _shutil
+                    dest = os.path.join(images_dir, os.path.basename(p))
+                    _shutil.copy2(p, dest)
+                    compressed_files.append(dest)
 
         emit_fn("calendar_selecting_images", "running", "Wähle beste Bilder aus…")
-        images = [ImageData(path=p) for p in copied_files]
+        images = [ImageData(path=p) for p in compressed_files]
 
         config = CalendarConfig(
             preset=body.preset,
@@ -1111,7 +1120,7 @@ async def _run_calendar_in_background(
         try:
             repo = CalendarRepository(session)
             image_entries = []
-            selected_paths = getattr(result, "selected_image_paths", []) or copied_files
+            selected_paths = getattr(result, "selected_image_paths", []) or compressed_files
             for page in result.pages:
                 month_idx = page.month
                 for slot_idx, slot in enumerate(page.slots):
