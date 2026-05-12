@@ -4,6 +4,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+from typing import Optional
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -34,7 +35,7 @@ def _inject_print_css(html_content: str, paper_size: str) -> str:
 def generate_pdf(
     html_content: str,
     paper_size: str = "portrait",
-    source_path: str = None,
+    source_path: Optional[str] = None,
 ) -> bytes:
     """Wandelt HTML via Headless Chrome in PDF um.
 

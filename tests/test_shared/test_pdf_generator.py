@@ -1,28 +1,29 @@
 import pytest
-from app.shared.pdf_generator import generate_pdf
+from app.shared.pdf_generator import generate_pdf, _inject_print_css
 
 
 class TestGeneratePdf:
+    @pytest.mark.unit
     def test_rejects_empty_html(self):
         with pytest.raises(ValueError, match="Kein HTML-Inhalt"):
             generate_pdf("", paper_size="portrait")
 
+    @pytest.mark.unit
     def test_rejects_invalid_paper_size(self):
         with pytest.raises(ValueError, match="paper_size"):
             generate_pdf("<html></html>", paper_size="square")
 
+    @pytest.mark.unit
     def test_portrait_pdf_dimensions_injected(self):
-        from app.shared.pdf_generator import _inject_print_css
-
         html = _inject_print_css("<html><head></head><body></body></html>", "portrait")
         assert "size: 210mm 297mm" in html
 
+    @pytest.mark.unit
     def test_landscape_pdf_dimensions_injected(self):
-        from app.shared.pdf_generator import _inject_print_css
-
         html = _inject_print_css("<html><head></head><body></body></html>", "landscape")
         assert "size: 297mm 210mm" in html
 
+    @pytest.mark.unit
     def test_chrome_pdf_params_landscape(self, mocker):
         mock_driver = mocker.MagicMock()
         mock_driver.execute_cdp_cmd.return_value = {"data": "dGVzdA=="}
@@ -35,7 +36,6 @@ class TestGeneratePdf:
         mocker.patch("tempfile.mkstemp", return_value=(3, "/tmp/test.html"))
         mocker.patch("pathlib.Path.unlink")
 
-        from app.shared.pdf_generator import generate_pdf
         result = generate_pdf("<html><body></body></html>", paper_size="landscape")
 
         call_args = mock_driver.execute_cdp_cmd.call_args_list
