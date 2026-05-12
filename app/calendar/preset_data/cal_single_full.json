@@ -1,0 +1,11 @@
+{
+  "id": "cal_single_full",
+  "name": "Einzelbild — Vollformat",
+  "description": "Ein Bild füllt den gesamten Bildbereich. Klassisches Einzelmotiv.",
+  "image_count": 1,
+  "has_text": false,
+  "css_class": "cal-single-full",
+  "slots": [
+    {"id": "img", "type": "image", "priority": "primary", "css_area": "img"}
+  ]
+}

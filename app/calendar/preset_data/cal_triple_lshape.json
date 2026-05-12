@@ -1,0 +1,13 @@
+{
+  "id": "cal_triple_lshape",
+  "name": "Dreifach — L-Form asymmetrisch",
+  "description": "Asymmetrische L-förmige Anordnung.",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "cal-triple-lshape",
+  "slots": [
+    {"id": "main", "type": "image", "priority": "primary", "css_area": "main"},
+    {"id": "top", "type": "image", "priority": "secondary", "css_area": "top"},
+    {"id": "bottom", "type": "image", "priority": "secondary", "css_area": "bottom"}
+  ]
+}

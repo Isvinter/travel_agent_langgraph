@@ -1,0 +1,14 @@
+{
+  "id": "cal_quad_two_big",
+  "name": "Vierfach — 2 große + 2 kleine",
+  "description": "Zwei große Bilder oben, zwei kleine darunter.",
+  "image_count": 4,
+  "has_text": false,
+  "css_class": "cal-quad-two-big",
+  "slots": [
+    {"id": "tl", "type": "image", "priority": "primary", "css_area": "tl"},
+    {"id": "tr", "type": "image", "priority": "primary", "css_area": "tr"},
+    {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl"},
+    {"id": "br", "type": "image", "priority": "secondary", "css_area": "br"}
+  ]
+}

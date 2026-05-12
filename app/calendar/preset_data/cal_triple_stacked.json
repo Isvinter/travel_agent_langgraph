@@ -1,0 +1,13 @@
+{
+  "id": "cal_triple_stacked",
+  "name": "Dreifach — Vertikal gestapelt",
+  "description": "Ein Bild links, zwei rechts übereinander.",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "cal-triple-stacked",
+  "slots": [
+    {"id": "big", "type": "image", "priority": "primary", "css_area": "big"},
+    {"id": "top", "type": "image", "priority": "secondary", "css_area": "top"},
+    {"id": "bottom", "type": "image", "priority": "secondary", "css_area": "bottom"}
+  ]
+}

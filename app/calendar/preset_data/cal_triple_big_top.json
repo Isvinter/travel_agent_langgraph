@@ -1,0 +1,13 @@
+{
+  "id": "cal_triple_big_top",
+  "name": "Dreifach — Groß oben, 2 klein unten",
+  "description": "Ein großes Bild oben, zwei kleine darunter.",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "cal-triple-big-top",
+  "slots": [
+    {"id": "big", "type": "image", "priority": "primary", "css_area": "big"},
+    {"id": "small_left", "type": "image", "priority": "secondary", "css_area": "sl"},
+    {"id": "small_right", "type": "image", "priority": "secondary", "css_area": "sr"}
+  ]
+}

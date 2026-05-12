@@ -1,0 +1,12 @@
+{
+  "id": "cal_double_side",
+  "name": "Doppelbild — Nebeneinander",
+  "description": "Zwei Bilder gleichmäßig nebeneinander.",
+  "image_count": 2,
+  "has_text": false,
+  "css_class": "cal-double-side",
+  "slots": [
+    {"id": "left", "type": "image", "priority": "primary", "css_area": "left"},
+    {"id": "right", "type": "image", "priority": "secondary", "css_area": "right"}
+  ]
+}

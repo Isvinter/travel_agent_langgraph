@@ -1,0 +1,14 @@
+{
+  "id": "cal_quad_panorama",
+  "name": "Vierfach — Panorama + 3 unten",
+  "description": "Breites Panoramabild oben, drei kleine darunter.",
+  "image_count": 4,
+  "has_text": false,
+  "css_class": "cal-quad-panorama",
+  "slots": [
+    {"id": "wide", "type": "image", "priority": "primary", "css_area": "wide"},
+    {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl"},
+    {"id": "bm", "type": "image", "priority": "secondary", "css_area": "bm"},
+    {"id": "br", "type": "image", "priority": "secondary", "css_area": "br"}
+  ]
+}

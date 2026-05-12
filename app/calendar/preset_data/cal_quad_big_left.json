@@ -1,0 +1,14 @@
+{
+  "id": "cal_quad_big_left",
+  "name": "Vierfach — 1 groß links + 3 klein rechts",
+  "description": "Ein großes Bild links, drei kleine rechts übereinander.",
+  "image_count": 4,
+  "has_text": false,
+  "css_class": "cal-quad-big-left",
+  "slots": [
+    {"id": "big", "type": "image", "priority": "primary", "css_area": "big"},
+    {"id": "rt", "type": "image", "priority": "secondary", "css_area": "rt"},
+    {"id": "rm", "type": "image", "priority": "secondary", "css_area": "rm"},
+    {"id": "rb", "type": "image", "priority": "secondary", "css_area": "rb"}
+  ]
+}

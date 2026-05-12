@@ -1,0 +1,13 @@
+{
+  "id": "cal_triple_row",
+  "name": "Dreifach — Horizontale Reihe",
+  "description": "Drei Bilder in einer horizontalen Reihe.",
+  "image_count": 3,
+  "has_text": false,
+  "css_class": "cal-triple-row",
+  "slots": [
+    {"id": "l", "type": "image", "priority": "primary", "css_area": "l"},
+    {"id": "m", "type": "image", "priority": "secondary", "css_area": "m"},
+    {"id": "r", "type": "image", "priority": "secondary", "css_area": "r"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "cal_cover",
+  "name": "Deckblatt — Vollbild mit Jahr",
+  "description": "Vollflächiges Bild mit Jahres-Overlay.",
+  "image_count": 1,
+  "has_text": false,
+  "css_class": "cal-cover",
+  "slots": [
+    {"id": "cover_img", "type": "image", "priority": "primary", "css_area": "cover"}
+  ]
+}

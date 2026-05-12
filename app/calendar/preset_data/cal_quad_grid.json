@@ -1,0 +1,14 @@
+{
+  "id": "cal_quad_grid",
+  "name": "Vierfach — 2x2 Raster",
+  "description": "Vier Bilder im gleichmäßigen 2x2-Raster.",
+  "image_count": 4,
+  "has_text": false,
+  "css_class": "cal-quad-grid",
+  "slots": [
+    {"id": "tl", "type": "image", "priority": "primary", "css_area": "tl"},
+    {"id": "tr", "type": "image", "priority": "secondary", "css_area": "tr"},
+    {"id": "bl", "type": "image", "priority": "secondary", "css_area": "bl"},
+    {"id": "br", "type": "image", "priority": "secondary", "css_area": "br"}
+  ]
+}

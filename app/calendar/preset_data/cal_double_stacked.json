@@ -1,0 +1,12 @@
+{
+  "id": "cal_double_stacked",
+  "name": "Doppelbild — Gestapelt",
+  "description": "Großes Bild oben, kleineres Bild unten.",
+  "image_count": 2,
+  "has_text": false,
+  "css_class": "cal-double-stacked",
+  "slots": [
+    {"id": "top", "type": "image", "priority": "primary", "css_area": "top"},
+    {"id": "bottom", "type": "image", "priority": "secondary", "css_area": "bottom"}
+  ]
+}
