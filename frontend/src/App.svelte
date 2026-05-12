@@ -16,6 +16,8 @@
   import ArticleDetail from "./lib/ArticleDetail.svelte";
   import PhotobookList from "./lib/PhotobookList.svelte";
   import PhotobookDetail from "./lib/PhotobookDetail.svelte";
+  import CalendarList from "./lib/CalendarList.svelte";
+  import CalendarDetail from "./lib/CalendarDetail.svelte";
   import DraftReview from "./lib/DraftReview.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import { showToast } from "./lib/stores/toast";
@@ -64,6 +66,11 @@
         class:active={rt.page === "photobooks" || rt.page === "photobook"}
         onclick={() => navigateTo({ page: "photobooks" })}
       >Fotobücher</button>
+      <button
+        class="t-tab"
+        class:active={rt.page === "calendars" || rt.page === "calendar"}
+        onclick={() => navigateTo({ page: "calendars" })}
+      >Kalender</button>
     </nav>
     <div class="topnav-spacer"></div>
     <button
@@ -135,8 +142,10 @@
         <ArticleDetail id={rt.id} />
       {:else if rt.page === "photobook"}
         <PhotobookDetail id={rt.id} />
-      {:else if rt.page === "photobooks"}
-        <PhotobookList />
+      {:else if rt.page === "calendars"}
+        <CalendarList />
+      {:else if rt.page === "calendar"}
+        <CalendarDetail id={rt.id} />
       {:else}
         <ArticleList />
       {/if}

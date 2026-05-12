@@ -7,16 +7,19 @@
 
   interface Props {
     id: number;
-    entityType: "article" | "photobook";
+    entityType: "article" | "photobook" | "calendar";
     content: Snippet<[htmlContent: string | null, entity: Record<string, any> | null]>;
     extraMeta?: Snippet<[entity: Record<string, any>]>;
   }
 
   let { id, entityType, content, extraMeta }: Props = $props();
 
-  const apiPath = entityType === "article" ? "articles" : "photobooks";
-  const backPage = entityType === "article" ? "articles" : "photobooks" as const;
-  const entityLabel = entityType === "article" ? "Artikel" : "Fotobuch";
+  const apiPathMap: Record<string, string> = { article: "articles", photobook: "photobooks", calendar: "calendars" };
+  const apiPath = $derived(apiPathMap[entityType]);
+  const backPageMap: Record<string, string> = { article: "articles", photobook: "photobooks", calendar: "calendars" };
+  const backPage = $derived(backPageMap[entityType]);
+  const entityLabelMap: Record<string, string> = { article: "Artikel", photobook: "Fotobuch", calendar: "Kalender" };
+  const entityLabel = $derived(entityLabelMap[entityType]);
 
   interface EntityFull {
     id: number;
@@ -50,7 +53,8 @@
         throw new Error(`API error: ${res.status}`);
       }
       const data = await res.json();
-      entity = data[apiPath === "articles" ? "article" : "photobook"];
+      const keyMap: Record<string, string> = { article: "article", photobook: "photobook", calendar: "calendar" };
+      entity = data[keyMap[entityType]];
       rawEntity = entity;
     } catch (e: any) {
       error = e.message;

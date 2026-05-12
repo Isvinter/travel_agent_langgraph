@@ -62,6 +62,12 @@ const STEP_LABELS: Record<string, string> = {
   render_photobook: "Fotobuch rendern",
   generate_photobook_pdf: "Fotobuch-PDF erstellen",
   persist_photobook: "Fotobuch speichern",
+  select_calendar_images: "Kalender-Bilder auswählen",
+  plan_calendar: "Kalender-Layout planen",
+  generate_calendar: "Kalender-Seiten generieren",
+  render_calendar: "Kalender rendern",
+  generate_calendar_pdf: "Kalender-PDF erstellen",
+  persist_calendar: "Kalender speichern",
 };
 
 export const logLines = writable<LogLine[]>([]);
@@ -88,6 +94,9 @@ export const photobookSize = writable<"short" | "normal" | "detailed">("normal")
 export const photobookPreset = writable<
   "nature_outdoor" | "culture_architecture" | "people" | "nature_collage" | "mixed"
 >("mixed");
+export const calendarPreset = writable<string>("mixed");
+export const calendarYear = writable<number>(new Date().getFullYear());
+export const calendarInstructions = writable<string>("");
 
 export const reviewEnabled = writable<boolean>(false);
 export const currentDraftId = writable<number | null>(null);

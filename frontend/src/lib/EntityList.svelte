@@ -7,7 +7,7 @@
   import type { Snippet } from "svelte";
 
   interface Props {
-    entityType: "article" | "photobook";
+    entityType: "article" | "photobook" | "calendar";
     extraColumns?: Snippet;
     extraRowCells?: Snippet<[item: Record<string, any>]>;
   }
@@ -24,13 +24,20 @@
     image_count: number | null;
     generation_timestamp: string | null;
     status?: string | null;
+    calendar_year?: number | null;
+    preset?: string | null;
   }
 
-  const apiPath = entityType === "article" ? "articles" : "photobooks";
-  const viewPage = entityType as "article" | "photobook";
-  const listPage = entityType === "article" ? "articles" : "photobooks" as const;
-  const entityLabel = entityType === "article" ? "Artikel" : "Fotobuch";
-  const entityLabelPlural = entityType === "article" ? "Artikel" : "Fotobücher";
+  const apiPathMap: Record<string, string> = { article: "articles", photobook: "photobooks", calendar: "calendars" };
+  const apiPath = $derived(apiPathMap[entityType]);
+  const viewPage = $derived(entityType);
+  const listPageMap: Record<string, string> = { article: "articles", photobook: "photobooks", calendar: "calendars" };
+  const listPage = $derived(listPageMap[entityType]);
+  const entityLabelMap: Record<string, string> = { article: "Artikel", photobook: "Fotobuch", calendar: "Kalender" };
+  const entityLabel = $derived(entityLabelMap[entityType]);
+  const entityLabelPluralMap: Record<string, string> = { article: "Artikel", photobook: "Fotobücher", calendar: "Kalender" };
+  const entityLabelPlural = $derived(entityLabelPluralMap[entityType]);
+  const isCalendar = $derived(entityType === "calendar");
 
   let entities: EntitySummary[] = $state([]);
   let total: number = $state(0);
@@ -87,7 +94,8 @@
       if (aborted) return;
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
-      entities = data[apiPath];
+      const keyMap: Record<string, string> = { article: "articles", photobook: "photobooks", calendar: "calendars" };
+      entities = data[keyMap[entityType]];
       total = data.total;
       selectedIds = new Set();
     } catch (e: any) {
@@ -204,21 +212,34 @@
               <th class="sortable" onclick={() => handleSort("title")}>
                 Titel {sortColumn === "title" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th class="sortable" onclick={() => handleSort("tour_date")}>
-                Tour-Datum {sortColumn === "tour_date" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th class="sortable num" onclick={() => handleSort("tour_duration_hours")}>
-                Dauer {sortColumn === "tour_duration_hours" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th class="sortable num" onclick={() => handleSort("total_distance_km")}>
-                Distanz {sortColumn === "total_distance_km" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th class="sortable num" onclick={() => handleSort("elevation_gain_m")}>
-                Höhenmeter {sortColumn === "elevation_gain_m" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th class="sortable num" onclick={() => handleSort("image_count")}>
-                Bilder {sortColumn === "image_count" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
-              </th>
+              {#if isCalendar}
+                <th class="sortable num" onclick={() => handleSort("calendar_year")}>
+                  Jahr {sortColumn === "calendar_year" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th class="sortable" onclick={() => handleSort("preset")}>
+                  Preset {sortColumn === "preset" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th>Status</th>
+                <th class="sortable" onclick={() => handleSort("generation_timestamp")}>
+                  Erstellt {sortColumn === "generation_timestamp" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+              {:else}
+                <th class="sortable" onclick={() => handleSort("tour_date")}>
+                  Tour-Datum {sortColumn === "tour_date" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th class="sortable num" onclick={() => handleSort("tour_duration_hours")}>
+                  Dauer {sortColumn === "tour_duration_hours" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th class="sortable num" onclick={() => handleSort("total_distance_km")}>
+                  Distanz {sortColumn === "total_distance_km" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th class="sortable num" onclick={() => handleSort("elevation_gain_m")}>
+                  Höhenmeter {sortColumn === "elevation_gain_m" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th class="sortable num" onclick={() => handleSort("image_count")}>
+                  Bilder {sortColumn === "image_count" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                </th>
+              {/if}
               {#if extraColumns}
                 {@render extraColumns()}
               {/if}
@@ -241,11 +262,18 @@
                     <span class="draft-badge">Entwurf</span>
                   {/if}
                 </td>
-                <td>{formatDate(item.tour_date)}</td>
-                <td class="num">{formatDuration(item.tour_duration_hours)}</td>
-                <td class="num">{item.total_distance_km ? `${item.total_distance_km} km` : "\u2014"}</td>
-                <td class="num">{item.elevation_gain_m ? `${item.elevation_gain_m} m` : "\u2014"}</td>
-                <td class="num">{item.image_count ?? "\u2014"}</td>
+                {#if isCalendar}
+                  <td class="num">{item.calendar_year ?? "\u2014"}</td>
+                  <td>{item.preset ?? "\u2014"}</td>
+                  <td>{item.status ?? "\u2014"}</td>
+                  <td>{formatDate(item.generation_timestamp)}</td>
+                {:else}
+                  <td>{formatDate(item.tour_date)}</td>
+                  <td class="num">{formatDuration(item.tour_duration_hours)}</td>
+                  <td class="num">{item.total_distance_km ? `${item.total_distance_km} km` : "\u2014"}</td>
+                  <td class="num">{item.elevation_gain_m ? `${item.elevation_gain_m} m` : "\u2014"}</td>
+                  <td class="num">{item.image_count ?? "\u2014"}</td>
+                {/if}
                 {#if extraRowCells}
                   {@render extraRowCells(item)}
                 {/if}

@@ -6,7 +6,9 @@ export type Route =
   | { page: "article"; id: number }
   | { page: "draft"; id: number }
   | { page: "photobooks" }
-  | { page: "photobook"; id: number };
+  | { page: "photobook"; id: number }
+  | { page: "calendars" }
+  | { page: "calendar"; id: number };
 
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, "") || "/";
@@ -38,6 +40,15 @@ export function parseHash(hash: string): Route {
     return { page: "photobooks" };
   }
 
+  const calendarsMatch = path.match(/^calendars\/(\d+)$/);
+  if (calendarsMatch) {
+    return { page: "calendar", id: parseInt(calendarsMatch[1], 10) };
+  }
+
+  if (path === "calendars") {
+    return { page: "calendars" };
+  }
+
   return { page: "pipeline" };
 }
 
@@ -67,6 +78,12 @@ export function navigateTo(route: Route) {
       break;
     case "photobook":
       hash = `#/photobooks/${route.id}`;
+      break;
+    case "calendars":
+      hash = "#/calendars";
+      break;
+    case "calendar":
+      hash = `#/calendars/${route.id}`;
       break;
   }
   window.location.hash = hash;
