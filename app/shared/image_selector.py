@@ -58,8 +58,8 @@ def _select_batch(
         images=encoded,
         temperature=0.0,
         top_p=0.1,
-        num_predict=16384,
-        timeout=120,
+        num_predict=256,  # nur Index-Nummern, kein langer Text
+        timeout=180,
         disable_thinking=True,
     )
 

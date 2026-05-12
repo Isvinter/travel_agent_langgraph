@@ -166,7 +166,7 @@ def assign_photos_to_months(
         base_url=base_url,
         temperature=0.0,
         top_p=0.1,
-        num_predict=16384,
+        num_predict=2048,  # genug für 35 Slot-Zuweisungen, aber nicht zu viel
         timeout=120,
         disable_thinking=True,
     )
