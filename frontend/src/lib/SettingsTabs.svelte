@@ -15,6 +15,13 @@
   let current = $derived($pipelineMode);
   let hasGpx = $derived(!!$pipelineFiles.gpxFile);
 
+  // Auto-Switch zu Kalender wenn GPX entfernt wird
+  $effect(() => {
+    if (!$pipelineFiles.gpxFile && $pipelineMode !== "calendar") {
+      pipelineMode.set("calendar");
+    }
+  });
+
   function select(mode: "blog" | "photobook" | "calendar") {
     pipelineMode.set(mode);
   }

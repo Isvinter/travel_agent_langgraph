@@ -1077,12 +1077,29 @@ async def _run_calendar_in_background(
             f.write(result.html_content)
         emit_fn("calendar_rendering", "done", "HTML gerendert")
 
+        # Bilder ins Output-Verzeichnis kopieren für PDF (Chrome file:// same-origin)
+        import shutil as _shutil
+        import re as _re
+        images_dir = os.path.join(output_base, "images")
+        os.makedirs(images_dir, exist_ok=True)
+        selected_paths = getattr(result, "selected_image_paths", []) or []
+        for img_path in selected_paths:
+            if os.path.isfile(img_path):
+                _shutil.copy2(img_path, os.path.join(images_dir, os.path.basename(img_path)))
+        # file:/// URLs auf relative Pfade umschreiben
+        pdf_html = result.html_content
+        for img_path in selected_paths:
+            fname = os.path.basename(img_path)
+            abs_url = "file:///" + os.path.abspath(img_path).lstrip("/")
+            rel_url = f"./images/{fname}"
+            pdf_html = pdf_html.replace(abs_url, rel_url)
+
         # PDF generieren
         emit_fn("calendar_generating_pdf", "running", "PDF wird generiert…")
         pdf_path = None
         try:
             pdf_bytes = await loop.run_in_executor(
-                None, lambda: generate_pdf(result.html_content, paper_size="landscape", source_path=html_path)
+                None, lambda: generate_pdf(pdf_html, paper_size="landscape", source_path=html_path)
             )
             pdf_path = os.path.join(output_base, f"{run_id[:8]}_calendar.pdf")
             with open(pdf_path, "wb") as f:
