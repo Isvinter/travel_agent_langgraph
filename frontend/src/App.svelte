@@ -165,7 +165,7 @@
     background: var(--bg);
   }
   .layout.has-sidebar {
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 340px 1fr;
   }
 
   /* ── Top Navigation ── */

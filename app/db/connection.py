@@ -27,6 +27,9 @@ def _run_migrations():
             alembic_cfg.set_main_option("script_location", str(base_dir / "migrations"))
             alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
             command.upgrade(alembic_cfg, "head")
+            # Nach Alembic: create_all für Tabellen ohne Migration (z.B. neue Features)
+            Base.metadata.create_all(_get_engine())
+            _ensure_indexes()
             return
     except Exception as e:
         import logging

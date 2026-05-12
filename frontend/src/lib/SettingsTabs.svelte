@@ -8,10 +8,13 @@
   import ReviewCheckbox from "./ReviewCheckbox.svelte";
   import PhotobookSizeSelector from "./PhotobookSizeSelector.svelte";
   import PhotobookPresetSelector from "./PhotobookPresetSelector.svelte";
+  import CalendarPresetSelector from "./CalendarPresetSelector.svelte";
+  import CalendarYearSelector from "./CalendarYearSelector.svelte";
+  import CalendarInstructionsInput from "./CalendarInstructionsInput.svelte";
 
   let current = $derived($pipelineMode);
 
-  function select(mode: "blog" | "photobook") {
+  function select(mode: "blog" | "photobook" | "calendar") {
     pipelineMode.set(mode);
   }
 </script>
@@ -33,6 +36,13 @@
     >
       Fotobuch
     </button>
+    <button
+      class="tab"
+      class:active={current === "calendar"}
+      onclick={() => select("calendar")}
+    >
+      Kalender
+    </button>
   </div>
 
   <div class="content">
@@ -41,9 +51,13 @@
       <LengthSelector />
       <StyleSelector />
       <ReviewCheckbox />
-    {:else}
+    {:else if current === "photobook"}
       <PhotobookSizeSelector />
       <PhotobookPresetSelector />
+    {:else}
+      <CalendarPresetSelector />
+      <CalendarYearSelector />
+      <CalendarInstructionsInput />
     {/if}
   </div>
 </div>
@@ -60,10 +74,10 @@
   }
   .tab {
     flex: 1;
-    padding: 0.4rem 0.75rem;
+    padding: 0.4rem 0.5rem;
     background: var(--bg);
     color: var(--text-muted);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 500;
     text-align: center;
     border: 1px solid var(--border);

@@ -16,6 +16,9 @@
     reviewEnabled,
     photobookSize,
     photobookPreset,
+    calendarPreset,
+    calendarYear,
+    calendarInstructions,
     pipelineMode,
   } from "./stores/pipeline";
 
@@ -29,6 +32,46 @@
     const { gpxFile, imageFiles, txtFile } = get(pipelineFiles);
     const dir = get(outputDir);
     const notes = get(notesField);
+
+    if (mode === "calendar") {
+      // Kalender: kein GPX nötig, nur Bilder
+      if (!imageFiles || imageFiles.length === 0) {
+        addLine("validation", "error", "Keine Bilder ausgewählt.");
+        return;
+      }
+
+      loading = true;
+
+      try {
+        const res = await fetch("/api/calendar/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            preset: get(calendarPreset),
+            year: get(calendarYear),
+            custom_instructions: get(calendarInstructions) || null,
+            image_files: imageFiles,
+          }),
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          addLine("validation", "error", err.detail || "Fehler beim Starten der Kalender-Generierung.");
+          loading = false;
+          return;
+        }
+
+        const data = await res.json();
+        startStream(data.run_id);
+      } catch (e: any) {
+        addLine("connection", "error", `Verbindungsfehler: ${e.message}`);
+      } finally {
+        loading = false;
+      }
+      return;
+    }
 
     if (!gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");

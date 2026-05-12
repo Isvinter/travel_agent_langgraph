@@ -68,6 +68,10 @@ const STEP_LABELS: Record<string, string> = {
   render_calendar: "Kalender rendern",
   generate_calendar_pdf: "Kalender-PDF erstellen",
   persist_calendar: "Kalender speichern",
+  calendar_selecting_images: "Kalender-Bilder auswählen",
+  calendar_assigning_months: "Fotos Monaten zuweisen",
+  calendar_rendering: "Kalender-HTML rendern",
+  calendar_generating_pdf: "Kalender-PDF generieren",
 };
 
 export const logLines = writable<LogLine[]>([]);
@@ -89,7 +93,7 @@ export const wildcardCount = writable<number>(12);
 export const articleLength = writable<string>("normal");
 export const stylePersona = writable<string>("mountain_veteran");
 export const pdfExport = writable<boolean>(false);
-export const pipelineMode = writable<"blog" | "photobook">("blog");
+export const pipelineMode = writable<"blog" | "photobook" | "calendar">("blog");
 export const photobookSize = writable<"short" | "normal" | "detailed">("normal");
 export const photobookPreset = writable<
   "nature_outdoor" | "culture_architecture" | "people" | "nature_collage" | "mixed"
@@ -163,6 +167,8 @@ export function startStream(runId: string) {
         window.open(`/api/articles/${data.article_id}/pdf`, "_blank");
       } else if (data.photobook_id) {
         window.open(`/api/photobooks/${data.photobook_id}/pdf`, "_blank");
+      } else if (data.calendar_id) {
+        window.open(`/api/calendars/${data.calendar_id}/pdf`, "_blank");
       }
     }
 
