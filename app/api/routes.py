@@ -332,8 +332,10 @@ class RevisionRequest(BaseModel):
 @router.post("/pipeline/run")
 async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(default="")):
     """Start a pipeline run and return a run_id for SSE streaming."""
-    if not body.gpx_file:
-        raise HTTPException(status_code=422, detail="gpx_file is required")
+    if body.mode == "blog" and not body.gpx_file:
+        raise HTTPException(status_code=422, detail="gpx_file is required for blog mode")
+    if body.mode != "blog" and not body.gpx_file and not body.image_files:
+        raise HTTPException(status_code=422, detail="Mindestens Bilder oder GPX erforderlich")
 
     if body.model not in AVAILABLE_MODELS:
         raise HTTPException(status_code=422, detail=f"Unbekanntes Modell: {body.model}")
@@ -345,18 +347,20 @@ async def run_pipeline(body: RunPipelineRequest, session_id: str = Cookie(defaul
     # absolute Pfade, die innerhalb des UPLOADS_DIR liegen (vom Upload-Endpoint).
     session_dir = _get_session_dir(session_id) if session_id else PROJECT_ROOT
 
-    if os.path.isabs(body.gpx_file):
-        # Nur absolute Pfade innerhalb UPLOADS_DIR oder PROJECT_ROOT erlauben
-        resolved = Path(body.gpx_file).resolve()
-        if not str(resolved).startswith(str(UPLOADS_DIR.resolve())) and \
-           not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
-            raise HTTPException(
-                status_code=400,
-                detail="Absolute path outside allowed directories.",
-            )
-        gpx_path = str(resolved)
-    else:
-        gpx_path = str(_safe_join(session_dir, body.gpx_file))
+    gpx_path = ""
+    if body.gpx_file:
+        if os.path.isabs(body.gpx_file):
+            # Nur absolute Pfade innerhalb UPLOADS_DIR oder PROJECT_ROOT erlauben
+            resolved = Path(body.gpx_file).resolve()
+            if not str(resolved).startswith(str(UPLOADS_DIR.resolve())) and \
+               not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Absolute path outside allowed directories.",
+                )
+            gpx_path = str(resolved)
+        else:
+            gpx_path = str(_safe_join(session_dir, body.gpx_file))
 
     image_paths = []
     for img in body.image_files:
@@ -1095,12 +1099,13 @@ async def _run_calendar_in_background(
         try:
             repo = CalendarRepository(session)
             image_entries = []
+            selected_paths = getattr(result, "selected_image_paths", []) or image_files
             for page in result.pages:
                 month_idx = page.month
                 for slot_idx, slot in enumerate(page.slots):
-                    if 0 <= slot.image_index < len(image_files):
+                    if 0 <= slot.image_index < len(selected_paths):
                         image_entries.append({
-                            "image_path": image_files[slot.image_index],
+                            "image_path": selected_paths[slot.image_index],
                             "month_index": month_idx,
                             "slot_index": slot_idx,
                         })

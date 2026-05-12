@@ -48,3 +48,4 @@ class CalendarResult(BaseModel):
     html_content: str = ""
     pdf_bytes: Optional[bytes] = None
     selected_image_count: int = 0
+    selected_image_paths: list[str] = []

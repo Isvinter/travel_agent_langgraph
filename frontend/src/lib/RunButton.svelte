@@ -33,15 +33,14 @@
     const dir = get(outputDir);
     const notes = get(notesField);
 
+    // Kalender: kein GPX nötig, nur Bilder
     if (mode === "calendar") {
-      // Kalender: kein GPX nötig, nur Bilder
       if (!imageFiles || imageFiles.length === 0) {
         addLine("validation", "error", "Keine Bilder ausgewählt.");
         return;
       }
 
       loading = true;
-
       try {
         const res = await fetch("/api/calendar/generate", {
           method: "POST",
@@ -73,8 +72,15 @@
       return;
     }
 
-    if (!gpxFile) {
+    // Blog braucht zwingend GPX, Fotobuch nicht
+    if (mode === "blog" && !gpxFile) {
       addLine("validation", "error", "Keine GPX-Datei ausgewählt.");
+      return;
+    }
+
+    // Für Fotobuch ohne GPX: nur Bilder prüfen
+    if (mode === "photobook" && !gpxFile && (!imageFiles || imageFiles.length === 0)) {
+      addLine("validation", "error", "Keine Bilder ausgewählt.");
       return;
     }
 
@@ -86,24 +92,19 @@
         output_dir: dir,
         notes,
         txt_file: txtFile || "",
-        gpx_file: gpxFile,
+        gpx_file: gpxFile || "",
         image_files: imageFiles,
         mode,
       };
 
       if (mode === "blog") {
-        const wc = get(wildcardCount);
-        const length = get(articleLength);
-        const persona = get(stylePersona);
-        const pdf = get(pdfExport);
-        body.wildcard_max = wc;
-        body.article_length = length;
-        body.style_persona = persona;
-        body.pdf_export = pdf;
+        body.wildcard_max = get(wildcardCount);
+        body.article_length = get(articleLength);
+        body.style_persona = get(stylePersona);
+        body.pdf_export = get(pdfExport);
         body.review_enabled = get(reviewEnabled);
       } else {
-        const size = get(photobookSize);
-        body.photobook_size = size;
+        body.photobook_size = get(photobookSize);
         body.photobook_preset = get(photobookPreset);
       }
 

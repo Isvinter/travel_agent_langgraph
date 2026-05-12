@@ -70,9 +70,10 @@ def generate_pdf(
         options.add_argument("--disable-dev-shm-usage")
 
         with webdriver.Chrome(options=options) as driver:
+            driver.set_page_load_timeout(30)
             abs_load = os.path.abspath(html_path)
             driver.get(f"file:///{abs_load}")
-            WebDriverWait(driver, 10).until(
+            WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {"media": "print"})

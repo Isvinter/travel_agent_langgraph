@@ -63,7 +63,9 @@ def run_calendar_pipeline(
     )
     logger.info("Stufe 2 abgeschlossen: %d Seiten", len(pages))
 
-    image_paths = [img.path for img in images]
+    # Bildpfade aus den ausgewählten Fotos (nicht allen!), da die
+    # image_index-Werte in den MonthSlots auf selected_photos zeigen.
+    image_paths = [img.path for img in selected]
 
     logger.info("Rendering: HTML-Erzeugung")
     html = render_calendar(pages, config.year, image_paths)
@@ -74,4 +76,5 @@ def run_calendar_pipeline(
         pages=pages,
         html_content=html,
         selected_image_count=len(selected),
+        selected_image_paths=image_paths,
     )

@@ -1,7 +1,7 @@
 <svelte:options runes />
 
 <script lang="ts">
-  import { pipelineMode } from "./stores/pipeline";
+  import { pipelineMode, pipelineFiles } from "./stores/pipeline";
   import WildcardCount from "./WildcardCount.svelte";
   import LengthSelector from "./LengthSelector.svelte";
   import StyleSelector from "./StyleSelector.svelte";
@@ -13,6 +13,7 @@
   import CalendarInstructionsInput from "./CalendarInstructionsInput.svelte";
 
   let current = $derived($pipelineMode);
+  let hasGpx = $derived(!!$pipelineFiles.gpxFile);
 
   function select(mode: "blog" | "photobook" | "calendar") {
     pipelineMode.set(mode);
@@ -25,7 +26,10 @@
     <button
       class="tab"
       class:active={current === "blog"}
+      class:disabled={!hasGpx}
       onclick={() => select("blog")}
+      disabled={!hasGpx}
+      title={hasGpx ? "" : "GPX-Datei erforderlich"}
     >
       Blog
     </button>
@@ -94,6 +98,13 @@
   .tab:hover:not(.active) {
     background: var(--surface-alt);
     color: var(--text);
+  }
+  .tab.disabled,
+  .tab:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: var(--bg);
+    color: var(--text-muted);
   }
   .content {
     display: flex;
