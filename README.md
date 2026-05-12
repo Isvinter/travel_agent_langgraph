@@ -42,6 +42,9 @@ The pipeline uses a single LangGraph `StateGraph` with two mode-dependent execut
 ```
 process_gpx → load_images → extract_metadata → clustering_images → generate_map_image → load_tour_notes
                                                                                                 │
+                                                                                             ↓
+                                                                                      summarize_context
+                                                                                                │
                                                                              ┌──────────────────┘
                                                                              ↓
                                                               mode=photobook │ mode=blog
@@ -71,7 +74,9 @@ process_gpx → load_images → extract_metadata → clustering_images → gener
                                                                                 END
 ```
 
-**Photobook mode** branches at `load_tour_notes`, skipping 6 blog-only enrichment nodes.
+**`summarize_context`** generates a compact 150-word tour summary (LLM) consumed by all downstream photobook nodes, reducing prompt context by replacing raw notes/weather/POIs.
+
+**Photobook mode** branches at `summarize_context`, skipping 6 blog-only enrichment nodes.
 
 **Blog draft review** — when the "Entwurf prüfen" checkbox is enabled, the graph takes `save_draft` instead of `persist_article`, saving the article with `status=draft` and opening the draft review UI. The user can mark paragraphs/images for revision, send changes to the LLM, iterate, and publish when satisfied.
 
@@ -81,8 +86,8 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 |-------|--------|---------|
 | State | `app/state.py` | `AppState`, `ImageData`, `WeatherInfo`, `DailyWeather`, `PageDescription`, `PhotobookConfig`, `OutputConfig` |
 | Config | `app/config.py` | `OLLAMA_BASE_URL`, `OUTPUT_DIR`, `LENGTH_PRESETS`, `PERSONAS`, blog styles |
-| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 22 nodes |
-| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`), 22 nodes |
+| Graph | `app/graph.py` | LangGraph `StateGraph` — mode-dependent branching, 23 nodes |
+| Nodes | `app/nodes/*.py` | Pipeline step wrappers (`AppState → AppState`), 23 nodes |
 | Services | `app/services/*.py` | Blog + photobook business logic (GPX, images, clustering, maps, weather, POI, review, blog, design, PDF, persistence) |
 | Pipeline | `app/pipeline/*.py` | Higher-level orchestration helper (`enrich_images_with_metadata`) |
 | Photobook | `app/photobook/*.py` | Photobook module: plan, generate, render, validate, PDF, image selection, 18 presets |
@@ -196,13 +201,14 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── connection.py         # Engine/session factory + WAL pragma + indexes
 │   │   ├── repository.py         # ArticleRepository
 │   │   └── photobook_repository.py # PhotobookRepository
-│   ├── nodes/                # LangGraph pipeline nodes (22 nodes)
+│   ├── nodes/                # LangGraph pipeline nodes (23 nodes)
 │   │   ├── process_gpx.py            # GPX parsing and analytics
 │   │   ├── load_images.py            # Load images from directory
 │   │   ├── extract_metadata.py        # EXIF GPS + timestamp extraction
 │   │   ├── clustering_image_node.py   # Density-based photo clustering
 │   │   ├── generate_map.py            # Folium map + headless Chrome screenshot
 │   │   ├── load_tour_notes_node.py    # Load optional user notes
+│   │   ├── summarize_context_node.py   # LLM tour summary (compact, ~150 words)
 │   │   ├── enrich_weather_node.py     # Historical weather via Open-Meteo
 │   │   ├── enrich_poi_node.py         # POI discovery via Overpass + Wikipedia
 │   │   ├── select_images_node.py      # AI image selection for blog
@@ -236,6 +242,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── design_blogpost.py         # Persona-aware CSS design
 │   │   ├── persist_article.py         # SQLAlchemy CRUD for articles
 │   │   ├── persist_photobook.py       # SQLAlchemy CRUD for photobooks
+│   │   ├── summarize_context.py       # LLM tour summary service (~150 words)
 │   │   ├── ollama_client.py          # Shared Ollama API client (all LLM calls)
 │   │   └── generate_pdf.py            # Headless Chrome CDP PDF export
 │   ├── photobook/            # Photobook module
@@ -298,7 +305,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── tests/                    # pytest suite (460 tests + 1 e2e)
+├── tests/                    # pytest suite (498 tests + 1 e2e)
 │   ├── fixtures/                 # Test data (GPX, images, notes)
 │   ├── conftest.py               # Shared fixtures
 │   ├── test_api/                 # API integration + enrichment e2e
@@ -333,7 +340,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 uv run pytest tests/ -v
 ```
 
-460 tests (plus 1 e2e, 461 total). Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
+498 tests (plus 1 e2e, 499 total). Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 

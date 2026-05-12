@@ -66,6 +66,7 @@ body {
   color: #f1f5f9;
   font-family: Georgia, 'Times New Roman', serif;
   line-height: 1.2;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
