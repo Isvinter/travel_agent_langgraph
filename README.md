@@ -22,7 +22,7 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated blo
 - **Article & photobook browser** — filterable, sortable table with fixed headers, batch delete, sub-tabs (Blogartikel / Fotobücher), inline HTML rendering for articles, iframe for photobooks
 - **Web UI** — Svelte 5 frontend with drag-and-drop, live SSE progress streaming
 
-### Photobook Pipeline (NEW)
+### Photobook Pipeline
 - **Dedicated image selection** — multimodal LLM selects best photos for print layout (batched, tolerate parsing)
 - **AI layout planning** — LLM chooses from 18 A4 presets (1–5 images/page) with variety rules
 - **Three size presets** — short (12 photos, 8–12 pages), normal (16, 14–18), detailed (20, 20–24)
@@ -34,6 +34,18 @@ Automatically turn GPX hiking tracks and tour photos into richly illustrated blo
 - **HTML debug output** — intermediate HTML saved alongside PDF for inspection
 - **Persistence** — photobooks stored in SQLite alongside articles, browsable in the web UI
 - **Pipeline separation** — photobook mode branches early, skipping expensive blog enrichment nodes
+
+### Photo Calendar Pipeline (NEW)
+- **12 fixed landscape layouts** — Cover + January–December, each with a distinct CSS Grid layout (1–4 images/page)
+- **AI image selection** — shared batch-based multimodal selector picks best 30–35 photos from uploads
+- **AI month assignment** — LLM assigns photos to months and slots with seasonal awareness (snow→Jan, flowers→May, beach→Aug) and orientation matching (landscape photos→wide slots, portraits→tall slots)
+- **Orientation-aware smart cropping** — object-position CSS shifts the visible crop window for landscape/portrait mismatches
+- **Day grid with calendar weeks** — rendered weekday rows with German abbreviations, weekend highlighting, and KW column
+- **No text boxes** — pure photo calendar, no captions or descriptions
+- **Landscape A4** — 297×210mm page format with `@page` print CSS
+- **HTML + PDF export** — single HTML document with page breaks, PDF via headless Chrome CDP
+- **Standalone pipeline** — sequential function chain without LangGraph, independent of GPX/weather/POI data
+- **Shared services layer** — `app/shared/` provides reusable image selector, PDF generator, and preset loader for both photobook and calendar
 
 ## Architecture
 
@@ -93,10 +105,13 @@ All steps are LangGraph nodes reading/writing a shared `AppState` (Pydantic mode
 | Photobook | `app/photobook/*.py` | Photobook module: plan, generate, render, validate, PDF, image selection, 18 presets |
 | Presets | `app/photobook/preset_data/` | 18 JSON preset definitions with CSS grid areas and text constraints |
 | CSS | `app/photobook/styles.css` | A4-optimized print CSS with 18 preset grid layouts |
-| Database | `app/db/` | SQLAlchemy ORM models (articles, article_images, photobooks, photobook_images), connection, base repository, repositories |
+| Calendar | `app/calendar/*.py` | Photo calendar module: layouts (12 presets), month assigner, renderer, day grid, validator, styles |
+| Calendar Presets | `app/calendar/preset_data/` | 12 JSON landscape preset definitions |
+| Shared | `app/shared/*.py` | Shared services: batch image selector, PDF generator, preset loader |
+| Database | `app/db/` | SQLAlchemy ORM models (articles, article_images, photobooks, photobook_images, calendars, calendar_images), connection, base repository, repositories |
 | API | `app/api/` | FastAPI server, routes, SSE events |
 | Utils | `app/utils/` | EXIF helpers, geo utilities (haversine), HTML sanitizer, image compression/base64 encoding, tour metadata |
-| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (20 components, 3 stores, shared format/sort utils) |
+| Frontend | `frontend/` | Svelte 5 + Vite + TypeScript SPA (25 components, 3 stores, shared format/sort utils) |
 
 ## Tech Stack
 
@@ -256,6 +271,21 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   │   ├── image_selector.py     # Multimodal batch image selection (tolerant)
 │   │   ├── presets.py            # Preset catalog definitions
 │   │   └── preset_loader.py      # JSON preset file loader
+│   ├── calendar/             # Photo calendar module
+│   │   ├── preset_data/          # 12 JSON landscape preset definitions
+│   │   ├── styles.css            # Landscape print CSS with 12 grid layouts
+│   │   ├── layouts.py            # Layout sequence, slot dimensions + aspect ratios
+│   │   ├── models.py             # CalendarConfig, CalendarMonthPage, CalendarResult
+│   │   ├── month_assigner.py     # LLM month/slot assignment + orientation-aware fallback
+│   │   ├── orientation.py        # Image orientation detection (landscape/portrait/square)
+│   │   ├── renderer.py           # HTML assembler with day grid + object-position
+│   │   ├── day_grid.py           # Day grid generator (weekdays, CW, weekends)
+│   │   ├── pipeline.py           # Sequential pipeline orchestration (no LangGraph)
+│   │   └── validator.py          # HTML structure validator (13 pages, no placeholders)
+│   ├── shared/               # Shared services (photobook + calendar)
+│   │   ├── image_selector.py     # Generic batch-based multimodal image selector
+│   │   ├── pdf_generator.py      # Headless Chrome CDP PDF (portrait + landscape)
+│   │   └── preset_loader.py      # Generic JSON preset file loader
 │   ├── pipeline/             # Higher-level orchestration
 │   │   └── process_images.py     # enrich_images_with_metadata helper
 │   ├── utils/                # Utility helpers
@@ -305,7 +335,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── tests/                    # pytest suite (498 tests + 1 e2e)
+├── tests/                    # pytest suite (600 tests + 1 e2e)
 │   ├── fixtures/                 # Test data (GPX, images, notes)
 │   ├── conftest.py               # Shared fixtures
 │   ├── test_api/                 # API integration + enrichment e2e
@@ -313,7 +343,11 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 │   ├── test_nodes/               # Per-node unit/integration tests
 │   ├── test_graph/               # Graph integration + pipeline e2e
 │   ├── test_photobook/           # Photobook-specific tests
+│   ├── test_calendar/            # Calendar-specific tests (layouts, assigner, renderer, validator)
+│   ├── test_shared/              # Shared service tests (image selector, PDF, preset loader)
 │   ├── test_utils/               # Utility tests
+│   ├── test_calendar_api.py      # Calendar API endpoint tests
+│   ├── test_calendar_repository.py # Calendar DB repository tests
 │   ├── test_db_connection.py     # Database connection + engine tests
 │   ├── test_db_models.py         # ORM model tests
 │   ├── test_events.py            # SSE event manager + TTL cleanup tests
@@ -340,7 +374,7 @@ Defined as console script in `pyproject.toml`. Equivalent to `uv run uvicorn app
 uv run pytest tests/ -v
 ```
 
-498 tests (plus 1 e2e, 499 total). Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
+600 tests (plus 1 e2e, 601 total). Test structure: `tests/test_services/` (per-service unit tests), `tests/test_nodes/` (per-node tests), `tests/test_graph/` (graph integration + e2e), `tests/test_api/` (API + enrichment e2e), `tests/test_photobook/` (photobook plan/generate/render/validate/pdf/image-selection), `tests/test_calendar/` (calendar layouts, month assigner, renderer, orientation, validator, pipeline), `tests/test_shared/` (shared image selector, PDF generator, preset loader). Test markers from `pyproject.toml`: `unit` (fast, no external deps), `integration` (real filesystem/mocked network), `e2e` (requires Ollama + Chrome). Fixtures in `tests/fixtures/`.
 
 ## API Reference
 
@@ -367,6 +401,11 @@ uv run pytest tests/ -v
 | `POST` | `/api/photobooks/delete-batch` | Delete multiple photobooks at once |
 | `GET` | `/api/photobooks/{id}/pdf` | Download a photobook PDF |
 | `GET` | `/api/photobooks/{id}/images/{filename}` | Serve a photobook's image file |
+| `POST` | `/api/calendar/generate` | Start calendar generation (image_ids, preset, year, custom_instructions) |
+| `GET` | `/api/calendar` | List all generated calendars |
+| `GET` | `/api/calendar/{id}` | Get calendar details + status |
+| `GET` | `/api/calendar/{id}/html` | Get calendar HTML output |
+| `GET` | `/api/calendar/{id}/pdf` | Download calendar PDF |
 
 ## Configuration
 
