@@ -160,7 +160,9 @@ def _fallback_assignment(
             idx = squares[square_ptr % len(squares)]
             square_ptr += 1
             return idx
-        return all_indices[landscape_ptr % len(all_indices)]
+        idx = all_indices[landscape_ptr % len(all_indices)]
+        landscape_ptr += 1
+        return idx
 
     def next_portrait():
         nonlocal portrait_ptr
@@ -173,7 +175,9 @@ def _fallback_assignment(
             idx = squares[square_ptr % len(squares)]
             square_ptr += 1
             return idx
-        return all_indices[portrait_ptr % len(all_indices)]
+        idx = all_indices[portrait_ptr % len(all_indices)]
+        portrait_ptr += 1
+        return idx
 
     def next_square():
         nonlocal square_ptr
@@ -181,7 +185,9 @@ def _fallback_assignment(
             idx = squares[square_ptr % len(squares)]
             square_ptr += 1
             return idx
-        return all_indices[square_ptr % len(all_indices)]
+        idx = all_indices[square_ptr % len(all_indices)]
+        square_ptr += 1
+        return idx
 
     for month, preset_id in CALENDAR_LAYOUT_SEQUENCE:
         preset = load_preset(preset_id, presets_dir)
