@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import pytest
 from app.calendar.models import CalendarMonthPage, MonthSlot
 from app.calendar.renderer import render_calendar
@@ -68,3 +71,32 @@ class TestRenderCalendar:
         pages, img_paths = sample_data
         html = render_calendar(pages, year=2026, image_paths=img_paths)
         assert "page-break-after: always" in html
+
+
+class TestCalendarPageCss:
+    """Layer 1: CSS-Stabilitätsfix."""
+
+    @pytest.mark.unit
+    def test_calendar_page_has_fixed_height(self):
+        """.calendar-page hat height: 210mm (nicht min-height)."""
+        css_path = os.path.join(
+            os.path.dirname(__file__), "..", "..",
+            "app", "calendar", "styles.css",
+        )
+        css = Path(css_path).read_text()
+        assert "height: 210mm" in css
+        assert "min-height: 210mm" not in css
+
+    @pytest.mark.unit
+    def test_grid_items_have_min_height_zero(self):
+        """.image-area img und .slot-placeholder haben min-height: 0."""
+        css_path = os.path.join(
+            os.path.dirname(__file__), "..", "..",
+            "app", "calendar", "styles.css",
+        )
+        css = Path(css_path).read_text()
+        img_block_start = css.index(".image-area img,")
+        img_block_end = css.index("}", css.index("{", img_block_start) + 1)
+        img_block = css[img_block_start:img_block_end]
+        assert "min-height: 0" in img_block
+        assert "min-width: 0" in img_block

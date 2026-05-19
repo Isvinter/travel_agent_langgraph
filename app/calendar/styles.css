@@ -22,7 +22,7 @@ body {
 /* ── Kalender-Seite ── */
 .calendar-page {
   width: 297mm;
-  min-height: 210mm;
+  height: 210mm;
   margin: 0;
   padding: 0;
   display: flex;
@@ -74,6 +74,8 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+  min-height: 0;
+  min-width: 0;
 }
 
 .slot-placeholder {
