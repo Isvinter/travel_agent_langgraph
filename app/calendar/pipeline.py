@@ -84,6 +84,15 @@ def run_calendar_pipeline(
         image_orientations=orientations,
     )
 
+    # Validierung (Layer 5)
+    from app.calendar.validator import validate_calendar_html
+    validation_issues = validate_calendar_html(html)
+    if validation_issues:
+        logger.warning(
+            "Kalender-Validierung: %d Problem(e) gefunden",
+            len(validation_issues),
+        )
+
     return CalendarResult(
         year=config.year,
         preset=config.preset,
