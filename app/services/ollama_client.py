@@ -68,6 +68,10 @@ def call_ollama(
     url = f"{base_url.rstrip('/')}/api/chat"
 
     messages = []
+    # /no_think als System-Prompt deaktiviert Thinking bei Gemma-Modellen zuverlässiger
+    # als der "thinking"-Payload (wird von manchen Versionen ignoriert).
+    if disable_thinking:
+        messages.append({"role": "system", "content": "/no_think"})
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     user_msg: dict = {"role": "user", "content": prompt}
