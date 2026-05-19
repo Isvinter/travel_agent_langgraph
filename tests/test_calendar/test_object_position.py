@@ -1,18 +1,7 @@
 """Layer 4: object-position Berechnung."""
 import pytest
-from app.calendar.layouts import SlotDimensions, SLOT_DIMENSIONS
-
-
-def _get_object_position(slot_dims: SlotDimensions, image_orientation: str) -> str:
-    """Bestimmt den object-position Wert basierend auf Slot-Format und Bild-Orientierung."""
-    if slot_dims.aspect_ratio > 1.5 and image_orientation == "portrait":
-        return "center 30%"
-    elif slot_dims.aspect_ratio > 1.5:
-        return "center center"
-    elif slot_dims.aspect_ratio < 0.67 and image_orientation == "landscape":
-        return "30% center"
-    else:
-        return "center center"
+from app.calendar.layouts import SLOT_DIMENSIONS
+from app.calendar.renderer import _get_object_position
 
 
 class TestObjectPosition:
@@ -50,6 +39,12 @@ class TestObjectPosition:
         assert _get_object_position(square_slot, "landscape") == "center center"
         assert _get_object_position(square_slot, "portrait") == "center center"
         assert _get_object_position(square_slot, "square") == "center center"
+
+    @pytest.mark.unit
+    def test_none_slot_dims_returns_center(self):
+        """None slot_dims: sicherer Fallback auf center center."""
+        assert _get_object_position(None, "landscape") == "center center"
+        assert _get_object_position(None, "portrait") == "center center"
 
     @pytest.mark.unit
     def test_square_image_always_center(self):
