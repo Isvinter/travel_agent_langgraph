@@ -79,7 +79,10 @@ def run_calendar_pipeline(
     image_paths = [img.path for img in selected]
 
     logger.info("Rendering: HTML-Erzeugung")
-    html = render_calendar(pages, config.year, image_paths)
+    html = render_calendar(
+        pages, config.year, image_paths,
+        image_orientations=orientations,
+    )
 
     return CalendarResult(
         year=config.year,

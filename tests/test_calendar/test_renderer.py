@@ -100,3 +100,62 @@ class TestCalendarPageCss:
         img_block = css[img_block_start:img_block_end]
         assert "min-height: 0" in img_block
         assert "min-width: 0" in img_block
+
+
+class TestObjectPositionInHtml:
+    @pytest.mark.unit
+    def test_renderer_accepts_orientations(self, sample_data):
+        """Renderer akzeptiert und verarbeitet image_orientations."""
+        pages, img_paths = sample_data
+        html = render_calendar(
+            pages, year=2026, image_paths=img_paths,
+            image_orientations=["landscape", "portrait", "square"],
+        )
+        assert "<!DOCTYPE html>" in html
+
+    @pytest.mark.unit
+    def test_object_position_in_output_for_mismatch(self, tmp_path):
+        """Bei Orientation-Fehlpassung erscheint object-position im HTML."""
+        from PIL import Image
+        from app.calendar.models import CalendarMonthPage, MonthSlot
+
+        p = tmp_path / "portrait.jpg"
+        img = Image.new("RGB", (600, 800))
+        img.save(p, "JPEG")
+        img_paths = [str(p)]
+
+        page = CalendarMonthPage(
+            month=6, month_name="Juni", preset_id="cal_double_stacked",
+            slots=[
+                MonthSlot(slot_id="top", image_index=0),
+                MonthSlot(slot_id="bottom", image_index=0),
+            ],
+        )
+
+        html = render_calendar(
+            [page], year=2026, image_paths=img_paths,
+            image_orientations=["portrait"],
+        )
+        assert "object-position: center 30%" in html
+
+    @pytest.mark.unit
+    def test_no_object_position_for_good_match(self, tmp_path):
+        """Bei guter Passung (Landscape in Breitslot) kein object-position."""
+        from PIL import Image
+        from app.calendar.models import CalendarMonthPage, MonthSlot
+
+        p = tmp_path / "landscape.jpg"
+        img = Image.new("RGB", (800, 600))
+        img.save(p, "JPEG")
+        img_paths = [str(p)]
+
+        page = CalendarMonthPage(
+            month=6, month_name="Juni", preset_id="cal_double_stacked",
+            slots=[MonthSlot(slot_id="top", image_index=0)],
+        )
+
+        html = render_calendar(
+            [page], year=2026, image_paths=img_paths,
+            image_orientations=["landscape"],
+        )
+        assert "object-position" not in html
