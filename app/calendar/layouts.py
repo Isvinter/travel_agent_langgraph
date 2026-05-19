@@ -1,4 +1,5 @@
 """Fixe Layout-Sequenz und Monatsnamen."""
+from dataclasses import dataclass
 
 MONTH_NAMES = [
     "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -34,9 +35,6 @@ def get_total_image_slots() -> int:
         preset = load_preset(preset_id, presets_dir)
         total += preset.image_count
     return total
-
-
-from dataclasses import dataclass
 
 
 @dataclass
