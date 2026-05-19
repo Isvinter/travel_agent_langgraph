@@ -52,6 +52,16 @@ def run_calendar_pipeline(
     )
     logger.info("Stufe 1 abgeschlossen: %d Fotos ausgewählt", len(selected))
 
+    # Orientierungen der ausgewählten Bilder ermitteln
+    from app.calendar.orientation import get_orientations
+    orientations = get_orientations([img.path for img in selected])
+    logger.info(
+        "Orientierungen: %d landscape, %d portrait, %d square",
+        orientations.count("landscape"),
+        orientations.count("portrait"),
+        orientations.count("square"),
+    )
+
     logger.info("Stufe 2: Monats-Zuweisung")
     pages = assign_photos_to_months(
         selected_photos=selected,
@@ -60,6 +70,7 @@ def run_calendar_pipeline(
         model=config.model,
         base_url=base_url,
         custom_instructions=config.custom_instructions,
+        orientations=orientations,
     )
     logger.info("Stufe 2 abgeschlossen: %d Seiten", len(pages))
 

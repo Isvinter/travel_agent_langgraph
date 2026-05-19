@@ -35,17 +35,41 @@ def _build_assignment_prompt(
     year: int,
     preset_criteria: str,
     custom_instructions: Optional[str] = None,
+    orientations: Optional[list[str]] = None,
 ) -> str:
-    photos_text = "\n".join(
-        f"  {i}: {fname}" + (f" (EXIF: {date})" if date else "")
-        for i, (fname, date) in enumerate(selected_photos)
-    )
+    if orientations and len(orientations) == len(selected_photos):
+        photos_text = "\n".join(
+            f"  {i}: {fname}"
+            + (f" (EXIF: {date})" if date else "")
+            + f" ({orientations[i].upper()})"
+            for i, (fname, date) in enumerate(selected_photos)
+        )
+    else:
+        photos_text = "\n".join(
+            f"  {i}: {fname}" + (f" (EXIF: {date})" if date else "")
+            for i, (fname, date) in enumerate(selected_photos)
+        )
 
     presets_dir = os.path.join(os.path.dirname(__file__), "preset_data")
     layout_lines = []
     for i, (month_name, preset_id) in enumerate(CALENDAR_LAYOUT_SEQUENCE):
         preset = load_preset(preset_id, presets_dir)
-        layout_lines.append(f"  {i}: {month_name} → {preset_id} ({preset.image_count} Bilder)")
+        from app.calendar.layouts import SLOT_DIMENSIONS
+        dims = SLOT_DIMENSIONS.get(preset_id, {})
+        orientations_hint = ""
+        if dims:
+            wide_slots = [sid for sid, d in dims.items() if d.aspect_ratio > 1.5]
+            tall_slots = [sid for sid, d in dims.items() if d.aspect_ratio < 0.67]
+            hints = []
+            if wide_slots:
+                hints.append(f"Breitslots ({', '.join(wide_slots)}): Querformat bevorzugen")
+            if tall_slots:
+                hints.append(f"Hochslots ({', '.join(tall_slots)}): Hochformat bevorzugen")
+            if hints:
+                orientations_hint = " [" + "; ".join(hints) + "]"
+        layout_lines.append(
+            f"  {i}: {month_name} → {preset_id} ({preset.image_count} Bilder){orientations_hint}"
+        )
 
     extra = f"\nZusätzliche Anweisungen: {custom_instructions}" if custom_instructions else ""
 
@@ -59,6 +83,10 @@ def _build_assignment_prompt(
         "Saisonale Passung beachten: Schnee/Winter → Januar/Dezember, "
         "Blumen/Grün → April/Mai, Sonne/Strand → Juli/August, "
         "Herbstfarben → Oktober/November.\n\n"
+        "Slot-Orientierungen beachten:\n"
+        "- 'wide' Slots (Verhältnis > 1.5): bevorzuge Querformat-Fotos\n"
+        "- 'tall' Slots (Verhältnis < 0.67): bevorzuge Hochformat-Fotos\n"
+        "- 'square' Slots (0.67 ≤ Verhältnis ≤ 1.5): beide Formate ok\n\n"
         "Antworte im Format:\n"
         "# Deckblatt\n"
         "  cover_img: 5\n"
@@ -96,33 +124,85 @@ def _parse_assignment_response(response: Optional[str]) -> dict[str, list[str]]:
 def _fallback_assignment(
     selected_photos: list[ImageData],
     year: int,
+    orientations: Optional[list[str]] = None,
 ) -> list[CalendarMonthPage]:
-    """Fallback: Chronologische/EXIF-basierte Zuordnung."""
+    """Fallback: Orientierungs-bewusste Zuordnung."""
     presets_dir = os.path.join(os.path.dirname(__file__), "preset_data")
 
-    dated = []
-    undated = []
-    for i, img in enumerate(selected_photos):
-        dt = _parse_exif_date(img.timestamp)
-        if dt:
-            dated.append((i, dt))
-        else:
-            undated.append(i)
+    if orientations and len(orientations) == len(selected_photos):
+        landscapes = [i for i, o in enumerate(orientations) if o == "landscape"]
+        portraits = [i for i, o in enumerate(orientations) if o == "portrait"]
+        squares = [i for i, o in enumerate(orientations) if o == "square"]
+    else:
+        landscapes = list(range(len(selected_photos)))
+        portraits = []
+        squares = []
 
-    dated.sort(key=lambda x: x[1])
-    sorted_indices = [i for i, _ in dated] + undated
+    all_indices = landscapes + squares + portraits
+    if not all_indices:
+        all_indices = [0]
+
+    from app.calendar.layouts import SLOT_DIMENSIONS
 
     pages = []
-    photo_idx = 0
+    landscape_ptr = 0
+    portrait_ptr = 0
+    square_ptr = 0
+
+    def next_landscape():
+        nonlocal landscape_ptr
+        if landscapes:
+            idx = landscapes[landscape_ptr % len(landscapes)]
+            landscape_ptr += 1
+            return idx
+        if squares:
+            nonlocal square_ptr
+            idx = squares[square_ptr % len(squares)]
+            square_ptr += 1
+            return idx
+        return all_indices[landscape_ptr % len(all_indices)]
+
+    def next_portrait():
+        nonlocal portrait_ptr
+        if portraits:
+            idx = portraits[portrait_ptr % len(portraits)]
+            portrait_ptr += 1
+            return idx
+        if squares:
+            nonlocal square_ptr
+            idx = squares[square_ptr % len(squares)]
+            square_ptr += 1
+            return idx
+        return all_indices[portrait_ptr % len(all_indices)]
+
+    def next_square():
+        nonlocal square_ptr
+        if squares:
+            idx = squares[square_ptr % len(squares)]
+            square_ptr += 1
+            return idx
+        return all_indices[square_ptr % len(all_indices)]
 
     for month, preset_id in CALENDAR_LAYOUT_SEQUENCE:
         preset = load_preset(preset_id, presets_dir)
+        dims = SLOT_DIMENSIONS.get(preset_id, {})
         slots = []
-        for slot in preset.slots:
-            if slot.type == "image":
-                img_index = sorted_indices[photo_idx % len(sorted_indices)] if sorted_indices else 0
-                slots.append(MonthSlot(slot_id=slot.id, image_index=img_index))
-                photo_idx += 1
+        for slot_def in preset.slots:
+            if slot_def.type != "image":
+                continue
+            slot_dims = dims.get(slot_def.id)
+            if slot_dims:
+                if slot_dims.aspect_ratio > 1.5:
+                    img_index = next_landscape()
+                elif slot_dims.aspect_ratio < 0.67:
+                    img_index = next_portrait()
+                else:
+                    img_index = next_square()
+            else:
+                img_index = all_indices[len(slots) % len(all_indices)]
+
+            slots.append(MonthSlot(slot_id=slot_def.id, image_index=img_index))
+
         month_num = 0 if month == "Deckblatt" else MONTH_NAMES.index(month) + 1
         pages.append(CalendarMonthPage(
             month=month_num,
@@ -141,11 +221,12 @@ def assign_photos_to_months(
     model: str = "gemma4:26b-ctx128k",
     base_url: str = OLLAMA_BASE_URL,
     custom_instructions: Optional[str] = None,
+    orientations: Optional[list[str]] = None,
 ) -> list[CalendarMonthPage]:
     """LLM-basierte Zuordnung von Fotos zu Kalender-Monaten und Slots."""
     if not selected_photos:
         logger.warning("Keine Fotos zur Auswahl, verwende Fallback ohne Bilder")
-        return _fallback_assignment([], year)
+        return _fallback_assignment([], year, orientations=orientations)
 
     criteria = CALENDAR_PRESET_CRITERIA.get(preset, CALENDAR_PRESET_CRITERIA["mixed"])
 
@@ -158,7 +239,9 @@ def assign_photos_to_months(
             date_str = dt.strftime("%Y-%m-%d")
         photo_list.append((fname, date_str))
 
-    prompt = _build_assignment_prompt(photo_list, year, criteria, custom_instructions)
+    prompt = _build_assignment_prompt(
+        photo_list, year, criteria, custom_instructions, orientations=orientations
+    )
 
     response = call_ollama(
         prompt,
@@ -166,7 +249,7 @@ def assign_photos_to_months(
         base_url=base_url,
         temperature=0.0,
         top_p=0.1,
-        num_predict=2048,  # genug für 35 Slot-Zuweisungen, aber nicht zu viel
+        num_predict=4096,  # /no_think reduziert Thinking, genug für 35 Slot-Zuweisungen
         timeout=120,
         disable_thinking=True,
     )
@@ -182,7 +265,7 @@ def assign_photos_to_months(
             logger.info("LLM-Zuweisung unvollständig (%d Seiten), verwende Fallback", len(pages))
 
     logger.info("LLM-Zuweisung fehlgeschlagen, verwende Fallback")
-    return _fallback_assignment(selected_photos, year)
+    return _fallback_assignment(selected_photos, year, orientations=orientations)
 
 
 def _build_pages_from_parsed(
