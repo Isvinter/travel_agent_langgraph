@@ -18,3 +18,5 @@ travel_agent.db
 node_modules/
 .worktrees/
 .superpowers/
+travel_agent.db-shm
+travel_agent.db-wal
